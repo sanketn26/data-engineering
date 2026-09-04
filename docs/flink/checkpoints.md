@@ -87,7 +87,7 @@ env.get_checkpoint_config().set_checkpointing_mode(CheckpointingMode.EXACTLY_ONC
 # Timeout if checkpoint takes too long
 env.get_checkpoint_config().set_checkpoint_timeout(120_000)
 
-# Keep 2 checkpoints (in case latest is corrupted)
+# Allow only one in-flight checkpoint, with a 30s minimum pause between checkpoints
 env.get_checkpoint_config().set_max_concurrent_checkpoints(1)
 env.get_checkpoint_config().set_min_pause_between_checkpoints(30_000)
 ```
