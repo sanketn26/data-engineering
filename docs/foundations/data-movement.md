@@ -58,7 +58,7 @@ Compression reduces network transfer time at the cost of CPU. For data-intensive
 | lz4 | Moderate | Very fast | Low-latency, Kafka default |
 | zstd | High | Fast | ClickHouse, Parquet, general purpose |
 
-Kafka's default compression is `lz4` for producer output and `none` for stored messages. ClickHouse uses `lz4` by default with optional `zstd` for colder data.
+Kafka producer compression defaults to `none`; `lz4`, `snappy`, `gzip`, and `zstd` are common explicit choices. ClickHouse uses `lz4` by default with optional `zstd` for colder data.
 
 ---
 
