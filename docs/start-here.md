@@ -1,112 +1,130 @@
+---
+title: Start Here
+description: What this academy is, who it is for, and the five production systems that run through every module.
+---
+
 # Start Here
 
 Before you open the first lesson, understand what this academy is and is not.
 
----
+## What this is
 
-## What This Is
-
-A serious engineering resource for people who want to understand how data systems actually work at scale — not memorise feature lists, not pass a certification, not build a demo.
+A serious engineering resource for people who want to understand how data systems work at scale — not memorise feature lists, not pass a certification, not build a weekend demo.
 
 The objective:
 
 > Given a data workload — its scale, latency requirements, access patterns, reliability requirements, and cost constraints — you can derive an appropriate architecture, choose sensible technologies, explain their trade-offs, predict how they will fail, debug them in production, and evolve the architecture as scale increases.
 
----
+That sentence is the exam. Every module exists to make it answerable.
 
-## What This Is Not
+## What this is not
 
-- It is not a tutorial for beginners
-- It is not a documentation mirror
-- It is not a "learn tool X in N days" course
-- It is not a checklist to memorise for interviews
+- A tutorial for beginners
+- A documentation mirror of Spark / Kafka / ClickHouse
+- A “learn tool X in N days” course
+- A checklist to memorise for interviews
 
----
+If you want product docs, read the product docs. If you want to know **why the product looks like that**, stay here.
 
-## The Founding Intuition
+## Who this is for
+
+Experienced data engineers, senior software / backend / platform engineers, ML engineers who own pipelines, SREs who get paged for lag, Staff-track engineers who must justify a stack.
+
+**You should already know:** Python, SQL, Linux, Docker, Git, basic databases, basic cloud, and what a production incident feels like.
+
+**You will not be taught:** what an API is, what JSON is, what `SELECT` means, what a container is.
+
+**You will be taught:** partitioning, shuffle, logs, time, state, table formats, columnar layout, cardinality, and the operational consequences of each.
+
+!!! warning "Prerequisite check"
+    If the words *offset*, *partition*, *join*, *index*, and *SLA* are unfamiliar in an operational sense, this academy will feel like it starts in the middle — because it does. Build those foundations first.
+
+## The founding intuition
 
 Every major data technology was built because someone had a problem they could not solve with existing tools.
 
-Kafka was not invented because "microservices need messaging." It was invented because databases were not designed to handle millions of writes per second with decoupled producers and consumers and durable replay.
+Kafka was not invented because “microservices need messaging.” It was invented because databases were not designed for millions of writes per second with decoupled producers, independent consumers, and durable replay.
 
-ClickHouse was not invented because queries should be fast. It was invented because analytical workloads that scan billions of rows for aggregations perform terribly on row-oriented storage.
+ClickHouse was not invented because “queries should be fast.” It was invented because analytical workloads that scan billions of rows for a handful of columns perform terribly on row-oriented storage.
 
-Flink was not invented because streaming is exciting. It was invented because systems need to reason about time — event time, not processing time — and maintain consistent state across distributed workers under failure.
+Flink was not invented because streaming is fashionable. It was invented because systems need to reason about **event time**, not processing time, and keep consistent state across workers that crash.
 
-If you understand *why* these systems exist, you will be able to reason about systems you have never used before.
+If you understand *why* these systems exist, you can reason about systems you have never used.
 
----
+## Five running production systems
 
-## Five Running Production Systems
+The same datasets flow through different technologies so you can compare them directly. Do not treat them as flavour text — they are the workload you will be asked to design for.
 
-Throughout the entire academy, you will work with five fictional but realistic production systems. The same datasets flow through different technologies so you can compare them directly.
-
-### System A — SaaS Analytics Platform
+### System A — SaaS analytics platform
 
 Millions of users generate product events:
 
+```json
+{
+  "timestamp": "2024-01-15T10:30:00Z",
+  "customer_id": "cust_0042",
+  "user_id": "user_98712",
+  "service": "api-gateway",
+  "endpoint": "/v2/events",
+  "region": "eu-west-1",
+  "latency_ms": 45,
+  "status_code": 200,
+  "bytes": 1024
+}
 ```
-{timestamp, customer_id, user_id, service, endpoint, region, latency_ms, status_code, bytes}
-```
 
-You will see this workload in Kafka (ingestion), Spark (transformation), Iceberg (historical storage), Trino (ad-hoc querying), and ClickHouse (dashboard queries).
+You will see this workload in Kafka (ingestion), Spark (transformation), Iceberg (historical storage), Trino (ad-hoc querying), and ClickHouse (dashboard queries). The interesting property is **skew**: one enterprise customer can be 40% of volume.
 
-### System B — Security / Observability Platform
+### System B — Security / observability platform
 
-Billions of events per day: logs, metrics, traces, security events. High ingestion rate, high cardinality, late events, real-time detection, historical investigation.
+Billions of events per day: logs, metrics, traces, security events. High ingestion, high cardinality, late events, real-time detection, historical investigation. This is where Kafka partitions, Flink watermarks, ClickHouse `ORDER BY`, and Iceberg's cold path earn their keep.
 
-### System C — E-Commerce Platform
+### System C — E-commerce platform
 
-Orders, payments, users, inventory, clickstream, recommendations. CDC, batch and streaming, lakehouse, graph relationships.
+Orders, payments, users, inventory, clickstream, recommendations. CDC from OLTP, batch plus streaming, lakehouse modelling, graph relationships for fraud and “bought together.”
 
-### System D — IoT Platform
+### System D — IoT platform
 
-Millions of devices sending sensor readings every 30 seconds. Time series, windows, downsampling, retention.
+Millions of devices sending `{timestamp, device_id, sensor, value}` every 30 seconds. Time series, windows, downsampling, retention tiers. Cardinality explosions live here.
 
-### System E — Fraud Graph
+### System E — Fraud graph
 
-Users → Devices → IPs → Transactions → Merchants. Graph traversal, connected components, fraud ring detection.
+Users → Devices → IPs → Transactions → Merchants. Traversal, connected components, fraud-ring detection. Relational joins get embarrassing; graph modelling does not.
 
----
+## The teaching loop
 
-## The Teaching Loop
+Every substantial lesson uses five acts. Not every page needs fifteen repeated headings; orientation and reference pages use the shape that best serves their job.
 
-Every lesson follows this progression:
+1. **PROBLEM** — workload, learner outcomes, and why the constraint matters.
+2. **MODEL** — the intuition and vocabulary needed to reason.
+3. **MECHANISM** — internals and a runnable or worked example.
+4. **PRODUCTION** — failure, debugging, scale, trade-offs, and alternatives where relevant.
+5. **ASSESSMENT** — an observable exit check or contribution to the capstone.
 
-1. **USE CASE** — what concrete problem are we solving?
-2. **WHY** — why is this problem hard at scale?
-3. **INTUITION** — what mental model makes the solution feel obvious?
-4. **WHAT** — what concept or technology addresses it?
-5. **INTERNALS** — what actually happens inside the system?
-6. **ARCHITECTURE** — where does it live in a real system?
-7. **HOW** — how do I build or use it?
-8. **GOTCHAS** — where do experienced engineers still get this wrong?
-9. **FAILURE MODES** — how does it break in production?
-10. **DEBUGGING** — how would I investigate that failure?
-11. **SCALE** — what changes at 10×, 100×, 1000× scale?
-12. **TRADE-OFFS** — what am I giving up by choosing this?
-13. **ALTERNATIVES** — when would a different approach be better?
-14. **HOW TO APPLY** — how do I recognise this pattern at work?
-15. **EXERCISE** — can I reason through a novel problem?
+Three levels of understanding, same as the sister academies:
 
----
+| Level | When | Focus |
+|-------|------|--------|
+| **1 — Intuition** | Explaining to a teammate | Analogies, diagrams, workloads |
+| **2 — Engineering** | Design review | Algorithms, storage, execution |
+| **3 — Production** | On-call / Staff | Bottlenecks, cost, recovery, debugging |
 
-## Before You Proceed
+## Before you proceed
 
-Ask yourself: *can I currently answer these questions without looking anything up?*
+Ask yourself, without looking anything up:
 
 - Why is data partitioned in the first place?
 - What creates a shuffle in a distributed computation?
-- Why does consumer lag increase?
+- Why does consumer lag increase on **one** partition?
 - What is the difference between event time and processing time?
 - Why does ClickHouse sort data on disk?
 - When would graph modelling outperform relational modelling?
 
 If most of these feel unclear, start with [Phase 0: Foundations](foundations/index.md).
 
-If you are comfortable with distributed systems fundamentals, jump to the technology most relevant to your current work.
-
----
+If you already operate these systems and have a specific gap, use [Learning paths](learning-paths.md).
 
 → [How to Study](how-to-study.md)
 → [Phase 0: Foundations](foundations/index.md)
+→ [Capstone and rubric](capstone.md)
+→ [Versions and primary sources](reference/version-matrix.md)
