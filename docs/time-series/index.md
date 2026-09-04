@@ -41,7 +41,7 @@ These properties make generic databases inefficient and motivate specialised tim
 The **IoT Platform**:
 - 10 million devices
 - Each sends `{device_id, sensor, value, timestamp}` every 30 seconds
-- Total: 10M × 30 = ~333,333 data points per second
+- Total: 10M ÷ 30 = ~333,333 data points per second
 - Queries: "latest value", "1-hour chart", "1-year trend", anomaly detection
 
 And the **Security / Observability Platform**:
