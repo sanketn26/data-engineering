@@ -1,4 +1,4 @@
-# Apache Ray
+# Ray
 
 ## The Problem
 
