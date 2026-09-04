@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cardinality Calculator</title>
+<style>
+  body { font-family: system-ui, sans-serif; background: #0d1117; color: #e6edf3; margin: 0; padding: 20px; }
+  h1 { color: #58a6ff; }
+  .card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 20px; margin: 15px 0; }
+  label { display: block; margin-bottom: 4px; color: #8b949e; font-size: 14px; }
+  .input-row { display: flex; align-items: center; gap: 12px; margin: 10px 0; }
+  .dim-name { width: 160px; font-size: 14px; }
+  input[type=number] { background: #0d1117; color: #e6edf3; border: 1px solid #30363d; padding: 6px 10px; border-radius: 4px; width: 100px; }
+  input[type=range] { flex: 1; }
+  .val-display { width: 80px; text-align: right; color: #58a6ff; font-weight: bold; }
+  .result { margin: 20px 0; }
+  .big-number { font-size: 48px; font-weight: bold; margin: 10px 0; }
+  .ok { color: #3fb950; }
+  .warn { color: #e3b341; }
+  .danger { color: #f85149; }
+  .breakdown { font-family: monospace; font-size: 14px; background: #0d1117; padding: 15px; border-radius: 6px; }
+  .verdict { padding: 15px; border-radius: 6px; margin-top: 15px; }
+  .verdict.ok { background: #1a3a1a; border: 1px solid #3fb950; }
+  .verdict.warn { background: #3a2a00; border: 1px solid #e3b341; }
+  .verdict.danger { background: #3a1a1a; border: 1px solid #f85149; }
+  button { background: #238636; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; }
+  .explanation { background: #161b22; border-left: 4px solid #58a6ff; padding: 15px; border-radius: 4px; margin-top: 20px; }
+</style>
+</head>
+<body>
+<h1>Time Series Cardinality Calculator</h1>
+<p>Calculate the total cardinality of your metric label set. High cardinality kills TSDB performance.</p>
+
+<div class="card">
+  <h3 style="margin-top:0;color:#e3b341">Your dimensions</h3>
+  <p style="color:#8b949e;font-size:13px">Enter the number of distinct values for each label/dimension.</p>
+
+  <div id="dims">
+    <div class="input-row">
+      <span class="dim-name">services</span>
+      <input type="range" min="1" max="500" value="20" oninput="this.nextElementSibling.textContent=this.value;calculate()">
+      <span class="val-display">20</span>
+      <span style="color:#8b949e;font-size:12px">distinct values</span>
+    </div>
+    <div class="input-row">
+      <span class="dim-name">endpoints</span>
+      <input type="range" min="1" max="500" value="50" oninput="this.nextElementSibling.textContent=this.value;calculate()">
+      <span class="val-display">50</span>
+      <span style="color:#8b949e;font-size:12px">distinct values</span>
+    </div>
+    <div class="input-row">
+      <span class="dim-name">regions</span>
+      <input type="range" min="1" max="100" value="5" oninput="this.nextElementSibling.textContent=this.value;calculate()">
+      <span class="val-display">5</span>
+      <span style="color:#8b949e;font-size:12px">distinct values</span>
+    </div>
+    <div class="input-row">
+      <span class="dim-name">status_codes</span>
+      <input type="range" min="1" max="100" value="10" oninput="this.nextElementSibling.textContent=this.value;calculate()">
+      <span class="val-display">10</span>
+      <span style="color:#8b949e;font-size:12px">distinct values</span>
+    </div>
+    <div class="input-row" id="extra-dim" style="display:none">
+      <span class="dim-name">user_ids</span>
+      <input type="range" min="1000" max="1000000" step="1000" value="100000" oninput="this.nextElementSibling.textContent=parseInt(this.value).toLocaleString();calculate()">
+      <span class="val-display">100,000</span>
+      <span style="color:#8b949e;font-size:12px">distinct values</span>
+    </div>
+  </div>
+
+  <button onclick="toggleUserDim()" id="user-btn" style="margin-top:12px">+ Add user_id dimension</button>
+</div>
+
+<div class="result card" id="result">
+  <div id="big-num" class="big-number ok">5,000</div>
+  <div id="breakdown" class="breakdown"></div>
+  <div id="verdict" class="verdict ok"></div>
+</div>
+
+<div class="explanation">
+  <h3 style="margin-top:0;color:#58a6ff">Why cardinality matters</h3>
+  <p>In Prometheus and VictoriaMetrics, each unique combination of label values is a separate <strong>time series</strong>. Each time series requires index entries, memory, and disk space.</p>
+  <ul>
+    <li><strong>&lt;100K series</strong>: Prometheus handles this comfortably</li>
+    <li><strong>100K–1M series</strong>: Prometheus starts struggling. VictoriaMetrics handles this well.</li>
+    <li><strong>&gt;1M series</strong>: Most TSDBs struggle. Consider removing high-cardinality labels (user_id, request_id) — use ClickHouse for per-user analytics instead.</li>
+    <li><strong>&gt;10M series</strong>: TSDB is the wrong tool. Use ClickHouse with high-cardinality columns.</li>
+  </ul>
+  <p><strong>Rule</strong>: never use user IDs, session IDs, or request IDs as TSDB labels. These belong in event tables (ClickHouse), not metric labels (Prometheus).</p>
+</div>
+
+<script>
+let showUser = false;
+
+function toggleUserDim() {
+  showUser = !showUser;
+  document.getElementById('extra-dim').style.display = showUser ? 'flex' : 'none';
+  document.getElementById('user-btn').textContent = showUser ? '− Remove user_id dimension' : '+ Add user_id dimension';
+  calculate();
+}
+
+function calculate() {
+  const sliders = document.querySelectorAll('#dims .input-row input[type=range]');
+  const dims = ['services', 'endpoints', 'regions', 'status_codes'];
+  let product = 1;
+  const parts = [];
+
+  sliders.forEach((sl, i) => {
+    if (!showUser && i === 4) return;
+    const v = parseInt(sl.value.replace(/,/g, ''));
+    const name = dims[i] || 'user_ids';
+    parts.push({name, v});
+    product *= v;
+  });
+
+  const bigNum = document.getElementById('big-num');
+  const breakdown = document.getElementById('breakdown');
+  const verdict = document.getElementById('verdict');
+
+  bigNum.textContent = product.toLocaleString() + ' series';
+
+  let cls, label, msg;
+  if (product < 100000) {
+    cls = 'ok'; label = '✓ Safe';
+    msg = 'This cardinality is manageable by Prometheus. You have headroom to grow.';
+  } else if (product < 1000000) {
+    cls = 'warn'; label = '⚠ High';
+    msg = 'Prometheus will struggle at this cardinality. VictoriaMetrics handles it better. Monitor memory usage.';
+  } else if (product < 10000000) {
+    cls = 'danger'; label = '✗ Very high';
+    msg = 'Most TSDBs will struggle. Identify and remove the highest-cardinality label. Use ClickHouse for per-dimension analytics.';
+  } else {
+    cls = 'danger'; label = '✗ TSDB is the wrong tool';
+    msg = 'At this cardinality, no TSDB will perform well. Use ClickHouse with columnar storage and high-cardinality columns instead.';
+  }
+
+  bigNum.className = `big-number ${cls}`;
+  breakdown.innerHTML = parts.map((p,i) => {
+    const prev = parts.slice(0,i+1).reduce((a,b)=>a*b.v,1);
+    return `${p.name.padEnd(15)} × ${p.v.toLocaleString().padStart(10)} = ${prev.toLocaleString().padStart(12)} total series`;
+  }).join('\n');
+
+  verdict.className = `verdict ${cls}`;
+  verdict.innerHTML = `<strong>${label}</strong>: ${msg}`;
+}
+
+calculate();
+</script>
+</body>
+</html>
