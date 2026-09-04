@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kafka Partition Simulator</title>
+<style>
+  body { font-family: system-ui, sans-serif; background: #0d1117; color: #e6edf3; margin: 0; padding: 20px; }
+  h1 { color: #58a6ff; }
+  .controls { display: flex; gap: 20px; flex-wrap: wrap; margin: 20px 0; }
+  .control-group { background: #161b22; padding: 15px; border-radius: 8px; border: 1px solid #30363d; min-width: 200px; }
+  label { display: block; margin-bottom: 6px; color: #8b949e; font-size: 14px; }
+  input[type=range] { width: 100%; }
+  input[type=number] { background: #0d1117; color: #e6edf3; border: 1px solid #30363d; padding: 4px 8px; border-radius: 4px; width: 60px; }
+  button { background: #238636; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 14px; }
+  button:hover { background: #2ea043; }
+  button.danger { background: #da3633; }
+  button.danger:hover { background: #f85149; }
+  .sim-area { display: flex; gap: 20px; flex-wrap: wrap; margin-top: 20px; }
+  .partition { background: #161b22; border: 2px solid #30363d; border-radius: 8px; padding: 15px; min-width: 150px; flex: 1; }
+  .partition.hot { border-color: #f85149; }
+  .partition.warm { border-color: #e3b341; }
+  .partition.cool { border-color: #3fb950; }
+  .partition-title { font-weight: bold; margin-bottom: 10px; }
+  .consumer { background: #0d1117; border: 1px solid #388bfd; border-radius: 4px; padding: 6px 10px; margin-top: 4px; font-size: 13px; }
+  .lag-bar { height: 8px; background: #21262d; border-radius: 4px; margin-top: 6px; }
+  .lag-fill { height: 100%; border-radius: 4px; transition: width 0.3s; }
+  .stats { background: #161b22; padding: 15px; border-radius: 8px; border: 1px solid #30363d; margin-top: 20px; }
+  .stat-row { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid #21262d; }
+  .stat-val { color: #58a6ff; font-weight: bold; }
+  .msg-log { background: #0d1117; border: 1px solid #30363d; border-radius: 4px; height: 100px; overflow-y: auto; padding: 8px; font-size: 12px; font-family: monospace; margin-top: 10px; }
+  .log-entry { color: #8b949e; }
+  .log-entry.warn { color: #e3b341; }
+  .log-entry.error { color: #f85149; }
+  .explanation { background: #161b22; border-left: 4px solid #58a6ff; padding: 15px; border-radius: 4px; margin-top: 20px; }
+  .explanation h3 { color: #58a6ff; margin-top: 0; }
+</style>
+</head>
+<body>
+<h1>Kafka Partition Simulator</h1>
+<p>Observe how partition distribution, consumer groups, and hot partitions affect throughput and lag.</p>
+
+<div class="controls">
+  <div class="control-group">
+    <label>Partitions: <span id="pcount-val">4</span></label>
+    <input type="range" id="pcount" min="1" max="8" value="4" oninput="document.getElementById('pcount-val').textContent=this.value">
+    <label>Consumers: <span id="ccount-val">4</span></label>
+    <input type="range" id="ccount" min="1" max="8" value="4" oninput="document.getElementById('ccount-val').textContent=this.value">
+  </div>
+  <div class="control-group">
+    <label>Producer rate (msgs/sec): <span id="prate-val">100</span></label>
+    <input type="range" id="prate" min="10" max="500" step="10" value="100" oninput="document.getElementById('prate-val').textContent=this.value">
+    <label>Hot key ratio (%): <span id="hotkey-val">0</span></label>
+    <input type="range" id="hotkey" min="0" max="90" step="10" value="0" oninput="document.getElementById('hotkey-val').textContent=this.value">
+  </div>
+  <div class="control-group">
+    <label>Consumer speed (msgs/sec): <span id="cspeed-val">30</span></label>
+    <input type="range" id="cspeed" min="5" max="200" step="5" value="30" oninput="document.getElementById('cspeed-val').textContent=this.value">
+    <br><br>
+    <button onclick="startSim()">▶ Start</button>
+    <button class="danger" onclick="stopSim()" style="margin-left:8px">■ Stop</button>
+    <button onclick="resetSim()" style="margin-left:8px; background:#1f6feb">↺ Reset</button>
+  </div>
+</div>
+
+<div class="sim-area" id="sim-area"></div>
+
+<div class="stats">
+  <h3 style="margin-top:0;color:#58a6ff">Statistics</h3>
+  <div class="stat-row"><span>Total messages produced</span><span class="stat-val" id="stat-produced">0</span></div>
+  <div class="stat-row"><span>Total messages consumed</span><span class="stat-val" id="stat-consumed">0</span></div>
+  <div class="stat-row"><span>Max partition lag</span><span class="stat-val" id="stat-maxlag">0</span></div>
+  <div class="stat-row"><span>Hottest partition load</span><span class="stat-val" id="stat-hotload">0%</span></div>
+  <div class="stat-row"><span>Idle consumers</span><span class="stat-val" id="stat-idle">0</span></div>
+</div>
+
+<div class="msg-log" id="msg-log"><div class="log-entry">Simulation ready. Press Start.</div></div>
+
+<div class="explanation">
+  <h3>What to observe</h3>
+  <ul>
+    <li><strong>Hot key ratio = 0%</strong>: Even distribution. Each consumer handles similar load. Lag stays low.</li>
+    <li><strong>Hot key ratio > 50%</strong>: One partition receives most messages. One consumer falls behind. Others are idle. <em>This is a hot partition.</em></li>
+    <li><strong>Consumers > Partitions</strong>: Extra consumers are idle. Kafka assigns at most one consumer per partition per group.</li>
+    <li><strong>Consumer speed > Producer rate</strong>: Lag never accumulates. Consumers keep up.</li>
+    <li><strong>Consumer speed much lower than Producer rate</strong>: Lag grows. Scale consumers or reduce producer rate.</li>
+  </ul>
+</div>
+
+<script>
+let simInterval = null;
+let partitions = [];
+let totalProduced = 0;
+let totalConsumed = 0;
+let logLines = [];
+
+function log(msg, type='') {
+  logLines.push({msg, type, t: Date.now()});
+  if (logLines.length > 50) logLines.shift();
+  const el = document.getElementById('msg-log');
+  el.innerHTML = logLines.slice(-20).reverse().map(l =>
+    `<div class="log-entry ${l.type}">${new Date(l.t).toISOString().substr(11,8)} ${l.msg}</div>`
+  ).join('');
+}
+
+function resetSim() {
+  stopSim();
+  totalProduced = 0;
+  totalConsumed = 0;
+  logLines = [];
+  document.getElementById('msg-log').innerHTML = '<div class="log-entry">Simulation reset.</div>';
+  document.getElementById('stat-produced').textContent = '0';
+  document.getElementById('stat-consumed').textContent = '0';
+  document.getElementById('stat-maxlag').textContent = '0';
+  document.getElementById('sim-area').innerHTML = '';
+}
+
+function startSim() {
+  stopSim();
+  const numPartitions = parseInt(document.getElementById('pcount').value);
+  const numConsumers = parseInt(document.getElementById('ccount').value);
+  const prate = parseInt(document.getElementById('prate').value);
+  const hotkey = parseInt(document.getElementById('hotkey').value) / 100;
+  const cspeed = parseInt(document.getElementById('cspeed').value);
+
+  partitions = Array.from({length: numPartitions}, (_, i) => ({
+    id: i, lag: 0, consumer: null, produced: 0, consumed: 0
+  }));
+
+  // Assign consumers to partitions (round-robin, extras are idle)
+  for (let c = 0; c < Math.min(numConsumers, numPartitions); c++) {
+    partitions[c % numPartitions].consumer = `C${c}`;
+  }
+
+  if (numConsumers > numPartitions) {
+    log(`${numConsumers - numPartitions} consumer(s) idle — more consumers than partitions`, 'warn');
+  }
+
+  renderPartitions(partitions, numConsumers);
+
+  simInterval = setInterval(() => {
+    // Produce messages
+    for (let i = 0; i < prate / 10; i++) {
+      let pIdx;
+      if (Math.random() < hotkey) {
+        pIdx = 0; // hot partition
+      } else {
+        pIdx = Math.floor(Math.random() * numPartitions);
+      }
+      partitions[pIdx].lag++;
+      partitions[pIdx].produced++;
+      totalProduced++;
+    }
+
+    // Consume messages
+    partitions.forEach(p => {
+      if (p.consumer !== null && p.lag > 0) {
+        const consumed = Math.min(p.lag, Math.ceil(cspeed / 10));
+        p.lag = Math.max(0, p.lag - consumed);
+        p.consumed += consumed;
+        totalConsumed += consumed;
+      }
+    });
+
+    const maxLag = Math.max(...partitions.map(p => p.lag));
+    const hotLoad = numPartitions > 0 ? Math.round(partitions[0].produced / Math.max(1, totalProduced) * 100) : 0;
+    const idleConsumers = Math.max(0, numConsumers - numPartitions);
+
+    if (maxLag > 1000 && maxLag % 500 < 5) log(`Lag growing: max lag = ${maxLag} on partition ${partitions.findIndex(p=>p.lag===maxLag)}`, 'warn');
+    if (maxLag > 5000 && maxLag % 2000 < 5) log(`HIGH LAG ALERT: max lag = ${maxLag}`, 'error');
+
+    document.getElementById('stat-produced').textContent = totalProduced.toLocaleString();
+    document.getElementById('stat-consumed').textContent = totalConsumed.toLocaleString();
+    document.getElementById('stat-maxlag').textContent = maxLag.toLocaleString();
+    document.getElementById('stat-hotload').textContent = hotLoad + '%';
+    document.getElementById('stat-idle').textContent = idleConsumers;
+
+    renderPartitions(partitions, numConsumers);
+  }, 100);
+}
+
+function stopSim() {
+  if (simInterval) { clearInterval(simInterval); simInterval = null; }
+}
+
+function renderPartitions(parts, numConsumers) {
+  const area = document.getElementById('sim-area');
+  area.innerHTML = parts.map((p, i) => {
+    const maxLag = Math.max(...parts.map(x=>x.lag), 1);
+    const lagPct = Math.min(100, (p.lag / Math.max(maxLag, 100)) * 100);
+    const cls = p.lag > 2000 ? 'hot' : p.lag > 500 ? 'warm' : 'cool';
+    const lagColor = p.lag > 2000 ? '#f85149' : p.lag > 500 ? '#e3b341' : '#3fb950';
+    return `<div class="partition ${cls}">
+      <div class="partition-title">Partition ${i}</div>
+      <div style="font-size:12px;color:#8b949e">Lag: <span style="color:${lagColor};font-weight:bold">${p.lag.toLocaleString()}</span></div>
+      <div class="lag-bar"><div class="lag-fill" style="width:${lagPct}%;background:${lagColor}"></div></div>
+      <div style="font-size:11px;color:#8b949e;margin-top:4px">Produced: ${p.produced.toLocaleString()}</div>
+      ${p.consumer ? `<div class="consumer">${p.consumer} (consuming)</div>` : '<div style="color:#8b949e;font-size:12px;margin-top:8px">No consumer assigned</div>'}
+    </div>`;
+  }).join('') +
+  (numConsumers > parts.length ? Array.from({length: numConsumers - parts.length}, (_, i) =>
+    `<div class="partition" style="opacity:0.5"><div class="partition-title">Consumer C${parts.length+i}</div><div style="color:#8b949e;font-size:13px">IDLE — no partition assigned</div></div>`
+  ).join('') : '');
+}
+</script>
+</body>
+</html>
