@@ -1,154 +1,326 @@
-# Time Semantics
+# Time semantics
 
-Time is the most subtle concept in stream processing. Getting it wrong produces silently incorrect results.
+## Use case
 
----
+Fraud asks: **failed logins per user in the last 5 minutes.**
 
-## Three Types of Time
-
-### Event Time
-
-The timestamp *embedded in the event* — when the event actually occurred in the physical world.
+The event already carries the truth:
 
 ```json
 {
-  "user_id": "u123",
-  "action": "login_failed",
-  "timestamp": "2024-01-15T10:03:45.000Z"   ← event time
+  "timestamp": "2024-01-15T10:03:45.123Z",
+  "customer_id": "cust_1842",
+  "user_id": "u_99102",
+  "service": "auth",
+  "endpoint": "/login",
+  "region": "eu-west-1",
+  "latency_ms": 87,
+  "status_code": 401,
+  "bytes": 512
 }
 ```
 
-Event time is the "true" time. It is set by the application that generated the event, at the moment the event happened.
+A laptop on a train buffers 40 failed PIN attempts and flushes them 90 seconds late. If you bucket by the TaskManager clock, those attempts land in the *current* minute and may not sit next to each other. The user looks innocent in the 10:03 window and noisy at 10:05 — or the opposite. SOC dashboards lie; the attacker still got in.
 
-### Processing Time
-
-The system clock time *when the event is processed* by Flink.
-
-If an event was generated at 10:00:00 but arrived at Flink at 10:02:30 (delayed by buffering, network, batching), processing time is 10:02:30, but event time is 10:00:00.
-
-### Ingestion Time
-
-The time when Kafka received the event. Between event time and processing time.
+Observability p95 latency has the same bug if agents batch. IoT "device offline for 5 minutes" is the opposite problem: you *want* processing time ("we have not **received** a packet"). Mixing those up is the most expensive mistake in this module.
 
 ---
 
-## Why the Difference Matters
+## Why this is hard at scale
 
-> Calculate "failed logins per user per minute"
+Events are not a single increasing timestamp:
 
-If you use **processing time**:
-- Events generated at 10:00 but delayed by 90 seconds arrive at Flink at 10:01:30
-- They are assigned to the 10:01 minute window, not 10:00
-- Your dashboard shows incorrect counts for the "real" time
+- Many producers, many clocks (NTP drift, mobile timezones, `datetime.utcnow()` vs local).
+- Kafka preserves **per-partition** order, not global event-time order ([Kafka partitions](../kafka/partitions.md)).
+- Consumers lag: Flink may see 10:00 events at wall-clock 10:12.
+- Kafka partitions that go **idle** stop sending timestamps, so a global watermark that is the min across partitions **freezes**.
 
-If you use **event time**:
-- The 90-second delayed events still get assigned to the 10:00 window
-- Results are correct based on when events actually happened
-- But: you must wait for late events before closing the window
+At 50k events/s you can eyeball a few late records. At 2M/s, late data is a distribution you must encode as a watermark delay, not an exception handler.
+
+---
+
+## Intuition
+
+Three clocks:
+
+| Clock | Definition | Use |
+|-------|------------|-----|
+| **Event time** | `timestamp` in the payload (when it happened) | Fraud, analytics, SLIs about the world |
+| **Ingestion time** | When Kafka (or Flink source) first stamped the record | Compromise when producers have garbage clocks |
+| **Processing time** | Wall clock when the operator runs | Heartbeats, "have we received data", ops metrics |
 
 ```mermaid
 sequenceDiagram
-    participant App as Application
+    participant App as Auth service
     participant Kafka as Kafka
     participant Flink as Flink
 
-    App->>Kafka: event (timestamp=10:00:01)
-    App->>Kafka: event (timestamp=10:00:03)
-    App->>Kafka: event (timestamp=10:00:02) ← arrived late
+    App->>Kafka: event timestamp=10:00:01
+    App->>Kafka: event timestamp=10:00:03
+    App->>Kafka: event timestamp=10:00:02
 
-    Note over Kafka,Flink: Kafka delivers in arrival order
-
-    Kafka->>Flink: event (timestamp=10:00:01) at proc_time=10:00:05
-    Kafka->>Flink: event (timestamp=10:00:03) at proc_time=10:00:06
-    Kafka->>Flink: event (timestamp=10:00:02) at proc_time=10:01:45 ← late
+    Kafka->>Flink: 10:00:01 at proc=10:00:05
+    Kafka->>Flink: 10:00:03 at proc=10:00:06
+    Kafka->>Flink: 10:00:02 at proc=10:01:45
 ```
 
-At processing time 10:01:45, event time 10:00:02 arrives. If you are computing a 10:00–10:01 window, this event belongs in that window — but you have already "passed" it in processing time.
+A processing-time 1-minute window assigns the third record to 10:01. An event-time window assigns it to 10:00 — **if you have not already closed 10:00**.
+
+You cannot wait forever for stragglers. A **watermark** is an assertion: *I believe all events with event time ≤ W have arrived; anything older is late.*
 
 ---
 
-## Out-of-Order Events
+## Internals: assigning timestamps
 
-Events do not arrive in event-time order. This happens because:
-
-- Different paths through the network have different latencies
-- Mobile clients buffer events offline and send them when reconnected
-- Processing pipelines introduce delays
-- Kafka consumers may be behind
-
-```
-Arrival order at Flink:
-  t=10:00:01 ✓
-  t=10:00:03 ✓
-  t=10:00:02 ← out of order (arrived 2 seconds late)
-  t=10:00:07 ✓
-  t=10:00:04 ← out of order (arrived 3 seconds late)
-```
-
-When computing a 10:00–10:05 window using event time, you cannot close the window when you see `t=10:00:07` because there might still be late events for the 10:00–10:05 range.
-
-**You need a mechanism to say "I have probably seen all events up to time T."**
-
-That mechanism is the **watermark**.
-
----
-
-## Watermarks
-
-A watermark is an assertion: "I have seen all events with timestamps up to W. Future events with timestamps < W may still arrive, but I will treat them as late."
-
-Flink advances watermarks based on the event timestamps it observes, with a configurable **out-of-order tolerance**:
+Flink does not magically read `event["timestamp"]`. You provide a timestamp assigner (ms since epoch) and a watermark strategy.
 
 ```python
-# Allow events up to 10 seconds late
-watermark_strategy = WatermarkStrategy \
-    .for_bounded_out_of_orderness(Duration.of_seconds(10)) \
-    .with_timestamp_assigner(lambda e, t: e['timestamp_ms'])
+from pyflink.common.watermark_strategy import WatermarkStrategy
+from pyflink.common import Duration
+
+def ts_ms(event, _record_ts):
+    # parse event["timestamp"] → epoch millis
+    return event["ts_ms"]
+
+watermark = (
+    WatermarkStrategy.for_bounded_out_of_orderness(Duration.of_seconds(10))
+    .with_timestamp_assigner(ts_ms)
+)
 ```
 
-With a 10-second tolerance:
-- When Flink sees event time 10:00:50, it emits watermark 10:00:40
-- The 10:00–10:01 window closes when watermark passes 10:01
-- Events with event time < 10:00:40 arriving after watermark 10:00:40 are **late**
+`for_bounded_out_of_orderness(10s)` means: watermark = max observed event time − 10s (per watermark generator, then combined). When the generator sees 10:00:50, it emits W=10:00:40. A tumbling window `[10:00, 10:01)` closes once W passes 10:01 — i.e. once you have seen event times around 10:01:10.
 
-### Late Events
+**Monotonous timestamps** (`for_monotonous_timestamps`) set W to the last event time. Only if you *know* the source is ordered (a single partition, already sorted). Observability is not.
 
-Late events (arriving after the window has closed) can be:
-1. **Dropped** (simplest, may lose data)
-2. **Sent to a side output** for separate handling
-3. **Used to update** the already-emitted result (if the downstream accepts updates)
+**Ingestion time** in older Flink APIs stamped records at the source with processing time and then treated that stamp as event time. In 1.18, prefer: if producer clocks are lies, set the timestamp from Kafka's **record timestamp** (broker append time, `log.message.timestamp.type=LogAppendTime`) via the source's metadata, not from the payload.
+
+---
+
+## Internals: how watermarks move through the graph
+
+Each parallel source subtask generates watermarks. At a shuffle (`key_by`), the watermark of a downstream subtask is the **minimum** of watermarks from its inputs. A window operator closes a window when its **input watermark** passes the window end.
+
+Consequences:
+
+- One slow/late source partition holds back **all** keys on that downstream task, and often the job's visible watermark.
+- Idle inputs that send *nothing* never update their watermark.
+
+---
+
+## Internals: idle sources
+
+Kafka topic `login-events`, 12 partitions. Night time in `ap-south-1` means partitions that only hold that region's keys go quiet. Flink's Kafka source still has those partitions assigned. Their watermark generator sees no events. The downstream min watermark **stalls**. Daytime EU fraud windows do not close. Dashboards freeze. State grows because windows never fire.
+
+**Fix:** mark the source idle after a duration with no records:
 
 ```python
-late_output = OutputTag("late-events")
-result = stream \
-    .key_by("user_id") \
-    .window(TumblingEventTimeWindows.of(Time.minutes(1))) \
-    .allowed_lateness(Time.minutes(2)) \
-    .side_output_late_data(late_output) \
-    .aggregate(CountAggregateFunction())
+watermark = (
+    WatermarkStrategy.for_bounded_out_of_orderness(Duration.of_seconds(15))
+    .with_idleness(Duration.of_seconds(30))
+    .with_timestamp_assigner(ts_ms)
+)
+```
+
+After 30s of silence, that partition is excluded from the min. When it speaks again, it re-joins. Set idleness **longer than normal gaps, shorter than your stall SLO**. IoT devices that sleep for 15 minutes need a different value than auth traffic.
+
+!!! production-gotcha "Idleness hides a dead producer"
+    If a partition is idle because the producer crashed, watermarks advance and windows close **without** that region's events. Those events, when the producer returns, are late. Pair idleness with an alert on Kafka ingest per partition.
+
+---
+
+## Late events
+
+After W has passed a window's end, an event for that window is **late**.
+
+Policies:
+
+1. **Drop** (default if you do nothing extra).
+2. **Allowed lateness** — keep window state around and update (may emit revisions).
+3. **Side output** — send lates to another sink for audit / reprocessing.
+
+```python
+from pyflink.datastream import OutputTag
+from pyflink.datastream.window import TumblingEventTimeWindows
+from pyflink.common import Time
+
+late_tag = OutputTag("late-logins")  # Java/PyFlink type info omitted for clarity
+
+windowed = (
+    stream.key_by(lambda e: e["user_id"])
+    .window(TumblingEventTimeWindows.of(Time.minutes(5)))
+    .allowed_lateness(Time.minutes(1))
+    .side_output_late_data(late_tag)
+)
+```
+
+Allowed lateness **keeps keyed window state alive** — a cost against [RocksDB](state.md). A 5-minute window with 2 hours allowed lateness is a memory incident dressed as correctness.
+
+---
+
+## Processing time vs event time vs ingestion time
+
+| Scenario | Clock |
+|----------|--------|
+| Failed logins in 5 minutes (fraud) | **Event time** |
+| p95 latency per service per minute (observability) | **Event time** |
+| Session length in e-commerce | **Event time** |
+| "Have we received any IoT packet in 30s?" | **Processing time** |
+| Producer clocks are garbage, Kafka `LogAppendTime` is trusted | **Ingestion** (broker timestamp as event time) |
+| Simple ops alert, 30s error acceptable | Processing time is honest about being sloppy |
+
+**Default to event time** for anything a human will treat as history.
+
+---
+
+## How: a fraud-shaped source
+
+```python
+from pyflink.datastream import StreamExecutionEnvironment
+from pyflink.datastream.connectors.kafka import KafkaSource, KafkaOffsetsInitializer
+from pyflink.common.serialization import SimpleStringSchema
+from pyflink.common.watermark_strategy import WatermarkStrategy
+from pyflink.common import Duration
+
+env = StreamExecutionEnvironment.get_execution_environment()
+
+source = (
+    KafkaSource.builder()
+    .set_bootstrap_servers("localhost:9092")
+    .set_topics("login-events")
+    .set_group_id("flink-fraud")
+    .set_starting_offsets(KafkaOffsetsInitializer.latest())
+    .set_value_only_deserializer(SimpleStringSchema())
+    .build()
+)
+
+wm = (
+    WatermarkStrategy.for_bounded_out_of_orderness(Duration.of_seconds(20))
+    .with_idleness(Duration.of_seconds(60))
+)
+
+env.from_source(source, wm, "login-events")
+```
+
+Parse JSON in a `map` and, if you need payload timestamps rather than Kafka timestamps, use `assign_timestamps_and_watermarks` with a `with_timestamp_assigner` that reads `timestamp`. KafkaSource can also take a watermark strategy that uses record metadata — prefer that when `LogAppendTime` is the contract.
+
+---
+
+## Gotchas
+
+- **ISO strings without timezone** parse as local on one TaskManager and UTC on another. Store epoch millis at the producer.
+- **`timestamp` = produce time in the API gateway** is ingestion time with extra steps; name it honestly.
+- **Bad event timestamps:** an old record on an active split is late; it does not move a max-based bounded watermark backwards. A future timestamp can jump the watermark forward and make subsequent valid records late. A split that emits one old record and then goes idle can hold back the downstream minimum unless idleness is configured. Guard payload time (`now-1d <= ts <= now+1h`) before assigning watermarks.
+- **Multiple Kafka topics in one source** with very different delay distributions: the slower topic's watermark holds back the faster one. Split jobs or use separate watermark strategies per source and a union with care.
+
+---
+
+## Failure modes
+
+| Failure | Symptom | Cause |
+|---------|---------|-------|
+| Windows never fire | Watermark stuck | Idle partition; broken assigner; no events |
+| Windows fire empty / too small | Under-count | Processing time; watermark too aggressive |
+| State grows without bound | Checkpoint duration ↑ | Windows never close; allowed lateness huge |
+| Burst of "late" in side output | After a producer outage | Idleness advanced W; catch-up is late |
+| Fraud misses a brute-force | Attacker spread across processing-time buckets | Wrong clock |
+
+---
+
+## Debugging
+
+Flink UI → Task → **watermarks**. Also emit watermark lag as a metric.
+
+| Metric | Healthy | Investigate |
+|--------|---------|-------------|
+| `currentInputWatermark` advancing | Roughly event time − bound | Frozen: idle partition or dead assigner |
+| `watermarkLag` (wall clock − W) | ≈ bound + Kafka lag | Minutes: source lag or idle |
+| Kafka **consumer lag by partition** | Flat | One partition with lag explains a late burst |
+| Late-record counter | Near 0 | Bound too small, or producer delay changed |
+| Checkpoint duration | Stable | Window state piling up because W stuck |
+
+Compare Kafka lag and watermark lag. High Kafka lag + advancing W means you assigned timestamps from **processing time** by accident. High watermark lag + low Kafka lag means the payload timestamps are old (buffered clients) or the bound is huge.
+
+---
+
+## Scale: 10× / 100× / 1000×
+
+| Scale | Time-domain effect |
+|-------|-------------------|
+| **10×** | A 10s bound is fine; idle partitions already bite on multi-tenant Kafka topics |
+| **100×** | Out-of-orderness is a histogram; set bound from p99 delay, not from folklore. Side-output lates to object storage |
+| **1000×** | Do not keep hours of allowed lateness in Flink; close windows and repair from the [lake](../lakehouse/index.md) |
+
+---
+
+## Trade-offs
+
+| Choice | Gain | Cost |
+|--------|------|------|
+| Event time + 10s bound | Correct buckets | +10s result delay |
+| Event time + 10 min bound | Fewer lates | Dashboards 10 min stale; more in-flight windows |
+| Processing time | Simple, low latency | Wrong history |
+| Idleness | Windows close at night | Silent region-shaped data loss |
+| Allowed lateness | Updates | State and retractions |
+
+---
+
+## Alternatives
+
+- **Kafka Streams** punctuation / grace period: same watermark idea, embedded in the app ([comparison](comparison.md)).
+- **Spark Structured Streaming** watermark: similar, micro-batch (seconds).
+- **ClickHouse / Pinot** ingest-time aggregation: cheaper at observability volume if you can tolerate batch-ish windows.
+- **Do the rule in the database** with `now() - interval`: processing time by another name.
+
+---
+
+## Ingestion time in practice
+
+When mobile clocks are fiction, teams stamp **broker append time** (`log.message.timestamp.type=LogAppendTime`) and tell Flink to use the Kafka record timestamp as event time. You have not magically recovered the physical event; you have chosen a clock that is **monotonic per partition** and operated by you.
+
+That is the right call for observability SLIs ("when did we *receive* the span"). It is the wrong call for "user failed login at 10:03" if the laptop was offline until 10:30 — those failures *happened* at 10:03. Fraud and audit want the payload timestamp **and** a bound on how late you will wait, then a late side output into a case-management topic.
+
+Write the choice in the job's README. "We use event time" is not a choice if you never say *which field*.
+
+---
+
+## Watermark heuristics that survive contact with Kafka
+
+1. Measure `now - event_ts` at the source operator for a day. Plot p50/p95/p99/p99.9.
+2. Set bounded out-of-orderness near p99, not p50 (late side output for the tail) and not p99.9 (you will add minutes of latency for folklore).
+3. Set idleness from **Kafka partition silence**, not from event delay. A partition can be silent while other partitions are merely late.
+4. Revisit after a mobile-app release; delay histograms move.
+
+```python
+# Defensive assigner: drop clearly broken clocks before they touch W
+def ts_ms(event, record_ts):
+    t = event["ts_ms"]
+    # record_ts is Kafka timestamp when the strategy has access to it
+    if t < 1_000_000_000_000:  # not millis
+        return record_ts
+    return t
 ```
 
 ---
 
-## Processing Time vs Event Time: When to Use Each
+## How to apply this at work
 
-| Scenario | Use |
-|----------|-----|
-| Need accurate historical results | **Event time** |
-| Monitoring SLA: "has an event arrived in the last 30 seconds?" | **Processing time** |
-| ML feature generation that should reflect when things happened | **Event time** |
-| Simple alerting where a few seconds of skew is acceptable | **Processing time** |
-| Joining streams from multiple sources with latency differences | **Event time** |
+Open the job. Search for `WatermarkStrategy`, `TimeCharacteristic`, `ProcessingTime`. If you cannot find a watermark on a windowed job, you are on processing time even if the JSON has a `timestamp` field.
 
-**Default to event time** for anything that will be used in dashboards, reports, or downstream ML. Processing time is acceptable for monitoring/alerting where small errors are tolerable.
+Then measure **producer delay** = Flink ingest wall clock − payload timestamp. Set bounded out-of-orderness just above p99 of that delay, plus idle timeout from Kafka partition silence.
 
 ---
 
-## How to Apply This at Work
+## Exercise
 
-When reviewing a streaming job:
+`login-events` has 8 Kafka partitions. Seven receive a steady stream. Partition 7 is used only by a partner integration that sends traffic at 09:00 and 17:00. Watermark = bounded out-of-orderness 15s, **no** idleness. Fraud windows are 5 minutes.
 
-1. Which time domain is it using? (Check for `EventTime` or `ProcessingTime` in the config)
-2. If event time: what is the watermark delay? Is it appropriate for the actual data latency?
-3. What happens to late events? Are they dropped, counted separately, or handled?
-4. How does window closure interact with data source latency?
+1. What happens to windows between 09:30 and 16:30?
+2. You add `with_idleness(30s)`. What happens to the 17:00 partner burst?
+3. Should partner traffic share this topic?
+
+??? question "Answer"
+    1. Partition 7's watermark generator stays at the 09:00 tail (or never initialises). Downstream min watermark stalls. Five-minute windows **do not close** all afternoon. State grows. SOC sees a frozen dashboard.
+
+    2. After 30s silence, p7 is idle; watermarks follow the other seven partitions; windows close. At 17:00 the partner events arrive with timestamps around 17:00 (or 09:00 if they were queued — read the payload). If they are truly 17:00, they land in open windows. If they were generated at 09:05 and buffered, they are **late** and dropped or side-outputted.
+
+    3. Usually no. A sparse, high-delay source should not share the watermark min with the low-delay fraud path. Separate topic + job, or a union after independent watermarks with a documented idle policy.

@@ -30,7 +30,7 @@
 </head>
 <body>
 <h1>Time Series Cardinality Calculator</h1>
-<p>Calculate the total cardinality of your metric label set. High cardinality kills TSDB performance.</p>
+<p>Calculate a worst-case cardinality bound for a metric label set. Real active series depend on which label combinations actually occur.</p>
 
 <div class="card">
   <h3 style="margin-top:0;color:#e3b341">Your dimensions</h3>
@@ -82,10 +82,10 @@
   <h3 style="margin-top:0;color:#58a6ff">Why cardinality matters</h3>
   <p>In Prometheus and VictoriaMetrics, each unique combination of label values is a separate <strong>time series</strong>. Each time series requires index entries, memory, and disk space.</p>
   <ul>
-    <li><strong>&lt;100K series</strong>: Prometheus handles this comfortably</li>
-    <li><strong>100K–1M series</strong>: Prometheus starts struggling. VictoriaMetrics handles this well.</li>
-    <li><strong>&gt;1M series</strong>: Most TSDBs struggle. Consider removing high-cardinality labels (user_id, request_id) — use ClickHouse for per-user analytics instead.</li>
-    <li><strong>&gt;10M series</strong>: TSDB is the wrong tool. Use ClickHouse with high-cardinality columns.</li>
+    <li>The product below is an <strong>upper bound</strong>, not a measurement: labels are rarely independent.</li>
+    <li>Capacity depends on active-series churn, scrape interval, retention, replication, queries, and hardware.</li>
+    <li>Validate with <code>prometheus_tsdb_head_series</code> and a load test; never approve a design from one universal threshold.</li>
+    <li>Unbounded identifiers such as request IDs usually belong in an event or trace store, even when today’s count appears small.</li>
   </ul>
   <p><strong>Rule</strong>: never use user IDs, session IDs, or request IDs as TSDB labels. These belong in event tables (ClickHouse), not metric labels (Prometheus).</p>
 </div>
@@ -118,21 +118,21 @@ function calculate() {
   const breakdown = document.getElementById('breakdown');
   const verdict = document.getElementById('verdict');
 
-  bigNum.textContent = product.toLocaleString() + ' series';
+  bigNum.textContent = product.toLocaleString() + ' series upper bound';
 
   let cls, label, msg;
   if (product < 100000) {
     cls = 'ok'; label = '✓ Safe';
-    msg = 'This cardinality is manageable by Prometheus. You have headroom to grow.';
+    msg = 'Small planning bound. Verify active series, churn, retention, and query load.';
   } else if (product < 1000000) {
     cls = 'warn'; label = '⚠ High';
-    msg = 'Prometheus will struggle at this cardinality. VictoriaMetrics handles it better. Monitor memory usage.';
+    msg = 'Material planning bound. Measure actual combinations and load-test the intended deployment.';
   } else if (product < 10000000) {
     cls = 'danger'; label = '✗ Very high';
-    msg = 'Most TSDBs will struggle. Identify and remove the highest-cardinality label. Use ClickHouse for per-dimension analytics.';
+    msg = 'Large planning bound. Remove unbounded identity labels and measure active-series churn before choosing a TSDB design.';
   } else {
-    cls = 'danger'; label = '✗ TSDB is the wrong tool';
-    msg = 'At this cardinality, no TSDB will perform well. Use ClickHouse with columnar storage and high-cardinality columns instead.';
+    cls = 'danger'; label = '✗ Redesign or prove with a load test';
+    msg = 'Extreme upper bound. Do not assume every combination exists, but do not ship without measured active series and a capacity test.';
   }
 
   bigNum.className = `big-number ${cls}`;

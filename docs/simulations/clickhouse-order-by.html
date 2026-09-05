@@ -139,10 +139,10 @@
   <h2 style="color:#e3b341">Trade-offs: Cardinality in ORDER BY</h2>
 
   <div class="explanation">
-    The first column in ORDER BY should have the highest cardinality for the most selective queries. But order matters — subsequent columns only help filter <em>within</em> groups of the preceding columns.
+    The first columns in ORDER BY should match the predicates used by the queries that must be fast. Selectivity, range filters, compression, and tenant isolation all matter; cardinality alone does not choose the key. Subsequent columns help primarily within groups of preceding columns.
   </div>
 
-  <h3>Rule: Put the highest-cardinality filter column first</h3>
+  <h3>Rule: Put the most important query prefix first</h3>
 
   <table>
     <tr><th>ORDER BY</th><th>Query: WHERE customer_id=42</th><th>Query: WHERE region='eu'</th><th>Both?</th></tr>

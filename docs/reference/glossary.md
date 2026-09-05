@@ -1,179 +1,239 @@
 # Glossary
 
-Key terms used throughout the academy. Each definition explains the concept in context, not just what it is but why it matters.
+Operational definitions as this academy uses them. If a term is not here, it is either ordinary English or only defined in its module. Related: [selection framework](selection-framework.md).
 
 ---
 
 ## A
 
-**Ack (acknowledgement)**: a confirmation from a Kafka broker that a message was received and written. `acks=all` waits for all in-sync replicas; `acks=1` waits for the leader only; `acks=0` fires and forgets.
+**Ack (acknowledgement).** Kafka producer confirmation. `acks=all` waits for in-sync replicas; `acks=1` leader only; `acks=0` no wait. `acks=1` + leader death can **lose** acknowledged-looking data.
 
-**AQE (Adaptive Query Execution)**: a Spark feature (3.0+) that re-optimises a query plan at runtime based on actual partition statistics observed during execution. Fixes skewed joins and over-partitioned shuffles automatically.
+**AQE (Adaptive Query Execution).** Spark 3+ re-plans at runtime from shuffle stats. Can split skewed joins and coalesce tiny partitions. Not a substitute for a 180 GB single key ([incident 2](../incidents/index.md)).
 
-**At-least-once delivery**: a guarantee that every message is delivered at least once. Duplicates are possible. Contrast with at-most-once and exactly-once.
+**At-least-once.** Every record processed ≥1 time; **duplicates** possible. Default useful contract if the sink is **idempotent**.
 
-**At-most-once delivery**: a guarantee that a message is delivered at most once. Loss is possible but duplicates are not.
+**At-most-once.** ≤1 time; **loss** possible. Rarely what you want for money.
+
+**Avro / Protobuf (in a registry).** Contracts for Kafka payloads. Compatibility modes catch poison schema changes that JSON `dict.get` will not.
 
 ---
 
 ## B
 
-**Backpressure**: a mechanism by which a slow consumer signals upstream producers to slow down. Flink has native backpressure; without it, fast producers fill memory buffers until they crash.
+**Backpressure.** Slow consumer forces the source to slow. Flink does this natively with credit-based flow. Kafka just **lags** if you do not read.
 
-**Broadcast join**: a Spark join strategy where the smaller table is sent to every executor. Avoids a shuffle. Controlled by `spark.sql.autoBroadcastJoinThreshold`.
+**Broadcast join.** Spark sends a small side to every executor; **no shuffle of the big side**. Memory-bound. Wrong on a "small" side that is 80 GB.
 
-**Bucket**: a pre-partitioned file layout in Spark/Hive where rows are written to a fixed number of buckets by hash. Eliminates shuffle for JOIN and GROUP BY on the bucket key.
+**Broker.** Kafka process that stores partitions. Not a processor. Not a queue API.
 
 ---
 
 ## C
 
-**CAP theorem**: a distributed systems theorem stating you can have at most two of: Consistency, Availability, Partition tolerance. During a network partition, you must choose between consistency (return error) and availability (return stale data).
+**Cardinality.** Distinct values of a key or label set. **High cardinality** (`user_id`) kills TSDB indexes; OLAP stores it as a column. See [calculator](../simulations/cardinality-calculator.html).
 
-**Cardinality**: the number of distinct values in a column or label set. High cardinality (millions of distinct user IDs) causes issues in TSDBs and certain indexing strategies.
+**CDC.** Change data capture: inserts/updates/deletes as events (Debezium). Sinks must **merge**, not `SUM` amounts.
 
-**CDC (Change Data Capture)**: capturing every insert, update, and delete from a database as a stream of change events. Debezium is the standard CDC tool for relational databases.
+**Checkpoint (Flink).** Consistent snapshot of operator state + positions. Recovery rewinds to it. Success ≠ windows are emitting ([incident 3](../incidents/index.md)).
 
-**Checkpoint**: a consistent snapshot of Flink operator state written to durable storage. Enables recovery from failures without replaying the entire input.
+**Columnar storage.** Disk layout by column. Analytics read fewer bytes; tiny point updates are the wrong workload.
 
-**Columnar storage**: storing data column-by-column rather than row-by-row. Analytical queries that read a few columns out of many benefit enormously (read only what you need).
+**Compaction.** Merge small files/parts (Iceberg rewrite, CH merges, Kafka log compact is **different** — latest key only).
 
-**Compaction**: merging many small files into fewer large files in a lakehouse or ClickHouse. Reduces read amplification and query latency. Controlled by Iceberg's `rewrite_data_files` procedure or ClickHouse's OPTIMIZE TABLE.
-
-**Consumer group**: a set of Kafka consumers sharing a group ID. Each partition is consumed by exactly one member of the group. Enables parallel consumption and horizontal scaling.
+**Consumer group.** Set of Kafka consumers sharing `group.id`. **One** member per partition. Scaling past partition count does nothing.
 
 ---
 
 ## D
 
-**DAG (Directed Acyclic Graph)**: a graph with directed edges and no cycles. Spark represents query plans as DAGs. Airflow represents workflow dependencies as DAGs.
+**DAG.** Directed acyclic graph: Spark stages or Airflow jobs. Cycles mean you designed a loop, not a pipeline.
 
-**Data skew**: uneven distribution of data across partitions. One partition has significantly more data than others, causing one task/worker to be the bottleneck.
+**Data skew.** Uneven key distribution. One Kafka partition, one Spark task, one Flink subtask does all the work.
 
-**Exactly-once semantics**: a guarantee that each event is processed exactly once, even in the presence of failures. Requires coordination between source, processor, and sink.
+**DLQ (dead-letter queue).** Topic/table for poison messages after N failures. Without it, a bad record is an infinite restart.
 
 ---
 
 ## E
 
-**Event time**: the timestamp when an event actually occurred at the source. Contrast with processing time.
+**Event time.** Timestamp when the event **happened**. Windowing on event time needs **watermarks**.
 
-**Exchange**: in Trino/Spark, an operation that moves data between workers/executors. Equivalent to a shuffle. The most expensive operation in distributed query execution.
+**Exactly-once.** End-to-end no loss no dup **if** source, processor, and sink participate (e.g. Flink + transactional Kafka). A HTTP POST sink is not exactly-once because you said the words. Prefer **idempotent** writes.
+
+**Exchange.** Trino/Spark data movement between stages. Expensive. Cousin of shuffle.
 
 ---
 
 ## F
 
-**Fan-out**: one message triggering multiple downstream actions or copies. In Kafka, multiple consumer groups each reading the same topic is a fan-out pattern.
+**Freshness.** How old the **visible** data is (`max(ts)` vs now, or Kafka lag in seconds). A green job can publish stale zeros.
 
-**Fault tolerance**: the ability of a system to continue operating when some components fail. Kafka achieves this via replication; Flink via checkpoints; Spark via RDD lineage.
-
----
-
-## G
-
-**Granule**: ClickHouse's unit of indexing. A granule is ~8192 rows. The sparse primary index stores one entry per granule, not per row. Queries skip granules that don't match the WHERE clause.
+**Granule.** ClickHouse index grain (~8192 rows). Sparse primary index stores one entry per granule. Queries skip granules using `ORDER BY`.
 
 ---
 
 ## H
 
-**Hot partition**: a Kafka partition that receives significantly more traffic than others. Causes one consumer to fall behind while others are idle.
+**Hot partition.** One Kafka partition gets most traffic (hot key). Lag on **that** partition only. Extra consumers do not split it.
 
-**Hyptertable**: TimescaleDB's time-partitioned table abstraction. Automatically splits data into chunks by time range.
+**Hypertable.** Timescale time-partitioned table (chunks). Not ClickHouse.
 
 ---
 
 ## I
 
-**Idempotent**: an operation that produces the same result regardless of how many times it is applied. Essential for safe retries in data pipelines.
+**Idempotent.** Applying twice = once. The practical cousin of exactly-once for CH inserts, Iceberg MERGE, payment scores keyed by `transaction_id`.
 
-**In-sync replicas (ISR)**: the set of Kafka replicas that are fully caught up with the partition leader. Acks are only confirmed once all ISR members acknowledge.
+**ISR (in-sync replicas).** Kafka replicas caught up with the leader. `min.insync.replicas` + `acks=all` define durability.
 
-**Iceberg snapshot**: a point-in-time state of an Iceberg table. Every commit creates a new snapshot. Time travel queries a specific snapshot.
+**Iceberg snapshot.** Committed table state. Time travel reads old snapshots. Unexpired snapshots **slow planning** ([incident 5](../incidents/index.md)).
 
 ---
 
 ## L
 
-**Lag**: in Kafka, the difference between the latest offset produced and the latest offset committed by a consumer. Growing lag means the consumer is falling behind.
+**Lag (Kafka).** Log-end offset minus consumer committed offset (per partition). Growing lag = consumer slower than produce **or** stuck. Sum lag can hide one hot partition.
 
-**Late event**: in stream processing, an event that arrives after the watermark has passed the event's timestamp. Flink allows configuring an allowed lateness window before dropping late events.
+**Late event.** Arrives after the watermark passed its timestamp. Side output / allowed lateness / drop.
 
-**Log compaction**: a Kafka retention mode that keeps only the latest value for each key in a topic. Used for changelog or CDC topics where you want current state, not full history.
+**Lineage.** Dataset parent/child graph for paging and blast radius. OpenLineage is the event API; a catalogue is the store.
+
+**Log compaction.** Kafka keeps latest value **per key**. Changelog / compacted CDC. Not a substitute for a database.
 
 ---
 
 ## M
 
-**Manifest file**: in Iceberg, a file listing the data files in a snapshot along with their statistics. Used for partition pruning and skipping.
+**Manifest (Iceberg).** File listing data files + stats for pruning. Snapshot → manifest list → manifests → Parquet.
 
-**MergeTree**: ClickHouse's primary table engine family. Data is written as immutable parts and merged in the background. The ORDER BY clause determines the sort key and sparse index.
+**MergeTree.** ClickHouse engine family: immutable **parts**, background merge, `ORDER BY` = sparse index.
 
-**Micro-batch**: Spark Structured Streaming's approach to streaming — collect events over a short interval (100ms to 30s) and process as a batch. Lower latency than batch, higher than event-by-event streaming.
+**Micro-batch.** Spark Structured Streaming: a short batch, repeatedly. Latency floor of hundreds of ms to seconds.
 
 ---
 
 ## O
 
-**Offset**: a sequential ID for each message within a Kafka partition. Consumers track which offset they have processed.
+**Offset.** Monotonic id **inside a Kafka partition**. There is no global offset for a topic.
 
-**OLAP (Online Analytical Processing)**: analytical workloads that scan large amounts of data for aggregations, filtering, and GROUP BY. Designed for read performance over write performance.
+**OLAP.** Scan/aggregate heavy analytics. Opposite of OLTP point updates.
+
+**OLTP.** Transactional point reads/writes (Postgres checkout). Do not replace with a lake.
+
+**ORDER BY (ClickHouse).** Physical sort key, not a SQL nicety. Prefix must match filters or you scan ([incident 4](../incidents/index.md)).
+
+**OpenLineage.** Standard for job run lineage events.
 
 ---
 
 ## P
 
-**Partition pruning**: the query optimizer skipping partitions that cannot contain rows matching the WHERE clause. Works for both Spark/Iceberg physical partitions and ClickHouse granules.
+**Part (ClickHouse).** Directory of column files from an insert (or merge). Too many parts → slow reads/writes.
 
-**Predicate pushdown**: pushing filter conditions (WHERE clauses) down to the storage layer so only matching rows are read. Reduces I/O significantly in columnar systems.
+**Partition (Kafka).** Ordered log shard; unit of parallelism and ordering.
 
-**Processing time**: the timestamp when an event is processed by the stream processor. May be much later than event time due to network delays or upstream delays.
+**Partition (Spark/Iceberg/CH).** Different beasts: Spark task input; Iceberg layout; CH `PARTITION BY` (usually time) **plus** `ORDER BY`.
+
+**Partition pruning.** Skip files/partitions whose stats cannot match `WHERE`.
+
+**Predicate pushdown.** Filter evaluated in storage (Parquet/CH) so you do not ship rows.
+
+**Processing time.** Wall clock when the operator sees the event. Easy; wrong for late devices.
 
 ---
 
 ## R
 
-**Rebalance**: when Kafka reassigns partitions to consumers in a consumer group. Triggered by consumer joins, leaves, or crashes. During rebalance, consumption stops.
+**Rebalance.** Kafka group membership change; consumption pauses. Storms = repeated rebalances (slow `poll`, crash loops).
 
-**Replication factor**: how many copies of each Kafka partition are maintained across brokers. `replication.factor=3` means 3 copies, tolerable to lose 2 brokers.
+**Replay.** Re-read Kafka or rebuild from lake. Requires idempotent sinks or you double-count.
 
-**Retention**: how long data is kept. Kafka retention is time-based or size-based per topic. Iceberg tables can use TTL or expiration procedures. ClickHouse uses TTL expressions.
+**Replication factor.** Kafka copies of a partition. `3` with `min.insync=2` is a common durability pair.
+
+**RLS (row-level security).** Engine-enforced row filter (tenant). App-only filters will leak.
 
 ---
 
 ## S
 
-**Savepoint**: a manually triggered, user-initiated Flink checkpoint. Used for planned maintenance, version upgrades, or job migration. Unlike checkpoints, savepoints are not deleted automatically.
+**Savepoint.** User-owned Flink checkpoint for upgrades. Not deleted like automatic checkpoints.
 
-**Schema evolution**: changing the structure of a table (adding/removing/renaming columns) without breaking existing readers or writers.
+**Schema evolution.** Adding/renaming fields without breaking readers. Needs a registry or table format, not hope.
 
-**Shuffle**: redistributing data across workers/partitions by hash of a key. Required for GROUP BY, JOIN, and DISTINCT in distributed systems. The most expensive operation.
+**Shuffle.** Redistribute by key for join/group. Spark's tax. Skew shows up here.
 
-**Skipping index**: in ClickHouse, a secondary index that stores min/max, bloom filter, or other statistics per granule. Allows skipping granules that cannot match a WHERE clause.
+**Skipping index.** Extra CH index (minmax, bloom) per granule. Secondary to `ORDER BY`.
 
-**Snapshot isolation**: a transaction isolation level where each read sees a consistent snapshot of data as of a point in time, without blocking writers.
+**SLO / SLA.** Freshness or latency **number** with an owner. "Realtime" is not an SLO.
 
-**Star-tree index**: a Pinot pre-aggregated index that stores rollup combinations of dimensions. Dramatically speeds up fixed-dimension aggregation queries at high concurrency.
+**Star-tree.** Pinot pre-agg index over declared dimensions. High QPS, low flexibility.
 
 ---
 
 ## T
 
-**Tombstone**: in Kafka log-compacted topics, a message with a null value that signals a key should be deleted from the compacted log.
+**Tenant isolation.** `customer_id` in keys, `ORDER BY`, RLS, quotas. Shared table ≠ shared everything.
 
-**Tungsten**: Spark's off-heap memory management and code generation layer. Bypasses JVM GC for large binary operations. Part of the Spark optimizer stack.
+**Tombstone.** Kafka compacted-topic null value meaning **delete this key**.
+
+**TTL.** Auto-expire (CH table, Kafka retention, Iceberg expire). Security control as much as cost.
+
+**Tungsten.** Spark off-heap / codegen. Why `collect()` to pandas still hurts: you left Tungsten.
 
 ---
 
 ## W
 
-**Watermark**: in stream processing, a marker indicating that all events with timestamps earlier than the watermark value have arrived (or are assumed to have arrived). Used to trigger window computations with event time.
+**Watermark.** Event-time notion of "we will not see older than this" (with slack). Windows **close** on it. Idle sources must not stall it forever.
 
-**Write-ahead log (WAL)**: a log where changes are recorded before being applied to the main storage. Enables recovery to a consistent state after failure. Used by PostgreSQL, Kafka, and others.
+**WAL.** Write-ahead log (Postgres, etc.). CDC reads it; a slow Debezium sink **fills disk on the primary**.
 
 ---
 
 ## Z
 
-**Z-order**: a space-filling curve that interleaves bits from multiple dimensions. Used by Delta Lake OPTIMIZE ZORDER and ClickHouse to co-locate rows with similar values across multiple columns, improving multi-dimensional filter performance.
+**Z-order.** Multi-column clustering (Delta ZORDER, related ideas in CH). Helps multi-dimension filters; not magic for all predicates.
+
+---
+
+## Additional terms used in architectures
+
+**Allowed lateness.** Flink window still accepts events after the watermark for a configured duration; then drops or side-outputs.
+
+**Bloom skip index.** ClickHouse secondary index: "this granule might contain the trace_id." False positives exist; false negatives should not. Does not replace putting time+service in `ORDER BY`.
+
+**Broadcast (Trino).** Join strategy that sends one side to all workers. Wrong when that side is the lake.
+
+**Consumer lag seconds.** Lag in **time** (event ts vs now) vs lag in **offsets**. Both matter; dashboards care about time.
+
+**Contract (data).** Versioned schema + SLO + owner + semantics in git. Catalogue displays it; git is source.
+
+**Dead partition (Kafka).** No produce; Flink watermark min-over-partitions stalls without idleness.
+
+**Fan-out join.** Join keys not unique; row count explodes. Quality: compare counts before/after.
+
+**Gold table.** Dataset that pages a human. See [metadata](../metadata/index.md).
+
+**Idle cull.** JupyterHub scale-to-zero for unused user pods. Cost control.
+
+**KRaft.** Kafka consensus without ZooKeeper. Lab broker is KRaft combined mode.
+
+**Materialised view (CH).** Insert trigger that writes an aggregate table. Not a Prom recording rule, same idea.
+
+**Noisy neighbour.** One tenant/key consumes a shared partition or node. Quotas + isolation.
+
+**Outbox.** Transactional table in OLTP that CDC turns into business events you designed, vs raw row CDC.
+
+**Poison message.** Record that crashes the consumer. DLQ or you stall.
+
+**Pushdown.** Filter/agg executed in the connector/source (Parquet, PG). Trino without pushdown pulls oceans.
+
+**ReplacingMergeTree.** CH engine that keeps latest row per `ORDER BY` key eventually. Queries may need `FINAL` or a collapsing understanding.
+
+**Savepoint vs checkpoint.** Savepoint is operator-owned upgrade artifact; checkpoints are automatic recovery.
+
+**Star schema.** Fact + dimensions. Pinot likes this; CH can join dims if small.
+
+**Two-phase commit sink.** Flink EOS with Kafka transactions. JDBC sinks often are not participants.
+
+**Whale tenant.** `cust_0042` in labs: one customer is a double-digit fraction of traffic. Architecture, not a row.

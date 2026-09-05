@@ -1,0 +1,22 @@
+# Official ClickHouse. HTTP 8123, native 9000. Single node, no Keeper.
+services:
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.8
+    container_name: dea-clickhouse
+    ports:
+      - "8123:8123"
+      - "9000:9000"
+    environment:
+      CLICKHOUSE_USER: academy
+      CLICKHOUSE_PASSWORD: academy
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: "1"
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    healthcheck:
+      test: ["CMD", "clickhouse-client", "--user", "academy", "--password", "academy", "--query", "SELECT 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s

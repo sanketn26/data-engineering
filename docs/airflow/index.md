@@ -1,5 +1,8 @@
 # Apache Airflow
 
+!!! info "Version and source policy"
+    Executor and scheduler behavior changes across releases. Check [Versions & Primary Sources](../reference/version-matrix.md) before production use.
+
 ## The Problem
 
 Your data pipeline contains 25 dependent jobs:
@@ -16,6 +19,22 @@ Your data pipeline contains 25 dependent jobs:
 
 How do you coordinate them reliably? What happens when step 4 fails? How do you rerun steps 5–8 after fixing the bug in step 4? How do you know which step is currently running?
 
+That is the problem Airflow exists to solve. It is not "a Python scheduler." It is a system of record for *which work ran, for which data interval, with which outcome*.
+
+---
+
+## Running Systems
+
+Three production shapes appear throughout this module.
+
+**SaaS analytics.** Nightly warehouse load: extract product events, join billing, compute per-tenant metrics, publish dashboards. Twenty-plus tasks, one logical day, a 07:00 SLA.
+
+**E-commerce CDC.** Debezium writes order and payment changes to Kafka. Airflow does *not* consume the stream. It kicks Flink/Spark jobs, waits for a `_SUCCESS` object, then runs dbt and quality checks.
+
+**Observability.** Hourly compaction of Iceberg log tables, snapshot expiration, and partition stats. The work is maintenance, not "processing 5 million events/sec inside a PythonOperator."
+
+If a DAG is reading 1 TB into pandas, you have the wrong system doing the work.
+
 ---
 
 ## Orchestration Is Not Data Processing
@@ -31,6 +50,56 @@ Airflow is an orchestrator. It should schedule Spark jobs, trigger dbt models, c
 When Airflow is used to process data directly — reading a CSV in Python, transforming it with pandas — the bottleneck is the single Airflow worker executing that code. This is a common and expensive antipattern.
 
 **Use Airflow to run Spark. Don't use Airflow as Spark.**
+
+```python
+# WRONG — Airflow worker is the compute engine
+def process_day(**context):
+    df = pd.read_parquet("s3://events/dt={{ ds }}/")  # 1 TB
+    for _, row in df.iterrows():                      # serial Python
+        ...
+
+# RIGHT — Airflow submits work; Spark/Databricks is the compute engine
+SparkSubmitOperator(
+    task_id="process_day",
+    application="/opt/spark_jobs/process_events.py",
+    application_args=["--date", "{{ ds }}"],
+)
+```
+
+The rest of this module is how to make that distinction hold under retries, backfills, and 10× DAG count.
+
+---
+
+## The Control Plane
+
+Airflow is four cooperating processes plus a database. Tasks never "just run."
+
+```mermaid
+graph LR
+    W["Webserver\nUI / REST"]
+    S["Scheduler\nparse DAGs, queue TIs"]
+    E["Executor\nLocal / Celery / K8s"]
+    WK["Workers / pods"]
+    DB[("Metadata DB\nDAG runs, TIs, XCom")]
+
+    W --> DB
+    S --> DB
+    S --> E
+    E --> WK
+    WK --> DB
+```
+
+| Component | Job |
+|-----------|-----|
+| **Scheduler** | Parse DAG files, decide which task instances (TIs) are runnable, persist state, hand work to the executor |
+| **Executor** | Policy for *where* a TI runs: local process, Celery worker, Kubernetes pod |
+| **Workers** | Execute operator code. Must be stateless with respect to other tasks |
+| **Metadata DB** | Source of truth: DAG runs, TI states, XCom, connections, pools. Postgres in production, never SQLite |
+| **Webserver** | Humans and APIs. Must not be the scheduler |
+
+If the metadata DB is slow, *everything* is slow. Scheduler heartbeat, TI state transitions, and the UI all contend for the same rows.
+
+Details live in [Executors](executors.md). DAG shape lives in [DAGs](dags.md). Retry safety lives in [Idempotency](idempotency.md). Incidents live in [Gotchas](gotchas.md).
 
 ---
 
@@ -74,9 +143,9 @@ with DAG(
     extract_orders >> process_events >> compute_metrics
 ```
 
----
+A DAG is *not* a Spark DAG. Airflow's graph is task-level. Spark's graph is operator-level inside one job. Mixing the two granularities — fifty Airflow tasks that each run one `SELECT` — produces a scheduler tax with no extra reliability.
 
-## Schedulers and Executors
+### Schedulers and executors
 
 **Scheduler**: reads DAG definitions, determines which tasks are ready to run (dependencies met, schedule time reached), and sends them to the executor.
 
@@ -91,7 +160,7 @@ with DAG(
 
 ---
 
-## Idempotency
+## Idempotency, Catchup, Backfills
 
 Airflow tasks should be **idempotent**: running the same task twice produces the same result.
 
@@ -109,13 +178,7 @@ df.write.mode("append").parquet(f"s3://data/events/date={execution_date}")
 df.write.mode("overwrite").parquet(f"s3://data/events/date={execution_date}")
 ```
 
----
-
-## Backfills
-
 When you deploy a new DAG or fix a bug in an existing one, you often need to reprocess historical dates. This is a **backfill**.
-
-Airflow supports backfills natively:
 
 ```bash
 airflow dags backfill daily_analytics \
@@ -123,18 +186,43 @@ airflow dags backfill daily_analytics \
   --end-date 2024-01-15
 ```
 
-!!! warning "Production Gotcha"
-    Backfills run in parallel by default. Backfilling 90 days at once can trigger 90 DAG runs simultaneously, overwhelming downstream systems. Use `--max-active-runs` to limit concurrency.
+!!! production-gotcha "Catchup is a load test you did not schedule"
+    A new DAG with `catchup=True` (historically the default) and a start date two years ago queues ~730 DAG runs. Backfills also run in parallel unless you cap `max_active_runs`. Ninety days × a Spark job is a cluster incident, not a convenience.
 
 ---
 
-## Common Gotchas
+## Sensors, Pools, Mapping, SLAs, Datasets
 
-### 1. DAGs That Are Too Fine-Grained
+**Sensors wait.** In `poke` mode they occupy a worker slot for the entire wait. At tens of DAGs they become deadlock machines: every worker is poking, nothing that could *produce* the file can start. Use `reschedule`, timeouts, and [pools](dags.md) so waiting cannot starve work.
+
+**Dynamic task mapping** expands one task into N mapped TIs at runtime (`expand`). Good for "one Spark job per tenant that landed today." Bad for "one TI per row."
+
+**Pools** are named concurrency tokens. Put Stripe API calls in a pool of size 4. Put the warehouse load in a pool of size 1 if two loads cannot share a table.
+
+**SLAs** are "this TI should have succeeded by T." They are not substitutes for monitoring. An SLA miss without a pager is a log line.
+
+**Data-aware scheduling** (Datasets / Assets) is the conceptual replacement for "DAG B cron is 30 minutes after DAG A." A downstream DAG starts when an upstream dataset is updated, not when a clock fires. Treat it as an event, still with idempotent writers.
+
+---
+
+## What This Module Covers
+
+| Topic | What you will be able to do |
+|-------|-----------------------------|
+| [DAGs](dags.md) | Shape a 25-task pipeline: granularity, mapping, sensors, pools, SLAs |
+| [Executors](executors.md) | Choose Local vs Celery vs Kubernetes and tune concurrency |
+| [Idempotency](idempotency.md) | Make retries and backfills safe at the write path |
+| [Gotchas](gotchas.md) | Recognise scheduler, sensor, XCom, and catchup incidents before they page |
+
+---
+
+## Common Gotchas (preview)
+
+### DAGs that are too fine-grained
 
 Breaking a Spark job into 50 Airflow tasks (one per transformation) adds no value and makes debugging harder. Airflow tasks should represent meaningful units of work — not individual SQL statements.
 
-### 2. Using Airflow for Data Processing
+### Using Airflow for data processing
 
 ```python
 # ANTIPATTERN: Airflow worker processing 1 TB of data
@@ -143,11 +231,11 @@ def process_big_data(**context):
     ...
 ```
 
-### 3. Unbounded Catchup
+### Unbounded catchup
 
-A new DAG with `catchup=True` (the default) and a start date 2 years ago triggers 730 DAG runs immediately. Set `catchup=False` unless you explicitly want historical backfill.
+A new DAG with `catchup=True` and a start date 2 years ago triggers 730 DAG runs immediately. Set `catchup=False` unless you explicitly want historical backfill.
 
-### 4. Sensor Poke Mode at Scale
+### Sensor poke mode at scale
 
 `FileSensor`, `ExternalTaskSensor` and others in poke mode occupy a worker slot while waiting. With many sensors, you exhaust worker capacity. Use `reschedule` mode instead.
 
@@ -163,3 +251,19 @@ When reviewing or designing a pipeline:
 4. Are retries configured with appropriate backoff?
 5. Are SLAs monitored?
 6. Is there a sensible task granularity (not too fine, not monolithic)?
+7. Can a sensor deadlock the executor (poke + no pool)?
+8. Would a 90-day backfill take down the warehouse?
+
+If you cannot answer those, you cannot operate the DAG.
+
+---
+
+## Exercise
+
+A SaaS analytics DAG starts at 02:00 UTC. Task `spark_metrics` submits a Spark job. Task `wait_stripe` is an `HttpSensor` in poke mode with a 6-hour timeout. There are 12 Celery workers, concurrency 1 each. Twelve tenants each have this DAG.
+
+??? question "What fails first on a Stripe outage, and what is the smallest fix?"
+    Think in worker slots, not in "the sensor is waiting."
+
+    ??? success "Answer"
+        All 12 workers sit in `wait_stripe` poke loops. `spark_metrics` never starts even for tenants whose Stripe data already landed. The DAG looks "running" in the UI; the Spark cluster is idle. Smallest fix: `mode="reschedule"`, a dedicated sensor pool of size 2, and a timeout that fails the wait instead of occupying the fleet. The Spark task must not live *behind* an unbounded poke.

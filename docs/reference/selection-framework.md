@@ -1,152 +1,301 @@
 # Technology Selection Framework
 
-A structured approach to choosing data technologies based on workload properties — not trends.
+Choose tools from **workload properties**, not from blogs or resume pressure. This page is a procedure: questions, a mapping table, failure questions, anti-patterns, then worked examples from the running systems.
+
+Pairwise fights live in [comparisons](../comparisons/index.md). End-to-end boxes live in [architectures](../architectures/index.md). Come here first when the list of tools is still long.
 
 ---
 
-## The Wrong Question
+## The wrong question
 
-"What is the best tool for data engineering?"
+"What is the best data stack?"
 
-This question has no answer. Every technology is the best choice for some workloads and the wrong choice for others.
+There is no answer. Every system in this academy is optimal for some SLAs and expensive theatre for others.
 
-## The Right Question
+## The right question
 
-"What are the properties of my workload, and which tool was designed for those properties?"
+"What are the properties of **this** workload, and which tool was built for those properties? What will I **refuse** to add until a measurement forces it?"
 
 ---
 
-## Step 1: Characterise the Workload
+## Step 0 — write the consumer
 
-Answer these questions before looking at any tool:
+If you cannot name **who waits on the result** and **what they do if it is late or wrong**, you are selecting tools for a museum.
+
+| Consumer | Example SLO |
+|----------|-------------|
+| Checkout authorisation | 200 ms, fail-open/closed decided |
+| On-call Grafana | 1 s on 15 minutes of one service |
+| Finance GMV | 07:00 yesterday, recon to 0.5% |
+| Customer product analytics | 300 ms, tenant isolated |
+| Data scientist ad-hoc | minutes, not on the product path |
+
+One pipeline may serve several consumers. That is **several selections**, not one "platform."
+
+---
+
+## Step 1 — characterise the workload
+
+Do this **before** naming Kafka.
 
 ### Volume
-- How much data per day? (GB, TB, PB)
-- How fast does it arrive? (rows/sec, MB/sec)
-- How long do you need to retain it?
 
-### Velocity
-- What is the acceptable latency from event to query result?
-  - Milliseconds → you need a streaming engine
-  - Seconds → micro-batch or streaming
-  - Minutes → micro-batch acceptable
-  - Hours → batch is fine
+- Events/s at p99 day, not the CEO's "we will be Google."
+- Bytes/event (JSON vs Avro).
+- GB/day uncompressed **and** a compression guess.
+- Retention per tier (replay vs hot vs lake).
 
-### Access Pattern
-- Read-heavy or write-heavy?
-- Point lookups (single row by key) or analytical scans (aggregate millions of rows)?
-- Predictable queries or ad-hoc exploration?
-- Join-heavy or mostly single-table?
+### Latency (event to **this consumer's** answer)
+
+| Budget | Default class |
+|--------|----------------|
+| < 200 ms stateful | Flink / KV / in-process; not Spark, not Trino |
+| 1–30 s | Flink or Spark micro-batch or CH Kafka engine |
+| Minutes | Spark Structured Streaming or batch |
+| Hours / next morning | Spark / dbt / Airflow |
+
+### Access pattern
+
+- Point get vs scan vs multi-hop graph.
+- Predictable tiles vs ad-hoc SQL.
+- Join-heavy vs single-table.
+- Tenant filter always present?
 
 ### Cardinality
-- How many distinct values in your key dimensions?
-- Per-user metrics? Per-request tracing? (High cardinality — avoid TSDBs)
-- Service-level metrics? (Moderate cardinality — TSDBs work well)
+
+- Bounded labels (`service`, `status`) vs `user_id` / `device_id`.
+- High card → not a TSDB. See [TSDB vs OLAP](../comparisons/tsdb-vs-olap.md).
 
 ### Mutability
-- Append-only (events, logs) or update-heavy (CDC from OLTP)?
-- Do you need to delete records (GDPR)?
-- Do you need ACID transactions?
 
-### Query Complexity
-- Simple aggregations or complex multi-table JOINs?
-- Graph traversal?
-- Time-windowed aggregations?
+- Append-only events vs CDC upserts vs GDPR deletes.
+- If you mutate, Iceberg/Hudi/OLTP — not append-only Parquet dumps.
 
----
+### Failure and replay
 
-## Step 2: Apply the Framework
+- Can you rebuild from Kafka (how many days)?
+- Must sinks be idempotent?
+- What is allowed to be dropped under overload (debug logs vs payments)?
 
-### Ingestion Layer
+### Cost and team
 
-| Requirement | Tool |
-|-------------|------|
-| High-throughput event streaming | Kafka |
-| IoT sensor data | Kafka or MQTT → Kafka |
-| CDC from databases | Debezium → Kafka |
-| File-based batch | S3/GCS + Airflow |
+- Who is on-call at 03:00?
+- If the team has never run Flink, a minutes-SLA Spark job is not cowardice.
 
-### Processing Layer
-
-| Requirement | Tool |
-|-------------|------|
-| Batch transformation, lakehouse writes | Spark |
-| Sub-second streaming, complex state | Flink |
-| Micro-batch streaming (minutes latency) | Spark Structured Streaming |
-| Distributed ML, hyperparameter tuning | Ray |
-| Workflow orchestration | Airflow |
-
-### Storage Layer
-
-| Requirement | Tool |
-|-------------|------|
-| Historical data lake, ACID, time travel | Iceberg |
-| Frequent upserts, CDC pattern | Hudi |
-| Delta Lake ecosystem, Unity Catalog | Delta |
-| Key-value, high write throughput | Cassandra / DynamoDB |
-| Document data | MongoDB |
-
-### Query / Serving Layer
-
-| Requirement | Tool |
-|-------------|------|
-| Dashboard queries <100ms | ClickHouse |
-| Sub-second freshness (data from last 5s) | Pinot |
-| Federated ad-hoc queries across systems | Trino |
-| Infrastructure monitoring + alerting | Prometheus / VictoriaMetrics |
-| High-cardinality time series analytics | ClickHouse |
-| Graph traversal and pattern matching | Neo4j |
-| SQL on time series, moderate scale | TimescaleDB |
+Write the answers in a table. If a cell is "unknown," the next task is **measurement**, not a PO for Pinot.
 
 ---
 
-## Step 3: Design for Failure
+## Step 2 — map to a default (then argue)
 
-Every tool has failure modes. Before finalising your choice, ask:
+### Ingest
 
-- What happens when [tool] falls behind on ingestion?
-- What happens when a node fails mid-processing?
-- What happens when a bad schema change arrives?
-- What happens when a query runs for 10x longer than expected?
-- How do I replay or reprocess data if there is a bug?
+| Requirement | Default | Not unless measured |
+|-------------|---------|---------------------|
+| High-throughput events | Kafka | Kinesis/PubSub as cloud equivalents |
+| Device protocol | MQTT **into** Kafka | Kafka on the microcontroller |
+| CDC | Debezium → Kafka | Polling `updated_at` |
+| Nightly files | Object storage + Airflow | Kafka "for consistency" |
 
-If you cannot answer these questions for your chosen tool, you do not understand it well enough to run it in production.
+### Process
+
+| Requirement | Default | Not unless measured |
+|-------------|---------|---------------------|
+| Lake SQL / shuffle | Spark | Flink batch as identity |
+| Sub-second keyed state | Flink | Spark Structured Streaming |
+| Minutes enrich | Either; pick team | Both |
+| Distributed Python ML | Ray | Spark MLlib for DL |
+| Orchestrate | Airflow | Notebooks |
+
+### Store
+
+| Requirement | Default | Not unless measured |
+|-------------|---------|---------------------|
+| Cheap history, time travel, multi-engine | Iceberg | Three table formats |
+| Heavy CDC upserts | Hudi (or Iceberg merge if rate OK) | Raw JSON on S3 |
+| OLTP truth | Postgres | ClickHouse |
+| Hot analytics SQL | ClickHouse | Trino on the tile |
+| Infra metrics | Prometheus/VM | CH as Alertmanager |
+| Graph rings | Neo4j **derived** | Graph on the 200 ms path |
+
+### Query
+
+| Requirement | Default |
+|-------------|---------|
+| 100 ms tiles | ClickHouse (Pinot if QPS/freshness **fail** CH) |
+| Federated ad-hoc | Trino |
+| Graph | Neo4j |
+| SQL time series moderate | Timescale or CH |
 
 ---
 
-## Common Architecture Patterns
+## Step 3 — design for failure (or you did not select)
 
-### Real-Time Analytics (SaaS dashboards)
+For the **chosen** tool, answer:
+
+1. What metric shows it is falling behind?
+2. What happens on node death mid-write?
+3. What happens on a poison schema?
+4. How do you replay a bad hour?
+5. What is the 10× cliff (state size, parts, partitions, coordinator RAM)?
+
+If you cannot answer, you are not ready to run it. Read the matching [incident](../incidents/index.md).
+
+---
+
+## Step 4 — V1 vs zoo
+
+Write **fewest parts** that meet the SLO. List **what you will not add yet**. Add a component when a **named bottleneck** or **hard requirement** appears.
+
+See [architectures index](../architectures/index.md). V1 is usually Kafka + one processor + one serving store.
+
+---
+
+## Anti-patterns (instant no)
+
+| Phrase in a design doc | Translate | Do this instead |
+|------------------------|-----------|-----------------|
+| "Kafka because we might need streaming someday" | We want a log-shaped resume | Nightly Spark; add Kafka when a consumer has a latency SLO |
+| "Flink because we have Kafka" | Confused bus with processor | Spark from Kafka is valid |
+| "Lakehouse as the product database" | Compaction on the checkout path | Postgres truth, lake derived |
+| "ClickHouse for everything" | No OLTP, no federation, no graph | Split by access |
+| "Trino for Grafana" | Coordinator as a dashboard server | CH or pre-agg |
+| "Prometheus with user_id labels" | Cardinality bomb | CH events |
+| "Neo4j on authorise" | Timeout | Flink + KV |
+| "Notebooks in Airflow as the pipeline" | Unreviewable state | Module + tests |
+| "Both Pinot and CH in V1" | Two ingest paths | CH until QPS hurts |
+| "Ray for ETL because Python" | Wrong abstraction | Spark SQL |
+| "One cluster to simplify" | Mixed SLAs, mixed failure | Split hot/cold |
+| "Schema-less JSON forever" | Silent nulls | Registry + contracts |
+| "We'll shard when we scale" | No key design | Key for today's whale |
+
+If your doc contains three of these, stop drawing.
+
+---
+
+## Worked examples (running systems)
+
+### Observability on-call tile
+
+- Volume high, latency 1 s, access filter `service`+time, card high on logs, append-only, retain 7 d hot.
+- **Select:** Kafka → Flink or CH Kafka engine → **ClickHouse** `ORDER BY (service, timestamp)`. Prometheus **beside** for infra.
+- **Refuse:** Pinot, Trino on the tile, ES as SoR.
+
+### E-commerce GMV
+
+- Low order QPS, **mutate**, recon to Postgres, hours OK.
+- **Select:** Postgres → Debezium → Kafka → Spark/dbt → Iceberg. Trino ad-hoc.
+- **Refuse:** Flink until inventory SLA is seconds; CH as order SoR.
+
+### IoT 1-minute chart
+
+- High write, latest-by-device, pyramid retain.
+- **Select:** MQTT → Kafka → Flink windows → CH or Timescale; hourly Iceberg.
+- **Refuse:** Prometheus for `device_id`; topic-per-device.
+
+### Fraud score
+
+- 200 ms, keyed velocity, graph **offline**.
+- **Select:** Flink/scorer + KV/CH features. Neo4j batch. Iceberg labels.
+- **Refuse:** Spark micro-batch on the auth path; Cypher in the request.
+
+### SaaS tenant dashboard
+
+- 100k/s, tenant filter, cost sensitive.
+- **Select:** Kafka key `customer_id` + quotas → CH tenant-first key → Iceberg rollups.
+- **Refuse:** per-tenant clusters in V1; notebooks as the product.
+
+---
+
+## Decision record (copy this)
+
 ```
-Events → Kafka → Flink (enrichment) → ClickHouse (dashboards)
-                                     → Iceberg (history)
-       → Spark (batch ETL) ──────────→ Iceberg
-       → Trino (ad-hoc queries on Iceberg)
+Consumer + SLO:
+Volume (events/s, GB/day, retain):
+Access (get / agg / join / graph):
+Cardinality:
+Mutability / deletes:
+V1 (boxes):
+Not adding yet:
+Failure metric:
+Replay plan:
+10× change:
+Anti-patterns we rejected:
 ```
 
-### Observability Platform
-```
-Metrics → Prometheus / VictoriaMetrics (alerting, Grafana)
-Logs    → Kafka → ClickHouse (search, analysis)
-Traces  → Kafka → ClickHouse (distributed trace analysis)
-```
+If this does not fit on one page, you are designing three systems. Split the doc.
 
-### E-Commerce / CDC
-```
-PostgreSQL → Debezium → Kafka → Flink (CDC processing) → Hudi (lakehouse)
-                              → Kafka Streams (order state)
-                              → ClickHouse (reporting)
-```
+---
 
-### IoT / Time Series
-```
-Devices → Kafka → Flink (windows, anomaly detection) → TimescaleDB / ClickHouse
-                → Spark (batch downsampling)         → S3 (long-term storage)
-```
+## After you selected
 
-### Fraud Detection
-```
-Events → Kafka → Flink (real-time scoring, <200ms) → Alert
-                → Spark (batch graph computation) → Neo4j (fraud ring detection)
-                → ClickHouse (analyst investigation)
-```
+1. [Comparison](../comparisons/index.md) for the pair you almost picked.
+2. [Architecture](../architectures/index.md) closest to yours — steal V1, not V3.
+3. [Labs](../labs/index.md) for the failure you will actually hit.
+4. [Glossary](glossary.md) for the words in the decision record.
+
+Selection is finished when you can explain the choice to an on-call who does not like the tool — using the **workload table**, not a feature matrix.
+
+---
+
+## Constraint layers (do not mix them)
+
+| Layer | Example | Effect |
+|-------|---------|--------|
+| Workload | 200 ms, 10M series | **Determines** engine class |
+| Org | "We only operate Spark" | May pick a **worse** engine; document the tax |
+| Vendor | Existing Snowflake contract | Same |
+| Skill | No JVM | PySpark vs Flink ops cost |
+| Law | EU residency | Region topology, not CH vs Pinot |
+
+Workload first. Org constraints second. If org forces Spark at 200 ms, the record should say **SLA at risk**, not "Spark is streaming."
+
+---
+
+## Default V1 by consumer (summary)
+
+| Consumer | V1 |
+|----------|----|
+| Nightly finance | PG dump / Iceberg + dbt; **no** Flink |
+| Product analytics tiles | Kafka + CH |
+| On-call logs | Kafka + CH; Prom beside |
+| IoT charts | Kafka + CH/Timescale + pyramid |
+| Fraud score | Flink/scorer + KV |
+| Ad-hoc join lake+PG | Trino |
+| Train models | Spark features → Ray/box |
+
+---
+
+## When to reopen a decision
+
+- SLO missed after `ORDER BY` / key design was checked (new class of engine).
+- 10× volume (usually **scale the same** engine).
+- New consumer with a different SLA (add a path, do not morph the old one).
+- Team gone (ops constraint changed).
+
+Do not reopen because a conference named a product.
+
+---
+
+## Example anti-pattern write-up (copy)
+
+> Rejected Kafka+Flink for weekly NPS CSV (20 MB). SLA is Friday noon. Airflow + Python + Iceberg (or a sheet) meets it. Revisit if NPS becomes an in-app live widget with a 30 s SLO.
+
+That paragraph in a design doc is the framework working.
+
+---
+
+## Checklist before PR of an architecture
+
+- [ ] Consumers and SLOs numbered
+- [ ] GB/day math
+- [ ] Keys named
+- [ ] V1 boxes ≤ 5
+- [ ] Not-adding list
+- [ ] Failure metric per box
+- [ ] Replay
+- [ ] PII/retention
+- [ ] Comparison pair considered
+- [ ] Incident class linked
+
+If the PR is a landscape diagram with 18 logos, bounce it.

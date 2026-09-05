@@ -1,77 +1,140 @@
-# Data Engineering Academy
-
-**You don't need to memorise more tools. You need to understand why they exist.**
-
+---
+hide:
+  - toc
 ---
 
-Most data engineering learning resources teach you *what* Kafka, Spark, Flink, and ClickHouse do. This academy teaches you *why* they were built, *how* they actually work, and *when* they will fail you.
+<div class="course-hero">
+  <div class="course-hero__content">
+    <span class="course-eyebrow">Spark · Kafka · Flink · Lakehouse · OLAP</span>
+    <h1>Reason about data systems<br><span>the way production does.</span></h1>
+    <p class="course-hero__lead">An academy for experienced engineers. Every lesson starts from a workload, then internals, then failure. You leave able to <strong>derive</strong> an architecture — not recite a stack.</p>
+    <div class="course-actions">
+      <a class="course-button course-button--primary" href="start-here/">Start here <span aria-hidden="true">→</span></a>
+      <a class="course-button course-button--secondary" href="how-to-study/">How to study</a>
+      <a class="course-button course-button--coffee" href="https://buymeacoffee.com/sanketn">☕ Support this academy</a>
+    </div>
+    <p class="course-hero__note">Not beginner-friendly — assumes Python, SQL, Docker, and production scars</p>
+  </div>
+  <div class="course-terminal" aria-label="Academy roadmap">
+    <div class="course-terminal__bar"><i></i><i></i><i></i><span>data-engineering / roadmap</span></div>
+    <div class="course-terminal__body">
+      <p><span class="terminal-muted">00</span> Scale, partitions, shuffle, time</p>
+      <p><span class="terminal-muted">01–02</span> Spark + Kafka as the data plane</p>
+      <p><span class="terminal-muted">03–04</span> Event time, state, orchestration</p>
+      <p><span class="terminal-muted">05–12</span> Storage, query, specialised stores, platform</p>
+      <div class="terminal-status"><span></span> Five production systems throughout</div>
+    </div>
+  </div>
+</div>
 
-The goal is not a list of facts. The goal is engineering intuition.
+<div class="course-proof" aria-label="Academy overview">
+  <div><strong>13</strong><span>Curriculum phases</span></div>
+  <div><strong>5</strong><span>Running production systems</span></div>
+  <div><strong>4</strong><span>Interactive simulations</span></div>
+  <div><strong>On-call</strong><span>Incident drills, not demos</span></div>
+</div>
 
----
+## Choose a route
 
-## What You Will Walk Away With
+<div class="path-grid">
+  <a class="path-card" href="learning-paths/#foundations-first">
+    <span class="path-card__icon">01</span>
+    <span class="path-card__time">Start here if new to internals</span>
+    <h3>Foundations first</h3>
+    <p>Scale, partitioning, and distributed execution before you touch a product name. Then Kafka and Spark.</p>
+    <span class="path-card__link">Follow the foundations path →</span>
+  </a>
+  <a class="path-card path-card--featured" href="learning-paths/#staff-data-platform">
+    <span class="path-card__tag">Most complete</span>
+    <span class="path-card__icon">02</span>
+    <span class="path-card__time">Staff data platform</span>
+    <h3>Derive the whole stack</h3>
+    <p>Ingestion through lakehouse, OLAP, quality, and incidents. Workload chooses the technology.</p>
+    <span class="path-card__link">Follow the Staff path →</span>
+  </a>
+  <a class="path-card" href="learning-paths/#on-call-streaming">
+    <span class="path-card__icon">03</span>
+    <span class="path-card__time">Streaming / on-call</span>
+    <h3>Debug lag, skew, watermarks</h3>
+    <p>Kafka hot partitions, Spark stragglers, stalled Flink watermarks, ClickHouse ORDER BY mistakes.</p>
+    <span class="path-card__link">Follow the on-call path →</span>
+  </a>
+</div>
 
-After completing this academy, given an unfamiliar data problem, you should be able to:
+## A curriculum built around engineering problems
 
-- Identify the fundamental constraints (volume, velocity, latency, access pattern)
-- Reason toward an appropriate architecture without memorising a predefined stack
-- Explain *why* each component exists, not just *what* it does
-- Predict where a system will fail before it does
-- Debug a production incident you have never seen before
-- Justify every technology choice through workload, not fashion
+The phases are named after systems because that is how teams talk. The lessons are named after the problem that forced the system to exist.
 
----
+<div class="curriculum-grid">
+  <div class="curriculum-stage">
+    <div class="curriculum-stage__head"><span>Phases 0–3</span><strong>Data plane</strong></div>
+    <p>What breaks as volume, time, and fan-out grow — and why a log plus distributed compute is the usual answer.</p>
+    <ul>
+      <li><a href="foundations/">Foundations</a></li>
+      <li><a href="foundations/data-modelling/">Data modelling</a></li>
+      <li><a href="spark/">Spark</a></li>
+      <li><a href="kafka/">Kafka</a></li>
+      <li><a href="flink/">Stream processing</a></li>
+    </ul>
+  </div>
+  <div class="curriculum-stage">
+    <div class="curriculum-stage__head"><span>Phases 4–8</span><strong>Storage and query</strong></div>
+    <p>Where the table lives, how analysts query it, and why dashboard latency is a storage-layout problem.</p>
+    <ul>
+      <li><a href="airflow/">Orchestration</a></li>
+      <li><a href="lakehouse/">Lakehouse</a></li>
+      <li><a href="query-engines/trino/">Trino</a></li>
+      <li><a href="olap/clickhouse/">ClickHouse</a></li>
+    </ul>
+  </div>
+  <div class="curriculum-stage">
+    <div class="curriculum-stage__head"><span>Phases 9–12</span><strong>Specialised stores and platform</strong></div>
+    <p>Access patterns that tabular engines lose: graphs, wide-column, time series, then catalogues, quality, and security.</p>
+    <ul>
+      <li><a href="time-series/">Time series</a></li>
+      <li><a href="databases/">NoSQL</a></li>
+      <li><a href="graph/">Graph</a></li>
+      <li><a href="metadata/">Platform</a></li>
+    </ul>
+  </div>
+  <div class="curriculum-stage">
+    <div class="curriculum-stage__head"><span>Practice</span><strong>Architectures, labs, incidents</strong></div>
+    <p>Put the pieces on one diagram. Then break them. Then explain the telemetry.</p>
+    <ul>
+      <li><a href="architectures/">Architectures</a></li>
+      <li><a href="comparisons/">Comparisons</a></li>
+      <li><a href="labs/">Labs</a></li>
+      <li><a href="incidents/">Incidents</a></li>
+      <li><a href="capstone/">Capstone</a></li>
+    </ul>
+  </div>
+</div>
 
-## Who This Is For
+<div class="method-grid">
+  <div>
+    <span>01</span>
+    <h3>Use case → why</h3>
+    <p>No dictionary openings. A concrete workload, then the constraint that made the current tool fail.</p>
+  </div>
+  <div>
+    <span>02</span>
+    <h3>Internals, not APIs</h3>
+    <p>Shuffle files, ISR, watermarks, snapshots, granules. Enough to predict the next incident.</p>
+  </div>
+  <div>
+    <span>03</span>
+    <h3>Failure is the exam</h3>
+    <p>Gotchas, scale ladders, and incident drills. You have understood it when you can debug it.</p>
+  </div>
+</div>
 
-- Experienced Data Engineers who want to go deeper
-- Senior Software Engineers moving into data infrastructure
-- Platform Engineers supporting data workloads
-- ML Engineers working with data pipelines
-- SREs responsible for data platform reliability
-- Engineers preparing for Staff-level data responsibilities
+<div class="course-cta">
+  <div>
+    <span class="course-eyebrow">Five running systems</span>
+    <h2>Same events. Different engines.</h2>
+    <p>SaaS analytics, observability, e-commerce, IoT, and a fraud graph. The schema does not change; the engine does.</p>
+  </div>
+  <a class="course-button course-button--primary" href="start-here/">Read the briefing <span aria-hidden="true">→</span></a>
+</div>
 
-**You should already know:** Python, SQL, Linux basics, Docker, basic databases, basic cloud concepts, Git.
-
-**You will learn:** distributed data concepts from first principles.
-
----
-
-## The Teaching Loop
-
-Every major lesson follows this sequence:
-
-```
-USE CASE → WHY → INTUITION → WHAT → INTERNALS → HOW → GOTCHAS → APPLY
-```
-
-You will not encounter a concept without first understanding *why it was necessary to invent it*.
-
----
-
-## Running Use Cases
-
-Throughout the academy, five fictional production systems evolve to illustrate real-world trade-offs:
-
-| System | Technologies |
-|--------|-------------|
-| **SaaS Analytics Platform** — millions of users generating product events | Kafka → Spark → Iceberg → Trino → ClickHouse |
-| **Security / Observability Platform** — billions of logs, metrics, traces | Kafka → Flink → ClickHouse → Pinot |
-| **E-Commerce Platform** — orders, payments, clickstream, recommendations | CDC → Kafka → Lakehouse → Graph DB |
-| **IoT Platform** — millions of devices sending sensor readings | Kafka → TSDB → downsampling → object storage |
-| **Fraud Detection** — user–device–IP–transaction relationships | Kafka → Flink → Graph DB → ClickHouse |
-
-These systems reappear throughout every module. The same event schema flows through Spark, Kafka, ClickHouse, Iceberg, and Neo4j so you can see how the *same workload looks different from different engines*.
-
----
-
-## How to Navigate
-
-→ [Start Here](start-here.md) — understand the big picture before diving in
-→ [How to Study](how-to-study.md) — how to get the most out of this material
-→ [Phase 0: Foundations](foundations/index.md) — build the mental models everything else depends on
-
-Or jump directly to a technology:
-
-[Spark](spark/index.md) · [Kafka](kafka/index.md) · [Flink](flink/index.md) · [Airflow](airflow/index.md) · [Iceberg](lakehouse/iceberg.md) · [Trino](query-engines/trino.md) · [ClickHouse](olap/clickhouse.md) · [Pinot](olap/pinot.md) · [Ray](distributed-python/ray.md) · [Neo4j](graph/neo4j.md)
+<p class="course-footnote">Sister academies: <a href="https://sanketn26.github.io/learn-ml/">Learn ML</a> · <a href="https://sanketn26.github.io/AIEngineering/">AI Engineering</a> · <a href="https://sanketn26.github.io/interview-prep/">Senior Engineer Academy</a></p>
