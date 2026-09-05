@@ -1,3 +1,7 @@
+---
+description: Choose Airflow, Flink, Spark, or a warehouse from measured workload properties and SLAs, not resume pressure — a procedure, not a vendor comparison.
+---
+
 # Technology Selection Framework
 
 Design review, Tuesday 2 PM. The proposal: migrate the nightly NPS CSV job (20 MB, due Friday noon) from Airflow to Flink, "so we're stream-native before Q3." Nobody in the room can name what breaks if it stays batch.

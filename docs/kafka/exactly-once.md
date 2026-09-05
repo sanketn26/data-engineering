@@ -1,3 +1,7 @@
+---
+description: Why turning on Kafka exactly-once semantics doesn't stop a double charge to Stripe, and what actually guarantees atomicity.
+---
+
 # Exactly-once semantics
 
 09:15 AM incident review: a customer was charged twice for the same order. The checkout worker crashed between charging the card and committing its Kafka offset; on restart, at-least-once delivery replayed the charge event. Someone in the room says, "just turn on exactly-once."

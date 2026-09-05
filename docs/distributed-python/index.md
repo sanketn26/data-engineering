@@ -1,3 +1,7 @@
+---
+description: Why scoring UDFs blow their SLO under Spark, and when a graph of Python tasks and actors, not a bigger cluster, is the actual fix.
+---
+
 # Distributed Python
 
 !!! info "Version and source policy"

@@ -1,3 +1,7 @@
+---
+description: Why a Spark groupBy stalls at 199 of 200 tasks — hot-key shuffle skew, and the serialize-write-fetch-spill mechanism behind every slow stage.
+---
+
 # The Shuffle
 
 02:47 AM page: the `groupBy("customer_id")` stage has been stuck at 199 of 200 tasks for forty minutes. Yesterday's run of the same code, same cluster, finished in twelve minutes. CPU dashboards look idle; the bill does not.

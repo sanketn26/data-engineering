@@ -1,3 +1,7 @@
+---
+description: Ray tasks and actors explained through a feature-scoring SLO miss: why a shared-memory object store beats re-serializing models per call.
+---
+
 # Ray
 
 Thursday, 4:15 PM, code review. The PR replaces the feature-scoring UDF with `@ray.remote` tasks and swaps the loaded sklearn model into a Ray actor. A reviewer comments: "Before I approve this — convince me this isn't just `spark.sql.shuffle.partitions` and more executors. What does Ray actually buy us that tuning Spark doesn't?"

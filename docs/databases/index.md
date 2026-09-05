@@ -1,3 +1,7 @@
+---
+description: Choosing key-value and wide-column NoSQL stores by access pattern instead of bigger Postgres hardware, for sessions, spans, and device registries.
+---
+
 # NoSQL
 
 !!! info "Version and source policy"

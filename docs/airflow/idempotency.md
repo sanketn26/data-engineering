@@ -1,3 +1,7 @@
+---
+description: Why idempotent writes keyed on the data interval, not retries or luck, are what keeps Airflow backfills from doubling rows.
+---
+
 # Idempotency in Airflow Pipelines
 
 11:52 PM. Task `load_orders`, step 4 of 25, throws an exception after writing 40% of yesterday's order rows. Airflow's defaults kick in: `retries=3`, retry in 5 minutes.

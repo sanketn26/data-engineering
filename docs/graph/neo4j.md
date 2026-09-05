@@ -1,3 +1,7 @@
+---
+description: Neo4j and Cypher for bounded traversals, indexing the start node and limiting depth so one query doesn't pin a core and stall other Bolt sessions.
+---
+
 # Neo4j & Cypher
 
 03:20 AM. The risk API's p99 latency alarm fires. One Cypher query — `MATCH (u:User {user_id: $id})-[:USED]->(d:Device)<-[:USED]-(u2:User) RETURN u2 LIMIT 20` — is pinning a CPU core and stalling other Bolt sessions. `PROFILE` shows the first operator is `AllNodesScan`.

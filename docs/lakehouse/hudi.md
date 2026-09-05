@@ -1,3 +1,7 @@
+---
+description: Why Apache Hudi's file groups and compaction make CDC upserts and deletes practical on a data lake that Iceberg and Delta struggle with.
+---
+
 # Apache Hudi
 
 9:03 AM. A support ticket: order 8831 shows `PENDING` in the product dashboard but Postgres has said `PAID` for forty minutes. Same lake, same partition. You already ruled out Iceberg and Delta for this table months ago for a reason that's about to become obvious.

@@ -1,3 +1,7 @@
+---
+description: Event time versus ingestion time versus scrape time — why the wrong clock makes a Grafana spike look real when nothing actually changed.
+---
+
 # Time Semantics
 
 **10:07 AM.** An on-call engineer is staring at a Grafana panel showing a fleet-wide temperature spike to 95° at 10:06. Nothing is actually overheating — a batch of devices just reconnected to Wi-Fi after a brief outage and dumped their buffered readings. The sensor read 95° at `10:02:03Z`; the gateway didn't deliver it until `10:06`.

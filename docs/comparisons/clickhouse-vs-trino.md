@@ -1,3 +1,7 @@
+---
+description: ClickHouse is a storage engine tuned by ORDER BY; Trino is a federated query engine with no storage of its own — mixing up their roles backfires.
+---
+
 # ClickHouse vs Trino
 
 Someone points a new Grafana panel at Trino, because "Trino can already query everything — Iceberg, Postgres, ClickHouse, all of it." The panel needs a sub-second refresh on the last 15 minutes of traffic. It times out.

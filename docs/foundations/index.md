@@ -1,3 +1,7 @@
+---
+description: Phase 0 of the data engineering academy: partitioning, shuffle, and scale problems that turn a working pandas script into a 3 AM OOM.
+---
+
 # Phase 0: Data Systems Foundations
 
 09:02 Monday. Product wants p95 latency by customer, service, and region for last week. Friday this was 40 GB of Parquet and a pandas script on a laptop, on events shaped like this:

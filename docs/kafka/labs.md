@@ -1,3 +1,7 @@
+---
+description: Hands-on Kafka labs: reproduce lag, hot partitions, and broker failure on a laptop before touching production settings.
+---
+
 # Kafka labs
 
 Your team lead asks you to justify raising `service-events` from 12 partitions to 48 before Friday's deploy. You say it will fix the lag. She asks how you know, given that increasing partitions reshuffles every key going forward. The only honest answer right now is "I read that it should help."

@@ -1,3 +1,7 @@
+---
+description: How Kafka partitions parallelize a topic across consumers without breaking per-key ordering, and why hot partitions happen.
+---
+
 # Partitions and consumers
 
 16:02. Consumer lag on `alert-processor` won't come down. Someone scales the Kubernetes Deployment from 12 pods to 52, certain more workers means more throughput. Ten minutes later, lag is exactly where it was.

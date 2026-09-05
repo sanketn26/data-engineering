@@ -1,3 +1,7 @@
+---
+description: Five requirements-first architecture case studies showing why the same Kafka topic can't feed a fraud score, a dashboard, and a lakehouse table alike.
+---
+
 # Architectures
 
 Before you read a single one of these five pages: what is the first box you would draw for a system that ingests events and needs both a live dashboard and a year of history? Most engineers draw Kafka, then a stream processor, then a lakehouse, then an OLAP store — all before writing down a single number. Try instead to name the **one** query that must be fast, the **one** failure that is unacceptable, and the **one** component you refuse to add yet. If you cannot do that in a sentence, you are not ready to draw a box.

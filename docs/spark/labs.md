@@ -1,3 +1,7 @@
+---
+description: Hands-on Spark UI labs — shuffle, skew, join strategy, and partition count — that turn a config-tweak guess into a diagnosed fix.
+---
+
 # Spark Labs
 
 Your teammate wants to bump `spark.sql.shuffle.partitions` in production because "the last run was slow." You ask what the Spark UI showed for shuffle read and task skew on that run. They don't know — they never opened `:4040`.

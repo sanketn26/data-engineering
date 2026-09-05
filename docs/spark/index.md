@@ -1,3 +1,7 @@
+---
+description: Diagnose a Spark job stuck at 39 idle executors and one hot core — shuffle skew, broadcast joins, and driver bottlenecks on real production data volumes.
+---
+
 # Apache Spark
 
 !!! info "Version and source policy"

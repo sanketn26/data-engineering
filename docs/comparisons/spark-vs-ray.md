@@ -1,3 +1,7 @@
+---
+description: Spark scales DataFrame transformations over partitions; Ray scales a Python task and actor graph — forcing one to do the other reinvents the worse of both.
+---
+
 # Spark vs Ray
 
 A ML engineer asks in Slack: "we already have a 40-node Spark cluster for ETL — can't we just run our hyperparameter sweep as a Spark job over the search space instead of standing up Ray?" The sweep is 200 independent training runs, each holding a model in memory across several epochs, with early-stopping logic that needs to talk back to a scheduler. Predict before you read on: does Spark's DataFrame/partition model fit this, or does it fight it?

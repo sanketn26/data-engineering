@@ -1,3 +1,7 @@
+---
+description: How Apache Iceberg's snapshot metadata lets Spark and Flink commit to the same table concurrently without corrupting it.
+---
+
 # Apache Iceberg
 
 2:17 AM. Flink's CDC writer and the nightly Spark MERGE both try to commit to `lake.orders` in the same 90-second window. One succeeds. The other logs `CommitFailedException` and retries a few seconds later. Nobody loses data — but only because of one specific design decision upstream.

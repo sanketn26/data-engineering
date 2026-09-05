@@ -1,3 +1,7 @@
+---
+description: Tumbling, sliding, and session windows for cutting an endless stream into finite aggregates — before a raw-data window query melts the cluster.
+---
+
 # Time Windows
 
 **2:03 PM.** A dashboard request comes in: "rolling 5-minute average temperature, updated every 30 seconds, across the whole fleet." An engineer writes it as a SQL window function directly over 90 days of raw readings from 10 million devices. The query never returns; the cluster's CPU sits at 100%.

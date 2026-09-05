@@ -1,3 +1,7 @@
+---
+description: Which process holds the plan, which holds the data, and when a Spark transformation actually triggers a stage, a shuffle, or a write.
+---
+
 # The Spark Mental Model
 
 14:40. Code review on a one-line PR: `events = spark.read.parquet(...)`. The reviewer asks three questions before approving — which process holds the plan, which process holds the 5 TB, and does line 1 touch S3, or does the `write` three lines down? You cannot answer confidently in the thread.

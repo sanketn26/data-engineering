@@ -1,3 +1,7 @@
+---
+description: When query federation across Iceberg, Postgres, and MySQL beats another ETL pipeline, and what it costs you in latency and load on every run.
+---
+
 # Query Engines
 
 This module compares engines that query external storage with [managed cloud warehouses](cloud-warehouses.md), where storage, workload isolation, governance, and operations are bundled behind a service contract.

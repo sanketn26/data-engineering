@@ -1,3 +1,7 @@
+---
+description: Graph databases versus Postgres for multi-hop traversal, when a recursive CTE that used to run in 40 ms deserves a real graph store instead.
+---
+
 # Graph vs Relational
 
 Design review, 10 AM. A recursive CTE that finds "users within 3 hops of this IP" ran in 40 ms last quarter, back when the table had 2 million rows. Same query, same indexes, now times out at 30 seconds — the table has grown to 40 million rows. Someone proposes migrating the whole fraud ledger to Neo4j. Someone else says "just tune Postgres."

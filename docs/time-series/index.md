@@ -1,3 +1,7 @@
+---
+description: Why a plain Postgres table can't survive 10 million IoT devices reporting every 30 seconds, and what makes a system time-series shaped.
+---
+
 # Time Series
 
 !!! info "Capacity is measured, not universal"

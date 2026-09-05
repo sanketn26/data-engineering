@@ -1,3 +1,7 @@
+---
+description: Why Trino partition pruning silently fails on a wrapped column, and how the engine schedules readers and shuffles rows across Iceberg, S3, and Postgres.
+---
+
 # Trino
 
 10:41 AM. `WHERE ds = DATE '2024-06-12'` should prune to a single day of a 400 TB Iceberg table. `EXPLAIN` shows Trino scanning all 400 days instead. The analyst who wrote the query swears the `WHERE` clause is right there.

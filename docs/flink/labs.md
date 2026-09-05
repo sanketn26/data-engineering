@@ -1,3 +1,7 @@
+---
+description: Hands-on Flink labs for stalling a watermark, killing a TaskManager, and verifying window and checkpoint recovery in the Flink UI, not on paper.
+---
+
 # Flink labs
 
 Time.md's exercise asked you to predict what happens to a fraud window when one Kafka partition goes idle. Windows.md asked you to predict whether a tumbling or sliding window catches a login-failure burst that straddles a bucket boundary. A prediction on paper is cheap — Lab 3 (stall a watermark) and Lab 9 (sliding versus tumbling) are where you find out if yours was right, by running the failure and reading it off the actual Flink UI instead of reasoning about it from a chair.

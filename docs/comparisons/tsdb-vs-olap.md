@@ -1,3 +1,7 @@
+---
+description: Why adding a high-cardinality label like user_id to Prometheus is a cardinality bomb, and when ClickHouse or Pinot is the right tool instead.
+---
+
 # TSDB vs OLAP
 
 A pull request adds `user_id` as a new Prometheus label so support can filter latency by customer. It passes review — it's just a label, and Prometheus already stores time series. Two weeks later the TSDB's memory usage triples and queries start timing out. Predict before you read on: was the label the mistake, or was Prometheus the wrong tool for that question regardless of the label?

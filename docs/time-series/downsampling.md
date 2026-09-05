@@ -1,3 +1,7 @@
+---
+description: Build tiered rollups and drop raw retention instead of paying 160 TB/year to render a 1,200-pixel chart nobody looks past.
+---
+
 # Downsampling
 
 **Storage review, Thursday.** Finance flags the observability budget: the raw-readings disk has grown to 160 TB and is still climbing. Someone points out the dashboards only ever render a 1,200-pixel-wide chart — nobody looks at more than 1,200 points at once, no matter how many billions of rows sit behind it.

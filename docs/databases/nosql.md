@@ -1,3 +1,7 @@
+---
+description: Access-pattern-first NoSQL modeling: picking a partition key so each hot query hits exactly one partition instead of a schemaless Postgres copy.
+---
+
 # NoSQL Thinking
 
 Monday, design review. An engineer's one-pager proposes moving `sessions`, `spans`, and `devices` off the overloaded Postgres primary and "into a NoSQL database" — same three tables, same columns, new vendor logo. The reviewer asks one question before approving anything: "What's the primary key of your hottest query, for each table?" The room goes quiet.

@@ -1,3 +1,7 @@
+---
+description: A field guide to Airflow incidents where the UI says running but nothing is happening: poke-mode sensors, catchup floods, and XCom bloat.
+---
+
 # Airflow Production Gotchas
 
 07:05 AM. Dashboard: empty. Airflow UI: twenty-five tasks marked "running." Spark cluster: idle, zero jobs submitted in the last forty minutes. Celery workers: twelve of them, each pinned at 1% CPU.

@@ -1,3 +1,7 @@
+---
+description: Practice diagnosing Kafka hot partitions, Spark skew, and Flink watermark incidents from metrics before reaching for a fix.
+---
+
 # Production Incidents
 
 02:47 AM. `P1 consumer_lag_seconds{topic="product-events"} > 180`. Three teams' dashboards go stale in the next ten minutes and you have not opened a terminal yet.

@@ -1,3 +1,7 @@
+---
+description: Tumbling vs sliding windows in Flink, and why a fraud burst straddling a bucket boundary can slip past a tumbling window undetected.
+---
+
 # Windows
 
 11:58 PM. Fraud expects an alert: `u_44810` racked up 13 failed logins between 11:50 and 11:56 — well over the "10 in 5 minutes" threshold. No alert fired. Kafka lag is zero; the watermark is advancing normally.

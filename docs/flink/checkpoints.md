@@ -1,3 +1,7 @@
+---
+description: How Flink checkpoints and barriers protect stream state, and why backpressure from a slow sink stalls a fraud job's checkpoint completion.
+---
+
 # Checkpoints and recovery
 
 The checkpoint dashboard shows the last successful checkpoint 47 minutes ago and climbing. Job status: RUNNING. Kafka consumer lag on the source: also climbing. Nobody has touched the job.

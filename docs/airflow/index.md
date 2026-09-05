@@ -1,3 +1,7 @@
+---
+description: Airflow as a system of record for which task ran, for which data interval, with what outcome, not just a Python cron replacement.
+---
+
 # Apache Airflow
 
 !!! info "Version and source policy"

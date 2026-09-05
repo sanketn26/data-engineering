@@ -1,3 +1,7 @@
+---
+description: ClickHouse and Pinot are both columnar OLAP engines, but only one is built for ultra-fresh, high-QPS, user-facing dashboard tiles.
+---
+
 # ClickHouse vs Pinot
 
 A product team wants a customer-facing "live usage" tile that must reflect events from the last 2-5 seconds, and expects tens of thousands of QPS once it ships to every logged-in user. The platform team's instinct is to add a materialized view to the existing ClickHouse cluster that already serves 20 Grafana panels at low QPS. A. ClickHouse with a tight insert interval handles this fine. B. This is a different product than the Grafana dashboards and deserves Pinot. C. Neither — cache the tile in Redis instead. Predict before you read on.

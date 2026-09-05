@@ -1,3 +1,7 @@
+---
+description: How Kafka's ISR, acks, and min.insync.replicas trade latency for durability when a broker holding the partition leader dies.
+---
+
 # Replication and durability
 
 03:41 AM. The `service-events` producer starts logging `NotEnoughReplicas` on every write with `acks=all`. Two of three brokers for partition 7 dropped out of the ISR eight minutes ago; nobody paged on that. Now checkout cannot write orders at all.

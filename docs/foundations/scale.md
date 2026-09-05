@@ -1,3 +1,7 @@
+---
+description: What actually changes when a pipeline crosses from gigabytes to terabytes: the resource that was invisible becomes the bottleneck overnight.
+---
+
 # Data at Scale
 
 07:58 AM. The daily p95-by-customer job that finished in twelve minutes every morning last quarter just died at `read_parquet` with an OOM, on events shaped like this:

@@ -1,3 +1,7 @@
+---
+description: Batch vs stream framed as latency classes and state requirements, not rival technologies, so you stop reaching for Flink by default.
+---
+
 # Batch vs Stream Processing
 
 Design review, Thursday. Someone proposes: "let's just put everything on Flink so we're real-time-ready." The same event —

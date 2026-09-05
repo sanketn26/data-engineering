@@ -1,3 +1,7 @@
+---
+description: Recognizing when a request is really a graph query, multi-hop traversal that turns a Postgres join chain into an unusable query plan.
+---
+
 # Graph Thinking
 
 Tuesday, 2:47 PM. An analyst pings you in Slack: "Can you pull all accounts connected within three hops to IP `203.0.113.42` that touched a fraudulent transaction?" The fraud ledger lives in Postgres:

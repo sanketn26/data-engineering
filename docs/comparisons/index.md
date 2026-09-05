@@ -1,3 +1,7 @@
+---
+description: How to pick between competing data engines by SLA, state, and failure mode instead of a feature-matrix checkbox contest.
+---
+
 # Comparisons
 
 A design review opens with a slide titled "Flink vs Spark: Feature Comparison" — twelve rows, checkmarks in both columns, a score of 9/10 vs 8/10. Nobody on the call has said a latency number yet. Predict before you read on: what single question, asked first, would make that entire slide unnecessary?

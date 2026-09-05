@@ -1,3 +1,7 @@
+---
+description: Treating JupyterHub as production infrastructure: pod identity, data access, and the exfiltration risks of shared notebooks.
+---
+
 # JupyterHub & Shared Compute
 
 Friday, 4:50 PM. A security ticket lands: 200,000 rows of customer emails found in a personal Google Drive folder. The trail leads to a JupyterHub notebook: `spark.read.parquet("s3://lake/raw/...")`, then `.toPandas().to_csv("~/export.csv")`, then a browser download.

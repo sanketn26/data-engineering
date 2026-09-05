@@ -1,3 +1,7 @@
+---
+description: Event time vs processing time in Flink, and how idle Kafka partitions freeze the watermark that closes failed-login windows.
+---
+
 # Time semantics
 
 10:47 PM. The EU fraud dashboard has not moved in twenty minutes. Kafka consumer lag on `login-events` is flat at zero on all 12 partitions — the topic is not backed up. A `SELECT count(*)` against the raw topic confirms events are still arriving. The 5-minute failed-login windows just are not closing.

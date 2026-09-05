@@ -1,3 +1,7 @@
+---
+description: Designing an observability pipeline where a high-cardinality label like user_id can silently kill your Prometheus TSDB at scale.
+---
+
 # Observability Platform Architecture
 
 02:47 AM. Grafana is empty for `checkout-service`. Every other service still shows traffic. Someone on the bridge says "just add a Prometheus label for `user_id` so we can see which customer is affected" — and someone else objects. A. Add the label; Prometheus can take it. B. The label would work but would kill the TSDB at scale — reach for ClickHouse instead. C. The dashboard is empty because of an ingest problem that has nothing to do with labels. D. Restart Flink and see if it comes back. Pick one before reading on.

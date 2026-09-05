@@ -1,3 +1,7 @@
+---
+description: Pick InfluxDB, TimescaleDB, or VictoriaMetrics by access pattern — SLO paging, IoT joins, or high-cardinality events — not by conference logos.
+---
+
 # Choosing a TSDB
 
 **Slack thread, Monday.** "Should we standardize on InfluxDB, Timescale, or just remote_write everything into VictoriaMetrics?" Forty replies in, nobody has mentioned what any of the three teams actually write or query — one pages on service SLOs, one joins device readings to a customer table, one wants `user_id`-level latency charts.

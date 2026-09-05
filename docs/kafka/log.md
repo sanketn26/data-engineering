@@ -1,3 +1,7 @@
+---
+description: Why Kafka models a topic as an append-only log instead of a database table, and what that buys you for replay and fan-out.
+---
+
 # The log abstraction
 
 10:04 AM: a parser bug dropped 40 minutes of production logs last Tuesday. Someone asks, "can we just replay them?" The honest answer depends entirely on what durable thing sits between the producers and every consumer — and whether that thing deletes a record the moment one reader finishes with it.

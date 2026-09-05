@@ -1,3 +1,7 @@
+---
+description: Operational definitions for Kafka acks, Spark AQE, delivery semantics, and other academy terms — precise, not tutorial explanations.
+---
+
 # Glossary
 
 Operational definitions as this academy uses them. If a term is not here, it is either ordinary English or only defined in its module. Related: [selection framework](selection-framework.md).

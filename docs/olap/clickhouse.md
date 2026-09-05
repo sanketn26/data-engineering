@@ -1,3 +1,7 @@
+---
+description: Why ClickHouse's ORDER BY is a physical index design decision, and how column order determines which queries skip granules.
+---
+
 # ClickHouse
 
 **03:14 AM.** Grafana's checkout-service tile times out. `EXPLAIN indexes = 1` on the query behind it shows every granule in the partition selected — none skipped — for a filter on `service = 'checkout'`. The table has an `ORDER BY`. The predicate is right there in the `WHERE` clause.

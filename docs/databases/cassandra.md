@@ -1,3 +1,7 @@
+---
+description: Modeling Cassandra and ScyllaDB around partition and clustering keys to avoid hot partitions, tombstone pileups, and compaction backlogs.
+---
+
 # Cassandra & ScyllaDB
 
 03:14 AM. PagerDuty: p99 write latency on the spans cluster jumped from 4 ms to 400 ms. One node is pegged at 100% CPU; the other five in the ring are idle. Writes are still acking, just slow, and only for traffic tagged `service=checkout-api`.

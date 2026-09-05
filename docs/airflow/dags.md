@@ -1,3 +1,7 @@
+---
+description: Design DAG dependencies so clearing a single task reruns only what's downstream, not a doubled write across the whole graph.
+---
+
 # Airflow DAGs
 
 Someone clears task `join_enrich` — task 12 of 25 — after fixing a bug in it, expecting only that task and its downstream neighbors to rerun for today's `ds`. Twenty minutes later, three unrelated tenant dashboards are also empty, and yesterday's revenue number has quietly changed.

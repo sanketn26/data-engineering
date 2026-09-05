@@ -1,3 +1,7 @@
+---
+description: A workload-first framework for choosing between Iceberg, Hudi, and Delta Lake instead of picking a table format by popularity.
+---
+
 # Choosing a Table Format
 
 3:40 PM, design review. Three teams want one name on the whiteboard. Team A streams SaaS events through Spark and serves them from Trino. Team B applies CDC upserts from Postgres. Team C runs nightly MERGE jobs on Databricks. The platform lead asks: "we already know we need a table format — which one do we standardize on?"

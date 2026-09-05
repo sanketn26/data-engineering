@@ -1,3 +1,7 @@
+---
+description: Catch silent data quality failures — schema drift, fan-out joins, timezone bugs, double-counted events — before a green dashboard hides a wrong number.
+---
+
 # Data Quality
 
 14:02. Airflow DAG: SUCCESS. Kafka lag: 0. ClickHouse insert: confirmed. Then a VP pings the channel — why does the revenue tile show $40M when finance's spreadsheet says $19M? No job failed. No alert fired. Every system you'd check first is green.

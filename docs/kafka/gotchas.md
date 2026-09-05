@@ -1,3 +1,7 @@
+---
+description: A field guide to Kafka production incidents in a live system: hot partitions, rebalance storms, poison pills, and schema breakage.
+---
+
 # Production gotchas
 
 02:13 AM. Lag for `alert-processor` on `service-events` jumped from 40 seconds to 25 minutes in twenty minutes flat, and PagerDuty has exactly one alert. Nothing crashed. No broker is down.

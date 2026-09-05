@@ -1,3 +1,7 @@
+---
+description: How Delta Lake's JSON transaction log defines the table on object storage, and why a VACUUM can break a long-running reader's query.
+---
+
 # Delta Lake
 
 2:00 AM. `VACUUM` runs with the default 7-day retention, same as every week. At 2:03, a Trino query that has been running since 11 PM — pinned to a version from six hours ago — throws `FileNotFoundException`. The analyst who kicked it off is asleep.

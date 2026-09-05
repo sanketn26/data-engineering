@@ -1,3 +1,7 @@
+---
+description: Modelling a fraud graph in Neo4j, when a transaction should be a relationship not a node, and how to route around supernode IPs.
+---
+
 # Graph Modelling
 
 Wednesday, schema review. A junior engineer's PR models the fraud graph as `(User)-[:MADE]->(Transaction)-[:AT]->(Merchant)`, with `Transaction` as its own node and every IP address modelled as a node too. In staging, the 2-hop query "other users sharing this IP" times out — one corporate VPN's IP node now has five million edges.

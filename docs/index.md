@@ -1,4 +1,5 @@
 ---
+description: An intuition-first data engineering course covering Spark, Kafka, Flink, Iceberg, ClickHouse, and lakehouse architecture from workload to internals to failure.
 hide:
   - toc
 ---

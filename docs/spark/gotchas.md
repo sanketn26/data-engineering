@@ -1,3 +1,7 @@
+---
+description: The on-call list for Spark at scale — driver OOM from collect, exploding broadcast joins, small-file storms, and Python UDF memory overhead.
+---
+
 # Production Gotchas
 
 03:00 AM: the driver process for last night's SaaS rollup got OOM-killed four minutes in. The same code ran fine on last week's smaller batch. Nothing in the diff touched memory settings.

@@ -1,3 +1,7 @@
+---
+description: Diagnosing DynamoDB ThrottledRequests from a hot partition key, and designing single-table access patterns without a table-wide throughput fix.
+---
+
 # DynamoDB
 
 CloudWatch alarm, 11:40 AM: `ThrottledRequests` on the sessions table is nonzero. One enterprise tenant's checkout requests are timing out with `ProvisionedThroughputExceededException`; every other tenant reads and writes fine on the same table, same billing mode, same total provisioned capacity.

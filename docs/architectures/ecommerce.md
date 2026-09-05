@@ -1,3 +1,7 @@
+---
+description: Why an append-only CDC lake fails GDPR erasure requests, and how upserts into Iceberg or Hudi make mutable order state correct.
+---
+
 # E-Commerce Platform Architecture
 
 A GDPR erasure request lands for a customer who checked out eleven months ago. Legal wants confirmation within 30 days that the record is gone from every system — not just Postgres. The on-call engineer opens the lakehouse and finds the customer's order rows sitting in twenty different Parquet files across as many partitions, written by a CDC pipeline that only ever appends. Predict before you read on: is this pipeline's *append-only* design a reasonable trade-off here, or is it the root cause of the incident?

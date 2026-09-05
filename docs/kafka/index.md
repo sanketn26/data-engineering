@@ -1,3 +1,7 @@
+---
+description: How Kafka's replicated append-only log lets independent consumers read the same stream at different speeds without data loss.
+---
+
 # Apache Kafka
 
 !!! info "Version and source policy"

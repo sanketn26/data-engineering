@@ -1,3 +1,7 @@
+---
+description: Threat-model a data platform like a bank, not a blog's Postgres — RBAC gaps, PII masking, and audit logging across concentrated sensitive data.
+---
+
 # Data Security
 
 11:15 AM. An analyst on JupyterHub runs `SELECT email FROM events LIMIT 100` against the "curated" schema in Trino. It returns real emails. No error, no audit ping — just PII on a screen that was supposed to be masked by default.

@@ -1,3 +1,7 @@
+---
+description: Why a Spark job's slow minutes are shuffle and network I/O, not compute, and how to treat data movement as a first-class design constraint.
+---
+
 # Data Movement
 
 11:40. The Spark UI shows `percentile_approx` — the actual math — finishing in nine seconds. The whole job takes fourteen minutes. Nobody on the team can point at where the other thirteen-plus minutes went.

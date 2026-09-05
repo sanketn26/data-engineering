@@ -1,3 +1,7 @@
+---
+description: Why an IoT platform ingesting millions of samples per second needs a downsample pyramid, not a year of full-resolution raw data.
+---
+
 # IoT Platform Architecture
 
 A finance review flags the storage bill: 10 million devices, one sample every 30 seconds, and someone kept "just in case" raw resolution for a full year. Nobody has plotted a single point older than three weeks at anything finer than an hourly average. A. The fix is a bigger discount on object storage. B. The fix is a downsample pyramid that never should have been skipped. C. The fix is dropping to 5-minute sampling at the device. Predict before you read on.

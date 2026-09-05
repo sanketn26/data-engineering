@@ -1,3 +1,7 @@
+---
+description: How to choose a partition key so twenty workers actually split 10 TB of work, and why partitioning by region alone can starve one machine.
+---
+
 # Partitioning
 
 14:20. Design review. Someone proposes partitioning the 10 TB SaaS events table by `region`, because "that's how the business thinks about it." You have 20 workers, each holds about 500 GB, and product wants p95 latency per customer for yesterday.

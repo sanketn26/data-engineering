@@ -1,3 +1,7 @@
+---
+description: How Apache Pinot's segments, star-tree indexes, and realtime ingestion serve thousands of concurrent per-tenant dashboard queries.
+---
+
 # Apache Pinot
 
 **09:00 AM, every weekday.** The moment the workday starts, ClickHouse's p95 latency jumps from 80 ms to 4 seconds. CPU isn't pegged, disk isn't saturated — the cluster just can't keep up with the sudden burst of concurrent queries, each filtered to a different tenant, each wanting an answer in under 100 ms.

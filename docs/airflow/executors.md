@@ -1,3 +1,7 @@
+---
+description: Diagnose Airflow tasks stuck queued by understanding how executors, parallelism, and worker_concurrency actually gate execution.
+---
+
 # Airflow Executors
 
 02:03 AM. Forty DagRuns become runnable at once — one per tenant. `parallelism=32` in `airflow.cfg`. Only 4 tasks are actually running; the rest sit `queued`. Two Celery workers respond to a ping; six others are simply missing from the fleet, and nobody paged on it.

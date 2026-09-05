@@ -1,3 +1,7 @@
+---
+description: Why a data catalog without an ownership, freshness, and lineage operating model becomes a searchable swamp of orphaned tables.
+---
+
 # Metadata & Data Catalogues
 
 09:40, design review. An engineer asks whether `gold.events_agg` already exists or needs to be built. Ten people shrug. It turns out someone built it eleven months ago under a different name — the owner left, nobody renamed it, and a dashboard has been reading it ever since without anyone able to vouch for it.

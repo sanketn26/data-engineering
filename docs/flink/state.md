@@ -1,3 +1,7 @@
+---
+description: Diagnosing Flink RocksDB state growth from key skew, missing TTL, and ListState misuse, before a stateful counter job floods disk.
+---
+
 # Stateful processing
 
 A TaskManager disk-usage alert fires: the RocksDB directory has hit 380 GB and is still climbing, on a job that does nothing more exotic than count failed logins per `user_id`.

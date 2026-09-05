@@ -1,3 +1,7 @@
+---
+description: Why columnar storage lets a dashboard query skip the row bytes it never needed, and why compression can't save row layout.
+---
+
 # Why Columnar Storage
 
 **Code review, 11:14 AM.** A teammate submits a query — two columns, one time filter, one `GROUP BY` — and argues it should be near-instant: "it only touches two columns out of eighty." In prod it takes 8 seconds and reads 17 GB.

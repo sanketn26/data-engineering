@@ -1,3 +1,7 @@
+---
+description: How one high-cardinality label like user_id can OOM-kill Prometheus by exploding a metric's time series count into the billions.
+---
+
 # Cardinality
 
 **03:14 AM.** Page: Prometheus OOM-killed, restarting, WAL replay taking 40 minutes. Nothing about traffic changed this week. The only recent change: Friday's deploy added one new label, `user_id`, to an existing HTTP metric, "for better debugging."

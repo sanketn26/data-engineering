@@ -1,3 +1,7 @@
+---
+description: Weakly connected components, PageRank, and node similarity for fraud-ring detection, and why you never run graph algorithms on the payment path.
+---
+
 # Graph Algorithms
 
 Code review, 4:02 PM. A PR adds `CALL gds.wcc.stream()` directly inside the risk API's request handler, "so fraud rings are always fresh." The reviewer's first question: what happens to the serving cluster the first time this runs against a 40-million-edge graph in the middle of the afternoon?

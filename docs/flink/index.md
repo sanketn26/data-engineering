@@ -1,3 +1,7 @@
+---
+description: Why a stalled watermark can silently stop Flink windows from closing, and how the engine tracks event time and state across a Kafka stream.
+---
+
 # Apache Flink
 
 !!! info "Version and source policy"

@@ -1,3 +1,7 @@
+---
+description: Reading the Spark UI's jobs, stages, and tasks to find a straggler before throwing more executors at a stage that won't get faster.
+---
+
 # Distributed Execution
 
 16:03. The Spark UI is open. 199 tasks in this stage finished in under 10 seconds each. One is still running at 25 minutes. On-call is asked: is the cluster undersized, or is something else going on?

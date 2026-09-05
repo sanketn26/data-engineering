@@ -1,3 +1,7 @@
+---
+description: Design a multi-tenant SaaS analytics pipeline where a noisy tenant's Kafka burst never leaks into another tenant's ClickHouse dashboard.
+---
+
 # SaaS Analytics Platform Architecture
 
 A support ticket comes in: customer A's dashboard briefly showed a spike in `api-gateway` traffic that, on inspection, belonged to customer B. Nobody wrote a cross-tenant query on purpose — a noisy tenant's burst just happened to land in the same query window as a smaller tenant's aggregate. Predict before you read on: is this a Kafka partitioning bug, a ClickHouse `ORDER BY`/query problem, or a symptom of not treating tenancy as a first-class requirement at every layer?

@@ -1,3 +1,7 @@
+---
+description: Flink vs Kafka Streams vs Spark Structured Streaming compared on real latency SLOs, not vendor slides, including why micro-batch misses sub-2-second alerts.
+---
+
 # Flink vs Kafka Streams vs Spark Structured Streaming
 
 In tomorrow's design review, the fraud team proposes routing "10 failed logins in 5 minutes" through Spark Structured Streaming, because the platform team already runs a Spark cluster for the lake. The ticket's SLO says alert within 2 seconds of the 11th failure.

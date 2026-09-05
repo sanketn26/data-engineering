@@ -1,3 +1,7 @@
+---
+description: Browser labs for Kafka hot keys, Spark shuffle skew, ClickHouse ORDER BY, TSDB cardinality, and backpressure recovery you can predict, run, and compare.
+---
+
 # Interactive Simulations
 
 Browser tools for failure modes that are hard to **feel** from prose: hot Kafka keys, shuffle skew, ClickHouse `ORDER BY`, TSDB cardinality, backpressure recovery time, stalled watermarks, ISR failure, metadata pruning, hash distribution, and dimension history. They are not dashboards of a real cluster. They are labs for your **mental model**.

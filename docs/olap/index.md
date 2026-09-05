@@ -1,3 +1,7 @@
+---
+description: Why row stores like Postgres fall over under OLAP scan-and-aggregate workloads, and when ClickHouse or Pinot are the fix.
+---
+
 # OLAP
 
 !!! info "Version and source policy"

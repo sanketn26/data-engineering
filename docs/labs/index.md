@@ -1,3 +1,7 @@
+---
+description: Predict-run-break labs for Kafka, Spark, Flink, ClickHouse, Cassandra, and Prometheus, each with an automated pass/fail check script.
+---
+
 # Labs
 
 Friday, 4:55 PM. You clone `labs/kafka`, run `docker compose up -d`, produce a few hundred events, watch the consumer keep up, and close the laptop. Nothing broke.

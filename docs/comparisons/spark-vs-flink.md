@@ -1,3 +1,7 @@
+---
+description: Why Spark's micro-batch model fights event-time sessionization with late data, and Flink's keyed state model doesn't.
+---
+
 # Spark vs Flink
 
 A code review comment on a new streaming job: "why not just use Structured Streaming with a 1-second trigger instead of standing up a whole Flink cluster?" The PR author is building per-user login-velocity sessions with 30-minute event-time windows and late data up to 10 minutes. A. Structured Streaming's micro-batches handle this fine at 1-second triggers. B. It technically works but fights the engine the whole way. C. Flink is native to this shape and Spark is not. Pick one before reading on.

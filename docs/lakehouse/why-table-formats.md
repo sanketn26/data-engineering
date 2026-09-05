@@ -1,3 +1,7 @@
+---
+description: Why object storage's lack of atomic commits turns concurrent writers, retries, and crashed jobs into silent duplicate or missing rows.
+---
+
 # Why Table Formats Exist
 
 11:40 PM. A retried Spark job just doubled the row count in `s3://orders/dt=2024-01-15/`. The retry itself is idempotent at the application level — it computes the same rows every time. Support opens a ticket: why are there two rows per order?

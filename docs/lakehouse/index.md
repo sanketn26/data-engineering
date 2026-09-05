@@ -1,3 +1,7 @@
+---
+description: Why a table format like Iceberg, Hudi, or Delta is what turns a pile of Parquet files on S3 into an actual, queryable table.
+---
+
 # Lakehouse
 
 !!! info "Version and source policy"

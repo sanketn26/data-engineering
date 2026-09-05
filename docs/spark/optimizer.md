@@ -1,3 +1,7 @@
+---
+description: Read explain() to catch when Catalyst skips partition pruning or a broadcast join, and how Tungsten codegen turns a query into bytecode.
+---
+
 # Catalyst & Tungsten
 
 A teammate opens a PR: a query joining a week of SaaS events to a 40 MB customer dimension, filtered to one region and one day. In review you ask for `explain("formatted")`. It shows a `FileScan` of the full 8 TB week and a `SortMergeJoin` — not the 40 GB, broadcast-joined plan either of you expected.

@@ -1,3 +1,7 @@
+---
+description: Reference index for version pins and the glossary — for the technology selection framework and cost engineering, see Phase 11 instead.
+---
+
 # Reference
 
 A design review: someone asks "why not Databricks for everything?" A teammate opens this page, searches for "selection framework," and starts reading glossary definitions instead of answering the question.

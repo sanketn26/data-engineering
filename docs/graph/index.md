@@ -1,3 +1,7 @@
+---
+description: Why request-time fraud checks need a graph store to traverse User, Device, IP, and Merchant edges in under 200 ms, not a warehouse scan.
+---
+
 # Graph Databases
 
 !!! info "Version and source policy"
