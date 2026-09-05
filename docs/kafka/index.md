@@ -3,11 +3,14 @@
 !!! info "Version and source policy"
     Examples target the pinned lab baseline. Check [Versions & Primary Sources](../reference/version-matrix.md) before applying configuration to another Kafka release.
 
-Hundreds of services emit events faster than any one consumer can process them. Auth writes `login_failed`. The API gateway writes `{timestamp, customer_id, user_id, service, endpoint, region, latency_ms, status_code, bytes}` at tens of thousands of records per second. Billing, fraud, search, and the warehouse all want those events — at their own pace, with their own retries, without calling the producer back.
+11:58 PM. Billing's consumer for `service-events` is nine minutes behind and climbing. The API gateway is still writing tens of thousands of records per second — auth, billing, fraud, search, and the warehouse all read the same stream, each at its own pace. If that stream were a shared database table, the fix would be "wait" or "drop rows." Neither is acceptable tonight.
 
-If you put this through a request/response API, a slow warehouse job stalls the API. If you put it in a database table used as a queue, the second consumer cannot replay what the first already deleted. If you put it in a traditional message broker that acknowledges and drops, a bug in alerting means the evidence is gone.
+Before you read on: how do you let five independent consumers read the same firehose at five different speeds, with one of them nine minutes behind, without slowing the producer down and without losing what a faster consumer already deleted?
 
-Kafka exists because producers and consumers must evolve independently **without losing the stream**.
+A request/response API stalls the producer on the slowest consumer. A database table used as a queue lets the second reader see only what the first has not yet deleted. A traditional broker that acknowledges and drops loses the evidence the moment one consumer says "done." Kafka exists because producers and consumers must evolve independently **without losing the stream**.
+
+!!! note "This is SaaSCo at Stage 3"
+    [SaaSCo: The Evolving Company](../architectures/saasco-evolution.md#stage-3-4-tbday-kafka-appears-phase-2) hits this exact wall at 4 TB/day: many producers, one object store, and PUT-rate contention that a nightly Spark job never had to deal with.
 
 ---
 

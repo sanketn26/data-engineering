@@ -1,14 +1,19 @@
 # Data at Scale
 
-Last quarter the SaaS analytics pipeline wrote ~40 GB/day of events:
+07:58 AM. The daily p95-by-customer job that finished in twelve minutes every morning last quarter just died at `read_parquet` with an OOM, on events shaped like this:
 
 ```text
 {timestamp, customer_id, user_id, service, endpoint, region, latency_ms, status_code, bytes}
 ```
 
-A 32 GB notebook ran `pandas.groupby(["customer_id","hour"]).latency_ms.quantile(0.95)` in twelve minutes. This quarter a single enterprise tenant signed, volume is 400 GB/day, and the same notebook dies at `read_parquet`. Product still wants the p95 by 07:00. Nothing about SQL changed. The **order of magnitude** did.
+Nobody touched `pandas.groupby(["customer_id","hour"]).latency_ms.quantile(0.95)`. Last quarter this pipeline moved ~40 GB/day through a 32 GB notebook. This quarter a single enterprise tenant signed, volume is 400 GB/day, and product still wants the p95 by 07:00.
 
-Scale is not “big data.” Scale is the moment a resource that was invisible — RAM, a single SSD, a single NIC, a single process, a single region — becomes the critical path.
+Before you read on: is this a RAM problem, a disk-format problem, or a code problem? Would a 128 GB notebook buy you another quarter, or has something more fundamental changed?
+
+Nothing about the SQL changed. The **order of magnitude** did — scale is not “big data,” it is the moment a resource that was invisible (RAM, a single SSD, a single NIC, a single process, a single region) becomes the critical path.
+
+!!! note "This is SaaSCo, stages 1 and 2"
+    [SaaSCo: The Evolving Company](../architectures/saasco-evolution.md#stage-2-400-gbday-spark-appears-phase-0-phase-3) is this exact 40 GB → 400 GB jump, worked through as one company's timeline instead of one quarter's incident.
 
 ---
 
@@ -34,7 +39,7 @@ On one box, “process the file” is a loop. At cluster scale the loop grows fa
 
 - **Linear I/O is not optional.** 10 TB at 500 MB/s is ~5.5 hours *to read*, before aggregations.
 - **RAM is not a warehouse.** Spilling to disk is not “slow pandas”; it is a different algorithm with a different SLA.
-- **Parallelism is not 8× because you have 8 cores.** After ~tens of cores you are coordinating, not computing.
+- **Parallelism is not 8× because you have 8 cores.** As parallelism grows, coordination (scheduling, shuffle, network, stragglers) increasingly competes with useful work — where that crossover happens depends on the workload's shape (shuffle-heavy vs embarrassingly parallel), not a fixed core count.
 - **One slow key owns wall time.** `cust_0042` at 38% of events means 38% of shuffle bytes land on one reducer unless you change the key.
 - **Retries multiply work.** A 2-hour job that fails at 90% and restarts from scratch is a 4-hour job wearing a 2-hour costume.
 
@@ -64,7 +69,7 @@ The three tensions you will navigate on every design review:
 | **Throughput vs latency** | Big batches, full disks, high records/s | Small batches, low wait, more overhead per record |
 | **Local vs distributed** | No shuffle, simple failure | Horizontal scale, coordination, partial failure |
 
-Decoupled storage (S3) + ephemeral compute (Spark on Kubernetes) is the modern default *because* these tensions got explicit. It is not free: you lost data locality. See [Data Movement](data-movement.md).
+Decoupled storage (S3) + ephemeral compute (Spark on Kubernetes) is a common modern analytical architecture *because* these tensions got explicit — it is not universal: streaming stateful systems, OLAP databases, and operational systems often keep storage and compute tightly coupled on purpose. It is not free either way: decoupling costs you data locality. See [Data Movement](data-movement.md).
 
 ---
 

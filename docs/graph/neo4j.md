@@ -1,6 +1,15 @@
 # Neo4j & Cypher
 
-The fraud graph is modelled. You now need **bounded traversals** on the payment path and investigations in a language that looks like the picture. Neo4j is the operational graph store in this academy: Cypher patterns, indexes to find the start, `PROFILE` to see expands. It is not where you run last week’s GMV.
+03:20 AM. The risk API's p99 latency alarm fires. One Cypher query — `MATCH (u:User {user_id: $id})-[:USED]->(d:Device)<-[:USED]-(u2:User) RETURN u2 LIMIT 20` — is pinning a CPU core and stalling other Bolt sessions. `PROFILE` shows the first operator is `AllNodesScan`.
+
+What's missing from this query?
+
+A. An index on `User.user_id` so the planner can seek instead of scan every node.
+B. A `LIMIT` clause — there already is one, so that isn't it.
+C. A bound on traversal depth — the pattern is effectively unbounded.
+D. A read replica to spread Bolt sessions across.
+
+Pick one before reading on. The fraud graph is modelled; what's needed now is **bounded traversals** on the payment path and investigations in a language that looks like the picture. Neo4j is the operational graph store in this academy — Cypher patterns, indexes to find the start, `PROFILE` to see expands. It is not where you run last week's GMV.
 
 ---
 

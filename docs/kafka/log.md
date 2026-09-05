@@ -1,5 +1,9 @@
 # The log abstraction
 
+10:04 AM: a parser bug dropped 40 minutes of production logs last Tuesday. Someone asks, "can we just replay them?" The honest answer depends entirely on what durable thing sits between the producers and every consumer — and whether that thing deletes a record the moment one reader finishes with it.
+
+Predict before you read on: if you built that store as a database table (insert, `SELECT ... FOR UPDATE`, delete), what breaks first at 2.5 million records a second — the write path, the fan-out to multiple readers, or the replay story? All three fail, for three different reasons; this page is the one abstraction that fixes all three at once.
+
 ## Use case
 
 The observability platform writes every request as an event:

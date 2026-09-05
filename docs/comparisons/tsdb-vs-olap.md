@@ -1,6 +1,8 @@
 # TSDB vs OLAP
 
-Time on the x-axis does not mean "use a TSDB." A TSDB is a **data model** (metric + labels + samples) with a **cardinality contract**. An OLAP engine is a **wide table** with a sparse or inverted index. Mixing them is the most common observability self-own: `user_id` as a Prometheus label, or Prometheus as a product-analytics warehouse.
+A pull request adds `user_id` as a new Prometheus label so support can filter latency by customer. It passes review — it's just a label, and Prometheus already stores time series. Two weeks later the TSDB's memory usage triples and queries start timing out. Predict before you read on: was the label the mistake, or was Prometheus the wrong tool for that question regardless of the label?
+
+Prometheus was the wrong tool for that question: time on the x-axis does not mean "use a TSDB." A TSDB is a **data model** (metric + labels + samples) with a **cardinality contract**. An OLAP engine is a **wide table** with a sparse or inverted index. Mixing them is the most common observability self-own: `user_id` as a Prometheus label, or Prometheus as a product-analytics warehouse.
 
 Related: [cardinality](../time-series/cardinality.md), [TSDBs](../time-series/tsdbs.md), [observability](../architectures/observability.md), [IoT](../architectures/iot.md), [cardinality calculator](../simulations/cardinality-calculator.html).
 

@@ -1,5 +1,14 @@
 # Stateful processing
 
+A TaskManager disk-usage alert fires: the RocksDB directory has hit 380 GB and is still climbing, on a job that does nothing more exotic than count failed logins per `user_id`.
+
+A. Key skew — one whale `customer_id` is holding most of the state.
+B. No TTL — state for users who logged in successfully months ago is still sitting there.
+C. The job stores a `ListState` of every raw event instead of a small counter.
+D. A broadcast dimension table is too large and is duplicated on every TaskManager.
+
+Predict which one before reading on — then work out how many bytes per key you would expect if the diagnosis is right.
+
 ## Use case
 
 Windows are state with an opinionated API. Plenty of jobs need memory of the past **without** a window:

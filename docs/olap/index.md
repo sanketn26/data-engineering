@@ -3,9 +3,11 @@
 !!! info "Version and source policy"
     Engine syntax and feature support are version-sensitive. Check [Versions & Primary Sources](../reference/version-matrix.md) and reproduce claims on the pinned lab where available.
 
-Hundreds of millions of product and observability events land every day. A dashboard asks: p95 latency by endpoint for the last hour, filtered to one customer. The person staring at Grafana will refresh it. They will not wait for a warehouse slot.
+**2:47 PM.** A PM wants a live dashboard — p95 latency by endpoint, last hour, one customer at a time — and someone wires it straight to the Postgres replica that already serves the app. Ten minutes later the replica is pegged at 100% CPU on a single `GROUP BY`, and unrelated app queries start timing out.
 
-That access pattern — **scan a lot of rows, touch a few columns, aggregate, repeat** — is what OLAP engines are for. Not point lookups. Not `UPDATE` a shopping cart. Not “join five operational databases because we can.”
+Predict before you read on: does this get fixed by (A) a covering index, (B) another read replica, (C) Redis in front of the query, or (D) copying the data into a purpose-built OLAP engine?
+
+Hundreds of millions of product and observability events land every day, and the access pattern behind that dashboard — **scan a lot of rows, touch a few columns, aggregate, repeat** — is exactly what OLAP engines exist for, not what a row store like Postgres was built to survive.
 
 ---
 

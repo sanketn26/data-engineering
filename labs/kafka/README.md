@@ -192,6 +192,16 @@ docker compose start kafka
 
 With a single broker, `acks=all` cannot protect you from **this** process dying with unflushed data. That is a teaching point, not a production durability story (need RF=3).
 
+## Check your work
+
+Don't take "one partition looked bigger" on faith. Run the objective check:
+
+```bash
+python check_hot_partition.py --hot-ratio 0.8 --count 20000
+```
+
+It produces a fresh hot-keyed batch into its own topic, tallies messages per partition with a throwaway consumer group, and asserts that one partition holds a large majority of the traffic — printing `PASS` with the actual numbers, or raising an `AssertionError` naming exactly which expectation failed (e.g. the hot key wasn't hot enough, or the topic was empty). This is the property behind "more consumers cannot save partition 7" — you should be able to point at the number, not just the vibe.
+
 ## Clean up
 
 ```bash

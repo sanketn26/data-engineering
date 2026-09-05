@@ -1,0 +1,19 @@
+# Minimal scrape config for the cardinality lab. Short interval so a
+# cardinality change (restarting the exporter with a different USER_IDS)
+# shows up in prometheus_tsdb_head_series within a few seconds.
+global:
+  scrape_interval: 5s
+
+scrape_configs:
+  - job_name: academy-exporter
+    static_configs:
+      - targets: ["exporter:9105"]
+  # Prometheus does not scrape itself by default when scrape_configs is
+  # fully overridden like this one is — without this job, its own
+  # prometheus_tsdb_head_series metric is visible on its raw /metrics
+  # endpoint but is NEVER ingested into its own TSDB, so it cannot be
+  # queried via PromQL or the HTTP API at all (check_cardinality.py and
+  # the README's curl example both rely on the API, not raw /metrics).
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]

@@ -1,8 +1,10 @@
 # Time Semantics
 
-A sensor reports `temperature=95` at `10:02:03Z`. The gateway batches it. Kafka sees it at `10:06`. Prometheus scrapes the gateway at `10:07`. The dashboard bucket is `10:00–10:05`. Which clock you stored decides whether this is a spike in the past, a spike now, or a sample that never enters the window.
+**10:07 AM.** An on-call engineer is staring at a Grafana panel showing a fleet-wide temperature spike to 95° at 10:06. Nothing is actually overheating — a batch of devices just reconnected to Wi-Fi after a brief outage and dumped their buffered readings. The sensor read 95° at `10:02:03Z`; the gateway didn't deliver it until `10:06`.
 
-Time-series bugs are usually **silent**: the chart looks plausible.
+Predict before you read on: does the chart look wrong because of (A) a bad `avg` aggregation, (B) the wrong timestamp column being used to bucket the data, (C) clock drift on the device, or (D) too coarse a scrape interval?
+
+It's (B) — and which clock you stored, event time, ingestion time, or scrape time, decides whether this reads as a spike in the past, a spike now, or a sample that never enters the window at all. Time-series bugs like this are usually **silent**: the chart looks plausible.
 
 ---
 

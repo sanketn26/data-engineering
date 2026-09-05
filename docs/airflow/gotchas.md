@@ -1,8 +1,13 @@
 # Airflow Production Gotchas
 
-The dashboard is empty at 07:05. Twenty-five tasks are "running." Spark is idle. Celery workers are at 1% CPU. This is not a Spark incident. It is Airflow using worker slots to wait, parse, or process data it should never have touched.
+07:05 AM. Dashboard: empty. Airflow UI: twenty-five tasks marked "running." Spark cluster: idle, zero jobs submitted in the last forty minutes. Celery workers: twelve of them, each pinned at 1% CPU.
 
-Every item here represents a real failure mode. The module's other pages are the design; this page is the incident list.
+A. The scheduler crashed.
+B. Every worker is parked inside a poke-mode sensor, holding its slot while it waits.
+C. Spark itself is down.
+D. The metadata database is the bottleneck.
+
+Predict before reading on. This is not a Spark incident — it is Airflow using worker slots to wait, parse, or process data it should never have touched. Every item on this page is a real failure mode of exactly this shape: the UI says "running," the cluster is doing nothing. The module's other pages are the design; this page is the incident list.
 
 ---
 

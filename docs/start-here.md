@@ -120,11 +120,11 @@ Ask yourself, without looking anything up:
 - Why does ClickHouse sort data on disk?
 - When would graph modelling outperform relational modelling?
 
-If most of these feel unclear, start with [Phase 0: Foundations](foundations/index.md).
+If most of these feel unclear, start with [Phase 0: Data Systems Foundations](foundations/index.md).
 
 If you already operate these systems and have a specific gap, use [Learning paths](learning-paths.md).
 
 → [How to Study](how-to-study.md)
-→ [Phase 0: Foundations](foundations/index.md)
+→ [Phase 0: Data Systems Foundations](foundations/index.md)
 → [Capstone and rubric](capstone.md)
 → [Versions and primary sources](reference/version-matrix.md)

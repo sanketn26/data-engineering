@@ -1,8 +1,13 @@
 # Airflow DAGs
 
-Twenty-five dependent jobs: extract orders, extract Stripe, drain yesterday's Kafka partition, join, enrich, metrics, load, reports. The graph is the contract. If the graph is wrong, retries, backfills, and "just rerun from task 4" all lie.
+Someone clears task `join_enrich` — task 12 of 25 — after fixing a bug in it, expecting only that task and its downstream neighbors to rerun for today's `ds`. Twenty minutes later, three unrelated tenant dashboards are also empty, and yesterday's revenue number has quietly changed.
 
-A DAG (Directed Acyclic Graph) in Airflow is a collection of tasks and their dependencies. It defines *what* runs and in *what order*, not *how fast* or *on what data*. Compute still belongs in Spark, Flink, dbt, or a warehouse. Airflow records that those jobs ran for a data interval.
+A. A hidden dependency that never showed up as a graph edge.
+B. Two DagRuns wrote the same partition at the same time.
+C. The graph was fine; the write itself wasn't idempotent, so the rerun doubled rows.
+D. A backfill for another date collided with this one.
+
+Pick one before reading on. A DAG is supposed to make dependencies explicit enough that an incident like this has one traceable cause instead of four guesses — it defines *what* runs and in *what order*, not *how fast* or *on what data*. Compute still belongs in Spark, Flink, dbt, or a warehouse; Airflow just records that those jobs ran for a data interval. Twenty-five dependent jobs — extract orders, extract Stripe, drain yesterday's Kafka partition, join, enrich, metrics, load, reports — is the running shape for this whole module; here is where the graph gets tested for real.
 
 ---
 

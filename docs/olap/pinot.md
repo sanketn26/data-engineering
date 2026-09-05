@@ -1,8 +1,10 @@
 # Apache Pinot
 
-The same events ClickHouse loves — hundreds of millions a day — now sit behind a **customer** dashboard. Ten thousand tenants open the app at 09:00. Each query is “my company, last 15 minutes, breakdown by endpoint.” Freshness is seconds. p95 is 50–100 ms. SQL can be boring as long as it does not miss.
+**09:00 AM, every weekday.** The moment the workday starts, ClickHouse's p95 latency jumps from 80 ms to 4 seconds. CPU isn't pegged, disk isn't saturated — the cluster just can't keep up with the sudden burst of concurrent queries, each filtered to a different tenant, each wanting an answer in under 100 ms.
 
-ClickHouse can be forced into this. Pinot was built for it: segments, inverted indexes, star-trees, a realtime/offline split, brokers that fan out and merge.
+Predict before you read on: (A) shard ClickHouse further, (B) add read replicas, (C) put a cache in front, or (D) the workload has outgrown what a scan-oriented engine was built for and needs a different index strategy?
+
+The same events ClickHouse loves — hundreds of millions a day — now sit behind a **customer** dashboard where ten thousand tenants open the app at 09:00, each asking "my company, last 15 minutes, breakdown by endpoint," and that concurrency-plus-freshness shape is what Apache Pinot was built for: segments, inverted indexes, star-trees, a realtime/offline split, brokers that fan out and merge.
 
 ---
 

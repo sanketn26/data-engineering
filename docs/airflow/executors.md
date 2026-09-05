@@ -1,8 +1,13 @@
 # Airflow Executors
 
-Twenty-five tasks are ready. The scheduler knows *which* ones. Someone still has to run the operator code. If that "someone" is the scheduler process, a pandas loop, or a pod that takes 40 seconds to start, the 07:00 SaaS dashboard SLA is already lost.
+02:03 AM. Forty DagRuns become runnable at once — one per tenant. `parallelism=32` in `airflow.cfg`. Only 4 tasks are actually running; the rest sit `queued`. Two Celery workers respond to a ping; six others are simply missing from the fleet, and nobody paged on it.
 
-The executor determines how Airflow runs tasks. It is one of the most operationally significant configuration choices in a production Airflow deployment.
+A. `parallelism` is set too low — raise it further.
+B. Worker count (or `worker_concurrency`) is the real limiter, and the `parallelism` knob is lying about what's actually constrained.
+C. A pool is misconfigured to size 0.
+D. The scheduler process itself crashed.
+
+Predict before reading on. The executor is the layer that turns "runnable" into "running," and getting the placement policy wrong looks exactly like this: task instances stuck `queued` while the resource everyone is staring at says there's headroom.
 
 ---
 

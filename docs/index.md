@@ -30,7 +30,7 @@ hide:
 <div class="course-proof" aria-label="Academy overview">
   <div><strong>13</strong><span>Curriculum phases</span></div>
   <div><strong>5</strong><span>Running production systems</span></div>
-  <div><strong>4</strong><span>Interactive simulations</span></div>
+  <div><strong>13</strong><span>Interactive simulations</span></div>
   <div><strong>On-call</strong><span>Incident drills, not demos</span></div>
 </div>
 

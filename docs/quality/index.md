@@ -1,8 +1,15 @@
 # Data Quality
 
-A pipeline can be **operationally green** and still be wrong. Jobs succeed, Kafka lag is fine, ClickHouse inserts, Grafana shows a number. The number is garbage: a schema coerce to NULL, a timezone shift of 5.5 hours, a join that doubled rows.
+14:02. Airflow DAG: SUCCESS. Kafka lag: 0. ClickHouse insert: confirmed. Then a VP pings the channel — why does the revenue tile show $40M when finance's spreadsheet says $19M? No job failed. No alert fired. Every system you'd check first is green.
 
-Quality is how you detect **silent** failure before a human makes a decision. Uptime is necessary and insufficient.
+What actually happened?
+
+A. A schema change silently coerced a numeric field to NULL.
+B. A join fanned out and doubled rows.
+C. A timezone or epoch-unit bug shifted every timestamp.
+D. At-least-once delivery double-counted events.
+
+Pick one before reading on — or notice that you can't, from green dashboards alone, which is the point. A pipeline can be **operationally green** and still be wrong, because uptime checks and correctness checks are different instruments; quality is how you catch this kind of **silent** failure before a human makes a decision on the wrong number.
 
 Related: [metadata](../metadata/index.md), [Airflow idempotency](../airflow/idempotency.md), [incidents](../incidents/index.md).
 

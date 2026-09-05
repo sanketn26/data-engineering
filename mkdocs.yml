@@ -134,32 +134,37 @@ nav:
       - Learning paths: learning-paths.md
       - Capstone & Rubric: capstone.md
   - Learn:
-      - "Phase 0: Foundations":
+      - "Phase 0: Data Systems Foundations":
           - foundations/index.md
           - Data at Scale: foundations/scale.md
           - Partitioning: foundations/partitions.md
           - Data Movement: foundations/data-movement.md
           - Distributed Execution: foundations/distributed-execution.md
+          - Backpressure & Queueing: foundations/backpressure.md
           - Batch vs Stream: foundations/batch-vs-stream.md
+      - "Phase 1: Data Representation":
+          - Parquet Internals: foundations/parquet-internals.md
+          - Object Storage Internals: foundations/object-storage.md
           - Analytical Data Modelling: foundations/data-modelling.md
-          - Change Data Capture: foundations/cdc.md
+          - Data Contracts: foundations/data-contracts.md
           - Transformation Engineering: foundations/transformation-engineering.md
-      - "Phase 1: Apache Spark":
+      - "Phase 2: Data Movement":
+          - kafka/index.md
+          - The Log Abstraction: kafka/log.md
+          - Partitions & Consumers: kafka/partitions.md
+          - Replication & Durability: kafka/replication.md
+          - Exactly-Once Semantics: kafka/exactly-once.md
+          - Change Data Capture: foundations/cdc.md
+          - Production Gotchas: kafka/gotchas.md
+          - Labs: kafka/labs.md
+      - "Phase 3: Distributed Compute":
           - spark/index.md
           - The Spark Mental Model: spark/mental-model.md
           - The Shuffle: spark/shuffle.md
           - Catalyst & Tungsten: spark/optimizer.md
           - Production Gotchas: spark/gotchas.md
           - Labs: spark/labs.md
-      - "Phase 2: Apache Kafka":
-          - kafka/index.md
-          - The Log Abstraction: kafka/log.md
-          - Partitions & Consumers: kafka/partitions.md
-          - Replication & Durability: kafka/replication.md
-          - Exactly-Once Semantics: kafka/exactly-once.md
-          - Production Gotchas: kafka/gotchas.md
-          - Labs: kafka/labs.md
-      - "Phase 3: Stream Processing":
+      - "Phase 4: Stream Processing":
           - flink/index.md
           - Time Semantics: flink/time.md
           - Windows & Watermarks: flink/windows.md
@@ -167,85 +172,88 @@ nav:
           - Checkpoints & Recovery: flink/checkpoints.md
           - Flink vs Kafka Streams vs Spark: flink/comparison.md
           - Labs: flink/labs.md
-      - "Phase 4: Orchestration":
+      - "Phase 5: Orchestration":
           - airflow/index.md
           - DAGs & Tasks: airflow/dags.md
           - Schedulers & Executors: airflow/executors.md
           - Idempotency & Backfills: airflow/idempotency.md
           - Production Gotchas: airflow/gotchas.md
-      - "Phase 5: Lakehouse":
+      - "Phase 6: Lakehouse":
           - lakehouse/index.md
           - Why Table Formats Exist: lakehouse/why-table-formats.md
           - Apache Iceberg: lakehouse/iceberg.md
           - Apache Hudi: lakehouse/hudi.md
           - Delta Lake: lakehouse/delta.md
           - Choosing a Table Format: lakehouse/comparison.md
-      - "Phase 6: Query Engines":
+      - "Phase 7: Query Engines":
           - query-engines/index.md
           - Trino: query-engines/trino.md
           - Cloud Data Warehouses: query-engines/cloud-warehouses.md
-      - "Phase 7: OLAP":
+      - "Phase 8: Real-time OLAP":
           - olap/index.md
           - Why Columnar Storage: olap/columnar-storage.md
           - ClickHouse: olap/clickhouse.md
           - Apache Pinot: olap/pinot.md
-      - "Phase 8: Time Series":
-          - time-series/index.md
+      - "Phase 9: Specialized Data Systems":
+          - Time Series: time-series/index.md
           - Time Semantics: time-series/time-semantics.md
           - Windows: time-series/windows.md
           - Cardinality: time-series/cardinality.md
           - Downsampling: time-series/downsampling.md
           - TSDB Comparison: time-series/tsdbs.md
-      - "Phase 9: Distributed Python":
-          - distributed-python/index.md
+          - Distributed Python: distributed-python/index.md
           - Ray: distributed-python/ray.md
-      - "Phase 10: NoSQL":
-          - databases/index.md
+          - NoSQL: databases/index.md
           - NoSQL Thinking: databases/nosql.md
           - Cassandra & ScyllaDB: databases/cassandra.md
           - DynamoDB: databases/dynamodb.md
-      - "Phase 11: Graph Databases":
-          - graph/index.md
+          - Graph Databases: graph/index.md
           - Graph Thinking: graph/graph-thinking.md
           - Graph Modelling: graph/graph-modelling.md
           - Neo4j & Cypher: graph/neo4j.md
           - Graph Algorithms: graph/graph-algorithms.md
           - Graph vs Relational: graph/graph-vs-relational.md
-      - "Phase 12: Platform Engineering":
-          - Metadata: metadata/index.md
+      - "Phase 10: Data Platform Engineering":
+          - Metadata, Lineage & Catalogues: metadata/index.md
           - Quality: quality/index.md
           - Security: security/index.md
           - Notebooks: notebooks/index.md
           - Platform Delivery & IaC: platform-delivery.md
-  - Practice:
-      - Architectures:
-          - architectures/index.md
+      - "Phase 11: Architecture & Economics":
+          - Technology Selection Framework: reference/selection-framework.md
+          - Cost Engineering: reference/cost-engineering.md
+          - Comparisons: comparisons/index.md
+          - Spark vs Flink: comparisons/spark-vs-flink.md
+          - Spark vs Ray: comparisons/spark-vs-ray.md
+          - ClickHouse vs Pinot: comparisons/clickhouse-vs-pinot.md
+          - ClickHouse vs Trino: comparisons/clickhouse-vs-trino.md
+          - TSDB vs OLAP: comparisons/tsdb-vs-olap.md
+      - "Phase 12: Production":
+          - Architectures: architectures/index.md
+          - "SaaSCo: The Evolving Company": architectures/saasco-evolution.md
           - Observability Platform: architectures/observability.md
           - E-Commerce Platform: architectures/ecommerce.md
           - IoT Platform: architectures/iot.md
           - Fraud Detection: architectures/fraud.md
           - SaaS Analytics: architectures/analytics-platform.md
-      - Comparisons:
-          - comparisons/index.md
-          - Spark vs Flink: comparisons/spark-vs-flink.md
-          - Spark vs Ray: comparisons/spark-vs-ray.md
-          - ClickHouse vs Pinot: comparisons/clickhouse-vs-pinot.md
-          - ClickHouse vs Trino: comparisons/clickhouse-vs-trino.md
-          - Graph vs Relational: graph/graph-vs-relational.md
-          - TSDB vs OLAP: comparisons/tsdb-vs-olap.md
-      - Labs:
-          - labs/index.md
-      - Incidents:
-          - incidents/index.md
-      - Simulations:
-          - simulations/index.md
+          - Labs: labs/index.md
+          - Incidents: incidents/index.md
+          - Simulations: simulations/index.md
           - Kafka Partition Simulator: simulations/kafka-partitions.html
           - Spark Shuffle Visualiser: simulations/spark-shuffle.html
           - ClickHouse ORDER BY Explorer: simulations/clickhouse-order-by.html
           - Cardinality Calculator: simulations/cardinality-calculator.html
+          - Backpressure Calculator: simulations/backpressure-calculator.html
+          - Watermark Simulator: simulations/watermark-simulator.html
+          - Kafka ISR Failure Simulator: simulations/kafka-isr-simulator.html
+          - Iceberg Manifest Explorer: simulations/iceberg-manifest-explorer.html
+          - Parquet Row-Group Explorer: simulations/parquet-row-group-explorer.html
+          - Bloom Filter Playground: simulations/bloom-filter-playground.html
+          - Consistent Hashing Visualizer: simulations/consistent-hashing-visualizer.html
+          - DynamoDB Hot-Key Simulator: simulations/dynamodb-hot-key-simulator.html
+          - SCD Type-2 Timeline Explorer: simulations/scd2-timeline-explorer.html
+          - Capstone & Rubric: capstone.md
   - Reference:
       - Overview: reference/index.md
-      - Technology Selection Framework: reference/selection-framework.md
-      - Cost Engineering: reference/cost-engineering.md
       - Versions & Primary Sources: reference/version-matrix.md
       - Glossary: reference/glossary.md

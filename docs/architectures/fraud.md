@@ -1,6 +1,8 @@
 # Fraud Detection Architecture
 
-Transactions, devices, cards, IPs, merchants, users. Four products share a bus and **must not share a latency budget**:
+14:02:11.900 — a $4,200 transaction is authorized. 14:02:12.300 — the fraud model finally returns a high-risk score, 400 ms after the authorization already fired. The chargeback lands six weeks later. A design review asks: what should have been on the 200 ms path that wasn't? A. A faster model. B. A 3-hop graph query to check known fraud rings before scoring. C. Keyed feature lookups only — no graph hop — with rings caught downstream instead. D. More Kafka partitions. Pick one before reading on.
+
+C is the shape of this architecture: transactions, devices, cards, IPs, merchants, users. Four products share a bus and **must not share a latency budget**:
 
 1. **Score this payment** — p99 < 200 ms (authorisation path).
 2. **Find rings** — multi-hop graph, minutes to hours, batch is fine.

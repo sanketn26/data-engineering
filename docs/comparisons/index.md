@@ -1,6 +1,8 @@
 # Comparisons
 
-These pages exist to stop **feature-matrix shopping**. Two engines can both "do SQL" and still be the wrong place for a workload. You choose by **access pattern, latency, state, and failure**, then you confirm with a number from one of the running systems.
+A design review opens with a slide titled "Flink vs Spark: Feature Comparison" — twelve rows, checkmarks in both columns, a score of 9/10 vs 8/10. Nobody on the call has said a latency number yet. Predict before you read on: what single question, asked first, would make that entire slide unnecessary?
+
+The question is "what is the SLA, in milliseconds, and what does the workload do with state" — everything else on the slide is a checkbox contest. These pages exist to stop **feature-matrix shopping**. Two engines can both "do SQL" and still be the wrong place for a workload. You choose by **access pattern, latency, state, and failure**, then you confirm with a number from one of the running systems.
 
 If you want a procedure rather than a pairwise fight, use the [selection framework](../reference/selection-framework.md). Come back here when two names are left.
 

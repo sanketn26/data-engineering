@@ -3,7 +3,14 @@
 !!! info "Version and source policy"
     Examples target the pinned lab baseline. Check [Versions & Primary Sources](../reference/version-matrix.md) before applying configuration to another Spark release.
 
-One day’s SaaS analytics events no longer fit in pandas:
+09:12 AM. The nightly SaaS rollup — p95 latency per `service` per hour — has been running for three hours against a normal time of eleven minutes. The Spark UI shows 39 of 40 executors idle and one core pegged at 100%. Nothing crashed. Nothing logged an error.
+
+A. Add executors — the cluster is under-provisioned.
+B. One shuffle partition owns `cust_0042` (38% of the day's volume), and no executor count fixes a single hot key.
+C. The join to the 30 MB tenant dimension is shuffling 5 TB instead of broadcasting.
+D. The driver, not the executors, is the bottleneck.
+
+Pick one before reading on — this module exists to make that call automatic instead of a guess. Here is the shape of the data behind it:
 
 ```text
 {timestamp, customer_id, user_id, service, endpoint, region, latency_ms, status_code, bytes}
@@ -13,7 +20,7 @@ One day’s SaaS analytics events no longer fit in pandas:
 
 Spark is a coordination layer for that problem: **partition the scan, pipeline narrow work, shuffle only when keys must meet, retry tasks when a node dies.** It is not a database, not a stream processor of last resort, and not the right tool for a 2 GB CSV.
 
-This module is the first *implementation* of [Phase 0](../foundations/index.md). If shuffle still feels like a metaphor, stay in foundations.
+This module is the first *implementation* of the mechanics from [Phase 0](../foundations/index.md) and [Phase 1](../foundations/parquet-internals.md). If shuffle still feels like a metaphor, stay in foundations.
 
 ---
 

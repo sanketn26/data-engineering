@@ -1,6 +1,13 @@
 # Production gotchas
 
-These are the Kafka failures that show up after the happy-path tutorial. Each one is a real pattern on SaaS analytics, observability, e-commerce, IoT, or fraud — using the same `{timestamp, customer_id, user_id, service, endpoint, region, latency_ms, status_code, bytes}` events.
+02:13 AM. Lag for `alert-processor` on `service-events` jumped from 40 seconds to 25 minutes in twenty minutes flat, and PagerDuty has exactly one alert. Nothing crashed. No broker is down.
+
+A. Ingest spiked and consumers can't keep pace.
+B. A hot `customer_id` hashed into one partition and the other 47 are fine.
+C. A rebalance storm is eating throughput while CPU looks busy.
+D. A downstream sink (the alert DB, PagerDuty) got slow, and Kafka is just the mirror.
+
+All four are real Kafka incidents you will see this year, and lag alone will not tell you which one you are in. This page is the differential diagnosis — the same five systems (SaaS analytics, observability, e-commerce, IoT, fraud) failing in stereotyped ways, using the same `{timestamp, customer_id, user_id, service, endpoint, region, latency_ms, status_code, bytes}` event you have seen throughout this module.
 
 ---
 

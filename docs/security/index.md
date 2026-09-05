@@ -1,8 +1,17 @@
 # Data Security
 
-A data platform **concentrates** what every product database holds in isolation: PII, payments, auth logs, health-adjacent telemetry, internal metrics. A breach here is not "one app's users." Threat-model the platform like a bank, not like a blog's Postgres.
+11:15 AM. An analyst on JupyterHub runs `SELECT email FROM events LIMIT 100` against the "curated" schema in Trino. It returns real emails. No error, no audit ping — just PII on a screen that was supposed to be masked by default.
 
-This page is controls mapped to **threats**, not a vendor list. Related: [metadata](../metadata/index.md), [notebooks](../notebooks/index.md), [analytics tenancy](../architectures/analytics-platform.md), [fraud](../architectures/fraud.md).
+Predict before you read on: which control was missing?
+
+A. RBAC never restricted the analyst's role to a masked view.
+B. The masking view exists but `events` (the raw table) was grantable too.
+C. Audit logging would have caught it after the fact, but nothing would have prevented it.
+D. This is a break-glass path working as designed, and the ticket trail is the control.
+
+A data platform **concentrates** what every product database holds in isolation — PII, payments, auth logs, health-adjacent telemetry, internal metrics — so a breach here is not "one app's users," and the scenario above (most likely A or B) is why this page threat-models the platform like a bank, not like a blog's Postgres, mapping controls to threats rather than listing vendors.
+
+Related: [metadata](../metadata/index.md), [notebooks](../notebooks/index.md), [analytics tenancy](../architectures/analytics-platform.md), [fraud](../architectures/fraud.md).
 
 ---
 

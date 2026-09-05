@@ -1,6 +1,8 @@
 # Observability Platform Architecture
 
-Logs, metrics, traces, and security events in one ingest path. The hard problem is not "collect everything" — it is **answering an on-call query in a second while not paying NVMe prices for a year of raw JSON**.
+02:47 AM. Grafana is empty for `checkout-service`. Every other service still shows traffic. Someone on the bridge says "just add a Prometheus label for `user_id` so we can see which customer is affected" — and someone else objects. A. Add the label; Prometheus can take it. B. The label would work but would kill the TSDB at scale — reach for ClickHouse instead. C. The dashboard is empty because of an ingest problem that has nothing to do with labels. D. Restart Flink and see if it comes back. Pick one before reading on.
+
+The dashboard being empty is a retention/routing question, and the `user_id`-as-label instinct is the cardinality trap this page exists to prevent. Logs, metrics, traces, and security events share one ingest path here, but the hard problem is not "collect everything" — it is **answering an on-call query in a second while not paying NVMe prices for a year of raw JSON**.
 
 This page walks V1 → bottleneck → V2, then 10×. Related: [ClickHouse](../olap/clickhouse.md), [TSDB vs OLAP](../comparisons/tsdb-vs-olap.md), [ClickHouse vs Trino](../comparisons/clickhouse-vs-trino.md), [cardinality simulation](../simulations/cardinality-calculator.html).
 

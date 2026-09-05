@@ -1,8 +1,15 @@
 # Graph Modelling
 
-The hardest part of a fraud graph is not Cypher. It is deciding whether a **transaction is a node or a relationship**, whether `USED` points at Device or IP, and what you will do when one IP has five million edges.
+Wednesday, schema review. A junior engineer's PR models the fraud graph as `(User)-[:MADE]->(Transaction)-[:AT]->(Merchant)`, with `Transaction` as its own node and every IP address modelled as a node too. In staging, the 2-hop query "other users sharing this IP" times out — one corporate VPN's IP node now has five million edges.
 
-A bad model makes “graph databases are fast” false. A good model is **query-shaped**, same as [NoSQL](../databases/nosql.md) — with types and **direction** as the schema.
+What's actually wrong with this model?
+
+A. `Transaction` should be a relationship property, not a node — nothing needs to reach it from more than two ends.
+B. `IP` shouldn't be a node at all; inline it as a property on the relationship.
+C. The VPN IP is a supernode — the model needs a way to route around or exclude ubiquitous entities, not eliminate IP nodes entirely.
+D. The direction of `MADE` and `AT` is backwards.
+
+Pick one before reading on. The hardest part of a fraud graph is not Cypher — it is deciding whether a **transaction is a node or a relationship**, whether `USED` points at Device or IP, and what you do when one IP has five million edges. A bad model makes "graph databases are fast" false. A good model is **query-shaped**, same as [NoSQL](../databases/nosql.md) — with types and **direction** as the schema.
 
 ---
 

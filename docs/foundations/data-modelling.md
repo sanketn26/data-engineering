@@ -9,7 +9,11 @@ description: Choose grain, facts, dimensions, keys, and history before choosing 
 **Prerequisites:** SQL joins, primary keys, [batch vs stream](batch-vs-stream.md)<br>
 **Outcomes:** define a fact-table grain; prevent fan-out; choose an SCD strategy; model late-arriving changes.
 
-An engine cannot rescue an ambiguous grain. Before Spark, Iceberg, dbt, or ClickHouse, decide what one row means and which business changes must remain historically true.
+Code review, 4:52 PM. A join between `fct_order_item` and `payment_attempt` just shipped, and this morning's GMV number is running 2.3x high. The SQL is clean — every join key exists, every column resolves, nothing errors.
+
+Before you scroll to the diff, pick one: is the bug (A) a wrong join key, (B) a grain mismatch — payments join at attempt grain while orders are at item grain, so retries fan out the join — or (C) a missing filter on refunds?
+
+It's (B), and no engine would have caught it: an engine cannot rescue an ambiguous grain. Before Spark, Iceberg, dbt, or ClickHouse, decide what one row means and which business changes must remain historically true.
 
 ## Workload
 

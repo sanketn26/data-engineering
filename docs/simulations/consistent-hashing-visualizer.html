@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Consistent Hashing Visualizer</title>
+<style>
+  body { font-family: system-ui, sans-serif; background: #0d1117; color: #e6edf3; margin: 0; padding: 20px; }
+  h1 { color: #58a6ff; font-size: 22px; }
+  h3 { margin-top: 0; }
+  .card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 20px; margin: 15px 0; }
+  label { display: block; margin-bottom: 4px; color: #8b949e; font-size: 14px; }
+  .input-row { display: flex; align-items: center; gap: 12px; margin: 10px 0; }
+  .dim-name { width: 220px; font-size: 14px; }
+  input[type=range] { flex: 1; }
+  .val-display { width: 60px; text-align: right; color: #58a6ff; font-weight: bold; font-size: 13px; }
+  .result { margin: 20px 0; }
+  .big-number { font-size: 34px; font-weight: bold; margin: 10px 0; }
+  .ok { color: #3fb950; }
+  .warn { color: #e3b341; }
+  .danger { color: #f85149; }
+  .breakdown { font-family: monospace; font-size: 14px; background: #0d1117; padding: 15px; border-radius: 6px; white-space: pre-wrap; }
+  .verdict { padding: 15px; border-radius: 6px; margin-top: 15px; }
+  .verdict.ok { background: #1a3a1a; border: 1px solid #3fb950; }
+  .verdict.warn { background: #3a2a00; border: 1px solid #e3b341; }
+  .verdict.danger { background: #3a1a1a; border: 1px solid #f85149; }
+  .explanation { background: #161b22; border-left: 4px solid #58a6ff; padding: 15px; border-radius: 4px; margin-top: 20px; }
+  code { background: #0d1117; padding: 1px 5px; border-radius: 4px; }
+  button { background: #238636; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+  button.secondary { background: #21262d; border: 1px solid #30363d; color: #e6edf3; }
+  button.toggle-on { background: #9e6a03; }
+  .btn-row { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0; align-items: center; }
+  .ring-wrap { position: relative; width: 100%; max-width: 480px; aspect-ratio: 1; margin: 20px auto; }
+  .ring-circle { position: absolute; inset: 0; border: 2px dashed #30363d; border-radius: 50%; }
+  .ring-node { position: absolute; width: 46px; height: 46px; margin-left: -23px; margin-top: -23px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold; color: #0d1117; border: 2px solid #0d1117; }
+  .ring-key { position: absolute; width: 8px; height: 8px; margin-left: -4px; margin-top: -4px; border-radius: 50%; opacity: 0.85; }
+  .compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 15px; }
+  .compare-box { padding: 16px; border-radius: 8px; text-align: center; }
+  .compare-box .num { font-size: 32px; font-weight: bold; margin: 6px 0; }
+  .compare-box .lbl { color: #8b949e; font-size: 13px; }
+  .load-bars { display: flex; align-items: flex-end; gap: 10px; height: 120px; margin: 15px 0; }
+  .load-bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; }
+  .load-bar { width: 100%; border-radius: 4px 4px 0 0; transition: height 0.2s; }
+  .load-bar-label { font-size: 11px; color: #8b949e; margin-top: 6px; text-align: center; }
+  .key-table { font-family: monospace; font-size: 12px; background: #0d1117; padding: 12px; border-radius: 6px; max-height: 220px; overflow-y: auto; }
+  .key-table .row { display: flex; gap: 8px; padding: 2px 0; }
+  .key-table .node-tag { width: 90px; flex-shrink: 0; }
+  .moved-tag { color: #f85149; font-weight: bold; }
+</style>
+</head>
+<body>
+<h1>Consistent Hashing Visualizer</h1>
+<p>Consistent hashing on a ring moves only about <code>1/N</code> of keys when a node joins or leaves. Naive <code>hash(key) % N</code> reshuffles almost everything. Virtual nodes fix the load-imbalance problem a small number of physical nodes has on a ring.</p>
+
+<div class="card">
+  <h3 style="color:#e3b341">Cluster controls</h3>
+  <div class="btn-row">
+    <button onclick="addNode()">+ Add a node</button>
+    <button class="secondary" onclick="removeNode()">− Remove a node</button>
+    <button class="secondary" id="naive-toggle" onclick="toggleNaive()">Use naive mod-N hashing instead</button>
+    <button class="secondary" onclick="resetCluster()">Reset cluster</button>
+  </div>
+  <div class="input-row" style="margin-top:16px">
+    <span class="dim-name">Virtual nodes per physical node</span>
+    <input type="range" min="1" max="50" step="1" value="1" id="vnodes" oninput="onVnodesChange()">
+    <span class="val-display" id="vnodes-val">1</span>
+  </div>
+</div>
+
+<div class="card">
+  <h3 style="color:#e3b341">The ring (consistent hashing)</h3>
+  <p style="color:#8b949e;font-size:13px">Each key is owned by the next node clockwise from its hash position. Virtual nodes above 1 are not drawn individually here — the ring shows physical node ownership after virtual-node averaging.</p>
+  <div class="ring-wrap" id="ring"></div>
+</div>
+
+<div class="card">
+  <h3 style="color:#e3b341">Rebalance impact: consistent hashing vs. naive mod-N</h3>
+  <div class="compare-grid">
+    <div class="compare-box" id="box-consistent" style="background:#1a3a1a;border:1px solid #3fb950">
+      <div class="lbl">Consistent hashing — keys moved</div>
+      <div class="num ok" id="consistent-moved">0 / 0</div>
+      <div class="lbl" id="consistent-pct">0%</div>
+    </div>
+    <div class="compare-box" id="box-naive" style="background:#3a1a1a;border:1px solid #f85149">
+      <div class="lbl">Naive hash % N — keys moved</div>
+      <div class="num danger" id="naive-moved">0 / 0</div>
+      <div class="lbl" id="naive-pct">0%</div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <h3 style="color:#e3b341">Load balance across physical nodes (virtual nodes = <span id="vnodes-inline">1</span>)</h3>
+  <div class="load-bars" id="load-bars"></div>
+</div>
+
+<div class="result card" id="result">
+  <div id="big-num" class="big-number ok"></div>
+  <div id="breakdown" class="breakdown"></div>
+  <div id="verdict" class="verdict ok"></div>
+</div>
+
+<div class="explanation">
+  <h3 style="color:#58a6ff">Why real clusters use this</h3>
+  <p>Cassandra and DynamoDB both place partitions using a ring of hashed token ranges rather than <code>hash(key) % N</code>. That single design choice is what lets you add or remove a node without rehashing the entire dataset — see <a href="../databases/cassandra.md" style="color:#58a6ff">Cassandra</a> for how tokens and vnodes map to replica placement, and <a href="../databases/dynamodb.md" style="color:#58a6ff">DynamoDB</a> for the same idea behind its partition key hashing.</p>
+  <ul>
+    <li>With naive <code>hash(key) % N</code>, changing <code>N</code> changes the modulus for almost every key — a cache cluster doing this on scale-out would face a near-total cache miss storm.</li>
+    <li>On a plain ring with few physical nodes, ownership is lumpy: one node can land a disproportionate arc purely by chance. Virtual nodes spread each physical node across many small arcs, averaging out the imbalance — this is exactly what Cassandra's <code>num_tokens</code> setting controls.</li>
+    <li>Consistent hashing still isn't free: replication, hinted handoff, and repair after a node change are separate mechanics layered on top of placement — this simulator shows placement only.</li>
+    <li>The numbers here are illustrative (20 keys, a handful of nodes) — the ~1/N fraction becomes a much tighter guarantee at production key counts.</li>
+  </ul>
+</div>
+
+<script>
+function fnv1a(str, seed) {
+  let h = 0x811c9dc5 ^ (seed || 0);
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return h >>> 0;
+}
+
+const RING_SPACE = 100000; // positions on the ring, 0..RING_SPACE-1
+const NODE_COLORS = ['#58a6ff', '#3fb950', '#e3b341', '#f85149', '#bc8cff', '#39c5cf', '#f778ba', '#ffa657'];
+
+const KEYS = [];
+for (let i = 0; i < 26; i++) {
+  KEYS.push('key_' + String(i).padStart(3, '0'));
+}
+
+let nodeSeq = 0;
+let nodes = []; // {id, name, color}
+let useNaive = false;
+let vnodeCount = 1;
+let prevAssignment = null; // map key -> node id, for consistent hashing
+let prevNaiveAssignment = null; // map key -> node id, for naive
+
+function makeNode() {
+  nodeSeq += 1;
+  return { id: nodeSeq, name: 'node-' + nodeSeq, color: NODE_COLORS[(nodeSeq - 1) % NODE_COLORS.length] };
+}
+
+function initCluster() {
+  nodeSeq = 0;
+  nodes = [makeNode(), makeNode(), makeNode(), makeNode()];
+  prevAssignment = null;
+  prevNaiveAssignment = null;
+}
+
+function ringPosForNode(nodeId, vIndex) {
+  return fnv1a('node-' + nodeId + '#v' + vIndex, 17) % RING_SPACE;
+}
+
+function ringPosForKey(key) {
+  return fnv1a(key, 31) % RING_SPACE;
+}
+
+// Build sorted virtual-node points for current nodes + vnodeCount, return array of {pos, nodeId}
+function buildRingPoints() {
+  const points = [];
+  nodes.forEach(n => {
+    for (let v = 0; v < vnodeCount; v++) {
+      points.push({ pos: ringPosForNode(n.id, v), nodeId: n.id });
+    }
+  });
+  points.sort((a, b) => a.pos - b.pos);
+  return points;
+}
+
+function assignConsistent(points) {
+  const assignment = {};
+  KEYS.forEach(k => {
+    const pos = ringPosForKey(k);
+    let owner = points.find(p => p.pos >= pos);
+    if (!owner) owner = points[0]; // wrap around
+    assignment[k] = owner.nodeId;
+  });
+  return assignment;
+}
+
+function assignNaive() {
+  const assignment = {};
+  const n = nodes.length;
+  KEYS.forEach(k => {
+    const h = fnv1a(k, 31);
+    const idx = h % n;
+    assignment[k] = nodes[idx].id;
+  });
+  return assignment;
+}
+
+function addNode() {
+  if (nodes.length >= 8) return;
+  nodes.push(makeNode());
+  render();
+}
+
+function removeNode() {
+  if (nodes.length <= 2) return;
+  nodes.pop();
+  render();
+}
+
+function resetCluster() {
+  initCluster();
+  document.getElementById('vnodes').value = 1;
+  vnodeCount = 1;
+  document.getElementById('vnodes-val').textContent = '1';
+  document.getElementById('vnodes-inline').textContent = '1';
+  render();
+}
+
+function toggleNaive() {
+  useNaive = !useNaive;
+  const btn = document.getElementById('naive-toggle');
+  btn.classList.toggle('toggle-on', useNaive);
+  btn.textContent = useNaive ? 'Naive mod-N: ON (ring shows naive too)' : 'Use naive mod-N hashing instead';
+  render();
+}
+
+function onVnodesChange() {
+  vnodeCount = parseInt(document.getElementById('vnodes').value);
+  document.getElementById('vnodes-val').textContent = vnodeCount;
+  document.getElementById('vnodes-inline').textContent = vnodeCount;
+  render();
+}
+
+function nodeById(id) {
+  return nodes.find(n => n.id === id);
+}
+
+function renderRing(points, assignment) {
+  const ring = document.getElementById('ring');
+  ring.innerHTML = '<div class="ring-circle"></div>';
+  const size = ring.getBoundingClientRect().width || 480;
+  const radius = size / 2 - 26;
+  const center = size / 2;
+
+  // draw one marker per physical node at the position of its FIRST virtual node (v0),
+  // representing "where this node sits" on the ring for the visual.
+  nodes.forEach(n => {
+    const pos = ringPosForNode(n.id, 0);
+    const angle = (pos / RING_SPACE) * 2 * Math.PI - Math.PI / 2;
+    const x = center + radius * Math.cos(angle);
+    const y = center + radius * Math.sin(angle);
+    const el = document.createElement('div');
+    el.className = 'ring-node';
+    el.style.left = x + 'px';
+    el.style.top = y + 'px';
+    el.style.background = n.color;
+    el.title = n.name;
+    el.textContent = n.name.replace('node-', 'N');
+    ring.appendChild(el);
+  });
+
+  // draw keys just inside the node ring, colored by owner
+  KEYS.forEach(k => {
+    const pos = ringPosForKey(k);
+    const angle = (pos / RING_SPACE) * 2 * Math.PI - Math.PI / 2;
+    const kr = radius - 26;
+    const x = center + kr * Math.cos(angle);
+    const y = center + kr * Math.sin(angle);
+    const owner = nodeById(assignment[k]);
+    const el = document.createElement('div');
+    el.className = 'ring-key';
+    el.style.left = x + 'px';
+    el.style.top = y + 'px';
+    el.style.background = owner ? owner.color : '#8b949e';
+    el.title = k + ' -> ' + (owner ? owner.name : '?');
+    ring.appendChild(el);
+  });
+}
+
+function renderLoadBars(assignment) {
+  const container = document.getElementById('load-bars');
+  container.innerHTML = '';
+  const counts = {};
+  nodes.forEach(n => counts[n.id] = 0);
+  Object.values(assignment).forEach(id => { counts[id] = (counts[id] || 0) + 1; });
+  const max = Math.max(1, ...Object.values(counts));
+
+  nodes.forEach(n => {
+    const c = counts[n.id] || 0;
+    const heightPct = (c / max) * 100;
+    const col = document.createElement('div');
+    col.className = 'load-bar-col';
+    col.innerHTML = `<div class="load-bar" style="height:${heightPct}%;background:${n.color}"></div>
+      <div class="load-bar-label">${n.name}<br>${c} keys</div>`;
+    container.appendChild(col);
+  });
+}
+
+function countMoved(oldAssign, newAssign) {
+  if (!oldAssign) return { moved: 0, total: KEYS.length };
+  let moved = 0;
+  KEYS.forEach(k => {
+    // compare by relative rank among *current* nodes is not meaningful across node-id changes;
+    // instead compare by node identity where the node still exists, otherwise it's definitionally moved.
+    const oldOwner = oldAssign[k];
+    const newOwner = newAssign[k];
+    if (oldOwner !== newOwner) moved++;
+  });
+  return { moved, total: KEYS.length };
+}
+
+function render() {
+  const points = buildRingPoints();
+  const consistentAssignment = assignConsistent(points);
+  const naiveAssignment = assignNaive();
+
+  renderRing(points, useNaive ? naiveAssignment : consistentAssignment);
+  renderLoadBars(consistentAssignment);
+
+  const consResult = countMoved(prevAssignment, consistentAssignment);
+  const naiveResult = countMoved(prevNaiveAssignment, naiveAssignment);
+
+  document.getElementById('consistent-moved').textContent = `${consResult.moved} / ${consResult.total}`;
+  document.getElementById('consistent-pct').textContent = (consResult.total ? (consResult.moved / consResult.total * 100).toFixed(0) : 0) + '% of keys moved';
+  document.getElementById('naive-moved').textContent = `${naiveResult.moved} / ${naiveResult.total}`;
+  document.getElementById('naive-pct').textContent = (naiveResult.total ? (naiveResult.moved / naiveResult.total * 100).toFixed(0) : 0) + '% of keys moved';
+
+  // load balance stats for verdict
+  const counts = {};
+  nodes.forEach(n => counts[n.id] = 0);
+  Object.values(consistentAssignment).forEach(id => { counts[id] = (counts[id] || 0) + 1; });
+  const countVals = Object.values(counts);
+  const maxC = Math.max(...countVals);
+  const minC = Math.min(...countVals);
+  const avgC = KEYS.length / nodes.length;
+  const imbalance = maxC - minC;
+
+  const bigNum = document.getElementById('big-num');
+  const breakdown = document.getElementById('breakdown');
+  const verdict = document.getElementById('verdict');
+
+  let cls;
+  if (imbalance <= Math.max(1, avgC * 0.3)) cls = 'ok';
+  else if (imbalance <= Math.max(2, avgC * 0.7)) cls = 'warn';
+  else cls = 'danger';
+
+  bigNum.className = `big-number ${cls}`;
+  bigNum.textContent = `Load spread: ${minC}-${maxC} keys per node (target ~${avgC.toFixed(1)})`;
+
+  breakdown.textContent =
+    `Nodes:                 ${nodes.length}\n` +
+    `Virtual nodes/node:    ${vnodeCount}  (${nodes.length * vnodeCount} total ring points)\n` +
+    `Keys:                  ${KEYS.length}\n` +
+    `Ideal keys/node:       ${avgC.toFixed(2)}\n` +
+    `Actual range:          ${minC} - ${maxC} keys/node\n` +
+    `Consistent-hash moved: ${consResult.moved} of ${consResult.total} (${prevAssignment ? 'after last change' : 'initial assignment'})\n` +
+    `Naive mod-N moved:     ${naiveResult.moved} of ${naiveResult.total} (${prevNaiveAssignment ? 'after last change' : 'initial assignment'})`;
+
+  let msg;
+  if (vnodeCount === 1 && cls !== 'ok') {
+    msg = `With only 1 virtual node per physical node, ring position is decided by a single hash draw per node — luck of the draw produces uneven arcs. Raise the virtual-nodes slider to smooth this out.`;
+  } else if (cls === 'ok') {
+    msg = `Load is well balanced across physical nodes. ${vnodeCount > 1 ? 'The virtual nodes are doing their job of averaging out ring-position luck.' : 'This can still get uneven as nodes join or leave — consider more virtual nodes for stability.'}`;
+  } else {
+    msg = `Load is uneven across physical nodes. Increase virtual nodes per physical node to spread each node across more, smaller arcs of the ring.`;
+  }
+
+  verdict.className = `verdict ${cls}`;
+  verdict.innerHTML = `<strong>${nodes.length} node${nodes.length === 1 ? '' : 's'}, ${vnodeCount} vnode${vnodeCount === 1 ? '' : 's'} each</strong>: ${msg}`;
+
+  prevAssignment = consistentAssignment;
+  prevNaiveAssignment = naiveAssignment;
+}
+
+initCluster();
+render();
+window.addEventListener('resize', render);
+</script>
+</body>
+</html>

@@ -1,6 +1,6 @@
 # Graph Thinking
 
-You are building fraud detection. The ledger already lives in Postgres:
+Tuesday, 2:47 PM. An analyst pings you in Slack: "Can you pull all accounts connected within three hops to IP `203.0.113.42` that touched a fraudulent transaction?" The fraud ledger lives in Postgres:
 
 ```sql
 Users(user_id, name, email)
@@ -10,11 +10,14 @@ Transactions(txn_id, user_id, device_id, ip_id, merchant_id, amount, timestamp)
 Merchants(merchant_id, name, category)
 ```
 
-An analyst asks:
+Before you open a query editor: if each entity fans out to roughly 30 connections, how many rows does a 3-hop join touch — and is the planner still sane at 5 hops?
 
-> Find all accounts connected within three hops to IP `203.0.113.42`, used in a fraudulent transaction.
+A. A few hundred rows — joins scale roughly linearly with hop count.
+B. Tens of thousands of rows — each hop multiplies by the fan-out factor.
+C. Millions of rows, and the planner gives up well before hop 5.
+D. It depends entirely on indexes; hop count doesn't matter.
 
-That sentence is a **graph query**. Forcing it through joins is how you learn when graphs exist.
+Pick one before reading on. That analyst's sentence is a **graph query**. Forcing it through joins is how you learn when graphs exist.
 
 ---
 

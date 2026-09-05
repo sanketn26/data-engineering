@@ -3,9 +3,16 @@
 !!! info "Version and source policy"
     Cypher syntax, indexes, and algorithm libraries change across releases. Check [Versions & Primary Sources](../reference/version-matrix.md).
 
-A payment just posted. You need to know whether this user shares a **device, IP, or card** with a known fraud ring, and whether that ring also hits the same merchant cluster — in a few hops, on a graph of tens of millions of entities. The warehouse can count fraud by country. Postgres can fetch the user’s last 20 transactions. Neither wants to walk **User → Device → IP → Transaction → Merchant** at request time.
+11:02 AM. A $4,200 payment just posted. Risk needs an answer in under 200 ms: does this user share a **device, IP, or card** with a known fraud ring, and does that ring also hit the same merchant cluster — a few hops out, on a graph of tens of millions of entities?
 
-When the product question is the **path**, not the row, you model a graph. When the question is a scan or a join of two tables, you do not.
+Which system answers that, at that latency?
+
+A. The warehouse — run an aggregate query grouped by fraud ring.
+B. Postgres — join `Users`, `Devices`, `IPs`, `Transactions`, `Merchants` for this one user.
+C. A graph store — start at the user node and traverse typed edges a few hops out.
+D. Postgres, but with a covering index on every foreign key involved.
+
+Pick one before reading on. The warehouse can count fraud by country; Postgres can fetch the user's last 20 transactions; neither wants to walk **User → Device → IP → Transaction → Merchant** at request time. When the product question is the **path**, not the row, you model a graph. When the question is a scan or a join of two tables, you do not.
 
 ---
 

@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SCD Type-2 Timeline Explorer</title>
+<style>
+  body { font-family: system-ui, sans-serif; background: #0d1117; color: #e6edf3; margin: 0; padding: 20px; }
+  h1 { color: #58a6ff; font-size: 22px; }
+  h3 { margin-top: 0; }
+  .card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 20px; margin: 15px 0; }
+  label { display: block; margin-bottom: 4px; color: #8b949e; font-size: 14px; }
+  .input-row { display: flex; align-items: center; gap: 12px; margin: 10px 0; flex-wrap: wrap; }
+  .dim-name { width: 150px; font-size: 14px; }
+  input[type=range] { flex: 1; min-width: 160px; }
+  input[type=date], select, input[type=text] { background: #0d1117; color: #e6edf3; border: 1px solid #30363d; padding: 6px 10px; border-radius: 4px; }
+  .val-display { width: 130px; text-align: right; color: #58a6ff; font-weight: bold; font-size: 13px; }
+  .ok { color: #3fb950; }
+  .warn { color: #e3b341; }
+  .danger { color: #f85149; }
+  button { background: #238636; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 14px; }
+  button:hover { background: #2ea043; }
+  .explanation { background: #161b22; border-left: 4px solid #58a6ff; padding: 15px; border-radius: 4px; margin-top: 20px; }
+  code { background: #0d1117; padding: 1px 5px; border-radius: 4px; }
+
+  .timeline-wrap { background: #0d1117; border-radius: 6px; padding: 20px 15px; margin: 15px 0; }
+  .timeline-bar { position: relative; height: 60px; border-radius: 6px; overflow: hidden; display: flex; border: 1px solid #30363d; }
+  .timeline-seg { position: relative; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; color: #0d1117; border-right: 2px solid #0d1117; transition: outline 0.15s ease; }
+  .timeline-seg:last-child { border-right: none; }
+  .timeline-seg.selected { outline: 3px solid #58a6ff; outline-offset: -3px; }
+  .timeline-labels { display: flex; justify-content: space-between; font-size: 11px; color: #8b949e; margin-top: 6px; }
+  .asof-marker { position: absolute; top: -8px; bottom: -8px; width: 2px; background: #e6edf3; z-index: 2; }
+  .asof-marker::after { content: '▼'; position: absolute; top: -14px; left: -7px; color: #e6edf3; font-size: 12px; }
+
+  table { width: 100%; border-collapse: collapse; font-family: monospace; font-size: 13px; margin-top: 10px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid #30363d; }
+  th { color: #8b949e; font-weight: normal; }
+  tr.current-row { background: #10241a; }
+  tr.selected-row { outline: 2px solid #58a6ff; outline-offset: -2px; }
+  .pill { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: bold; }
+  .pill.true { background: #1a3a1a; color: #3fb950; border: 1px solid #3fb950; }
+  .pill.false { background: #161b22; color: #8b949e; border: 1px solid #30363d; }
+
+  .verdict { padding: 15px; border-radius: 6px; margin-top: 15px; }
+  .verdict.ok { background: #1a3a1a; border: 1px solid #3fb950; }
+  .verdict.warn { background: #3a2a00; border: 1px solid #e3b341; }
+  .verdict.danger { background: #3a1a1a; border: 1px solid #f85149; }
+</style>
+</head>
+<body>
+<h1>SCD Type-2 Timeline Explorer</h1>
+<p>A Type-2 slowly changing dimension keeps every historical version of a row so "what was true as of date X" is answerable — but only if every change is captured as a <strong>new row</strong>, never an in-place update.</p>
+
+<div class="card">
+  <h3 style="color:#e3b341">Dimension: <code>customer_123.plan</code></h3>
+  <p style="color:#8b949e;font-size:13px;margin-top:-6px">Record a change to this customer's plan. This appends a new row and closes out the previous one — it never overwrites history.</p>
+
+  <div class="input-row">
+    <span class="dim-name">New value</span>
+    <select id="newValue">
+      <option value="free">free</option>
+      <option value="pro">pro</option>
+      <option value="enterprise">enterprise</option>
+      <option value="cancelled">cancelled</option>
+    </select>
+    <span class="dim-name" style="width:auto;margin-left:10px">Effective date</span>
+    <input type="date" id="changeDate">
+    <button onclick="applyChange()">Record change</button>
+  </div>
+</div>
+
+<div class="card">
+  <h3 style="color:#e3b341">Timeline</h3>
+  <div class="timeline-wrap">
+    <div class="timeline-bar" id="timelineBar"></div>
+    <div class="timeline-labels" id="timelineLabels"></div>
+  </div>
+</div>
+
+<div class="card">
+  <h3 style="color:#e3b341">"As of" query</h3>
+  <div class="input-row">
+    <span class="dim-name">As-of date</span>
+    <input type="range" id="asofSlider" min="0" max="100" value="100" oninput="onAsofSlider()">
+    <span class="val-display" id="asofVal"></span>
+  </div>
+  <p style="color:#8b949e;font-size:13px">Simulates: <code>SELECT * FROM dim WHERE customer_id = 123 AND effective_from &lt;= :as_of AND (effective_to &gt; :as_of OR effective_to IS NULL)</code></p>
+  <div class="verdict ok" id="asofVerdict"></div>
+</div>
+
+<div class="card">
+  <h3 style="color:#e3b341">Underlying table</h3>
+  <table>
+    <thead>
+      <tr><th>customer_sk</th><th>plan</th><th>effective_from</th><th>effective_to</th><th>is_current</th></tr>
+    </thead>
+    <tbody id="tableBody"></tbody>
+  </table>
+</div>
+
+<div class="explanation">
+  <h3 style="color:#58a6ff">Why this matters</h3>
+  <p>A Type-1 dimension overwrites the current value in place — asking it "what plan was this customer on when they placed order #4821 last March" returns whatever plan they're on <em>today</em>, because history was never kept. Type-2 keeps every version with an effective window, which is exactly what a fact table needs to join against for a historically correct answer. See <a href="../foundations/data-modelling.md" style="color:#58a6ff">Data Modelling</a>, "Slowly changing dimensions."</p>
+  <p><strong>The real failure mode:</strong> a query joins a fact table (orders) to a dimension using <code>customer_id</code> and grabs the <em>current</em> row — <code>is_current = true</code> — instead of the row that was current at <code>order_created_at</code>. If the customer has since upgraded from free to pro, every historical order silently gets rewritten as if they had always been on pro. The report is internally consistent and shows no error; it is just wrong, and nobody notices until a revenue-per-plan number stops reconciling with billing.</p>
+  <ul>
+    <li>The correct join uses event time against the SCD2 window: <code>f.order_created_at &gt;= d.effective_from AND f.order_created_at &lt; d.effective_to</code> (or <code>effective_to IS NULL</code> for the open/current row).</li>
+    <li>Intervals for one natural key must never overlap — closing the old row's <code>effective_to</code> and opening the new row's <code>effective_from</code> at the same instant is what keeps the query exact-once.</li>
+    <li>This range join can be expensive at scale; resolving the correct <code>customer_sk</code> at ingestion time, or maintaining a separate current-dimension table for serving, are common mitigations — but the historical SCD2 table is still what makes the answer possible at all.</li>
+    <li>This simulation is simplified to one attribute changing serially; a real SCD2 table tracks many attributes and must handle out-of-order/late-arriving changes and multiple natural keys.</li>
+  </ul>
+</div>
+
+<script>
+const colors = ['#58a6ff', '#e3b341', '#f85149', '#3fb950', '#a371f7', '#39c5cf'];
+let rows = [];
+let baseDate;
+let horizonDate;
+
+function isoDate(d) { return d.toISOString().slice(0,10); }
+function addDays(d, n) { const r = new Date(d); r.setDate(r.getDate()+n); return r; }
+function daysBetween(a, b) { return (b - a) / 86400000; }
+
+function initData() {
+  baseDate = new Date('2024-01-01T00:00:00Z');
+  horizonDate = new Date('2026-09-05T00:00:00Z'); // "now"
+  rows = [
+    { sk: 1, value: 'free', from: new Date(baseDate), to: null, current: true }
+  ];
+  document.getElementById('changeDate').value = isoDate(addDays(horizonDate, 30));
+}
+
+function effectiveHorizon() {
+  // the open-ended segment extends visually to "now" (horizonDate) or later if a future change exists
+  let maxTo = horizonDate;
+  rows.forEach(r => { if (r.to && r.to > maxTo) maxTo = r.to; });
+  return maxTo;
+}
+
+function applyChange() {
+  const val = document.getElementById('newValue').value;
+  const dateStr = document.getElementById('changeDate').value;
+  if (!dateStr) { alert('Pick an effective date'); return; }
+  const changeDate = new Date(dateStr + 'T00:00:00Z');
+
+  const currentRow = rows.find(r => r.current);
+  if (currentRow && changeDate <= currentRow.from) {
+    alert('Effective date must be after the current row\'s effective_from (' + isoDate(currentRow.from) + ').');
+    return;
+  }
+  if (currentRow) {
+    currentRow.to = changeDate;
+    currentRow.current = false;
+  }
+  const nextSk = rows.length ? Math.max(...rows.map(r=>r.sk)) + 1 : 1;
+  rows.push({ sk: nextSk, value: val, from: changeDate, to: null, current: true });
+
+  render();
+}
+
+function render() {
+  renderTable();
+  renderTimeline();
+  renderAsof();
+}
+
+function renderTable() {
+  const tbody = document.getElementById('tableBody');
+  tbody.innerHTML = rows.map(r => `
+    <tr class="${r.current ? 'current-row' : ''}" data-sk="${r.sk}">
+      <td>${r.sk}</td>
+      <td>${r.value}</td>
+      <td>${isoDate(r.from)}</td>
+      <td>${r.to ? isoDate(r.to) : 'NULL'}</td>
+      <td><span class="pill ${r.current}">${r.current}</span></td>
+    </tr>
+  `).join('');
+}
+
+function renderTimeline() {
+  const bar = document.getElementById('timelineBar');
+  const labels = document.getElementById('timelineLabels');
+  const start = rows[0].from;
+  const end = effectiveHorizon();
+  const totalDays = Math.max(daysBetween(start, end), 1);
+
+  bar.innerHTML = '';
+  rows.forEach((r, i) => {
+    const segEnd = r.to || end;
+    const widthPct = Math.max((daysBetween(r.from, segEnd) / totalDays) * 100, 2);
+    const seg = document.createElement('div');
+    seg.className = 'timeline-seg';
+    seg.style.width = widthPct + '%';
+    seg.style.background = colors[i % colors.length];
+    seg.setAttribute('data-sk', r.sk);
+    seg.title = `${r.value}: ${isoDate(r.from)} → ${r.to ? isoDate(r.to) : 'now / open'}`;
+    seg.textContent = r.value + (r.current ? ' (current)' : '');
+    bar.appendChild(seg);
+  });
+
+  labels.innerHTML = `<span>${isoDate(start)}</span><span>${isoDate(end)}${end.getTime()===horizonDate.getTime() ? ' (now)' : ''}</span>`;
+}
+
+function onAsofSlider() {
+  renderAsof();
+}
+
+function renderAsof() {
+  const start = rows[0].from;
+  const end = effectiveHorizon();
+  const totalDays = Math.max(daysBetween(start, end), 1);
+  const slider = document.getElementById('asofSlider');
+  const pct = parseInt(slider.value);
+  const asofDate = addDays(start, (pct/100) * totalDays);
+
+  document.getElementById('asofVal').textContent = isoDate(asofDate);
+
+  // find matching row
+  const match = rows.find(r => asofDate >= r.from && (r.to === null || asofDate < r.to));
+
+  // clear previous selection styling
+  document.querySelectorAll('.timeline-seg').forEach(el => el.classList.remove('selected'));
+  document.querySelectorAll('#tableBody tr').forEach(el => el.classList.remove('selected-row'));
+
+  const verdict = document.getElementById('asofVerdict');
+  if (match) {
+    const seg = document.querySelector(`.timeline-seg[data-sk="${match.sk}"]`);
+    if (seg) seg.classList.add('selected');
+    const rowEl = document.querySelector(`tr[data-sk="${match.sk}"]`);
+    if (rowEl) rowEl.classList.add('selected-row');
+
+    const isCurrentAnswer = match.current;
+    verdict.className = 'verdict ' + (isCurrentAnswer ? 'ok' : 'warn');
+    if (isCurrentAnswer) {
+      verdict.innerHTML = `<strong>Match: customer_sk ${match.sk}, plan = "${match.value}"</strong>. This happens to be the current row — the as-of date falls in the still-open interval.`;
+    } else {
+      verdict.innerHTML = `<strong>Match: customer_sk ${match.sk}, plan = "${match.value}"</strong>. This is a <em>historical</em> row, not the current one (current plan is "${rows.find(r=>r.current).value}"). A query that instead grabbed <code>is_current = true</code> here would silently return the wrong plan for this date.`;
+    }
+  } else {
+    verdict.className = 'verdict danger';
+    verdict.innerHTML = `<strong>No matching row.</strong> The as-of date falls before this dimension's earliest effective_from — there is no valid historical answer.`;
+  }
+}
+
+initData();
+render();
+</script>
+</body>
+</html>

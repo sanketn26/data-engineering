@@ -1,6 +1,8 @@
 # E-Commerce Platform Architecture
 
-Orders, payments, inventory, users, clickstream, and (later) recommendations. The dominant constraint is **correctness of mutable facts**, not dashboard milliseconds. An order goes `PENDING → PAID → SHIPPED → DELIVERED` and may be cancelled, refunded, or GDPR-erased. If your lake cannot upsert and delete, you do not have a commerce platform — you have a log of rumours.
+A GDPR erasure request lands for a customer who checked out eleven months ago. Legal wants confirmation within 30 days that the record is gone from every system — not just Postgres. The on-call engineer opens the lakehouse and finds the customer's order rows sitting in twenty different Parquet files across as many partitions, written by a CDC pipeline that only ever appends. Predict before you read on: is this pipeline's *append-only* design a reasonable trade-off here, or is it the root cause of the incident?
+
+It is the root cause: orders, payments, inventory, users, clickstream, and (later) recommendations all flow through this platform, and the dominant constraint is **correctness of mutable facts**, not dashboard milliseconds. An order goes `PENDING → PAID → SHIPPED → DELIVERED` and may be cancelled, refunded, or GDPR-erased. If your lake cannot upsert and delete, you do not have a commerce platform — you have a log of rumours.
 
 Related: [lakehouse comparison](../lakehouse/comparison.md), [Kafka exactly-once](../kafka/exactly-once.md), [Airflow idempotency](../airflow/idempotency.md).
 

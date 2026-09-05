@@ -9,7 +9,11 @@ description: Snapshot, stream, order, replay, and reconcile database changes saf
 **Prerequisites:** database transactions, Kafka partitions, idempotency<br>
 **Outcomes:** design snapshot-to-stream handoff; preserve per-key order; handle deletes and schema changes; reconcile a sink.
 
-CDC is not “send database rows to Kafka.” It is a protocol for reproducing committed database history from a snapshot plus a position in the transaction log.
+02:17 AM page: the orders sink in the lake is missing 40 rows that definitely exist in Postgres. The connector logs show no errors. Someone ran a one-time `COPY` of the table into Kafka last week to "backfill it faster."
+
+Before you read on, pick one: were those 40 rows lost because (A) the COPY ran before the log position was established, (B) a later update raced an earlier snapshot row into the sink, or (C) the primary key changed underneath the connector?
+
+It's almost always (A) or (B), because CDC is not "send database rows to Kafka" — it is a protocol for reproducing committed database history from a snapshot plus a position in the transaction log, and the two must be sequenced correctly or rows silently vanish or get overwritten.
 
 ## Contract
 
@@ -22,6 +26,8 @@ connector_ingest_time, schema_version
 ```
 
 The source log position—not arrival time—is the ordering authority. Partition Kafka by the source primary key when consumers require per-row order.
+
+What "the ordering authority" guarantees is source-specific: a single-primary Postgres WAL gives a global commit order; a sharded MySQL fleet, Cassandra, or a multi-writer system only gives per-shard or per-partition order, with no cheap way to compare positions across shards. Know which scope your source actually offers before you promise a consumer "in order."
 
 ## Snapshot plus stream
 

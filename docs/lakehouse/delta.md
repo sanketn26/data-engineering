@@ -1,6 +1,16 @@
 # Delta Lake
 
-Spark wrote `part-00077.parquet` and died. Another Spark job lists `s3://orders/` and counts yesterday. Concurrent OPTIMIZE rewrites files. VACUUM runs because "S3 is expensive." **Where is the table?** In Delta, it is the **transaction log**: the sequence of JSON commits (and checkpoints) under `_delta_log/`. The Parquet files are payloads. If they are not named in the log, they are not in the table.
+2:00 AM. `VACUUM` runs with the default 7-day retention, same as every week. At 2:03, a Trino query that has been running since 11 PM — pinned to a version from six hours ago — throws `FileNotFoundException`. The analyst who kicked it off is asleep.
+
+What happened?
+
+A. The query's snapshot was already stale; this is expected behavior.
+B. Someone pointed the query at the wrong table.
+C. VACUUM deleted files the query's pinned version still needed, because nothing newer than the retention window referenced them anymore.
+
+Pick one before reading on.
+
+It's C, and it only makes sense once you know where Delta actually keeps "the table." Spark wrote `part-00077.parquet` and died. Another Spark job lists `s3://orders/` and counts yesterday. Concurrent OPTIMIZE rewrites files. VACUUM runs because "S3 is expensive." **Where is the table?** In Delta, it is the **transaction log**: the sequence of JSON commits (and checkpoints) under `_delta_log/`. The Parquet files are payloads. If they are not named in the log, they are not in the table — and if VACUUM decides they are not needed, a long-running reader still holding an old version finds out the hard way.
 
 ---
 

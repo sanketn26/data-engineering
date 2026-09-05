@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Watermark Simulator</title>
+<style>
+  body { font-family: system-ui, sans-serif; background: #0d1117; color: #e6edf3; margin: 0; padding: 20px; }
+  h1 { color: #58a6ff; font-size: 22px; }
+  h3 { margin-top: 0; }
+  .card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 20px; margin: 15px 0; }
+  label { display: block; margin-bottom: 4px; color: #8b949e; font-size: 14px; }
+  .input-row { display: flex; align-items: center; gap: 12px; margin: 10px 0; }
+  .dim-name { width: 220px; font-size: 14px; }
+  input[type=number] { background: #0d1117; color: #e6edf3; border: 1px solid #30363d; padding: 6px 10px; border-radius: 4px; width: 110px; }
+  input[type=range] { flex: 1; }
+  input[type=checkbox] { width: 18px; height: 18px; accent-color: #58a6ff; }
+  .val-display { width: 90px; text-align: right; color: #58a6ff; font-weight: bold; font-size: 13px; }
+  .result { margin: 20px 0; }
+  .big-number { font-size: 40px; font-weight: bold; margin: 10px 0; }
+  .ok { color: #3fb950; }
+  .warn { color: #e3b341; }
+  .danger { color: #f85149; }
+  .breakdown { font-family: monospace; font-size: 14px; background: #0d1117; padding: 15px; border-radius: 6px; white-space: pre-wrap; }
+  .verdict { padding: 15px; border-radius: 6px; margin-top: 15px; }
+  .verdict.ok { background: #1a3a1a; border: 1px solid #3fb950; }
+  .verdict.warn { background: #3a2a00; border: 1px solid #e3b341; }
+  .verdict.danger { background: #3a1a1a; border: 1px solid #f85149; }
+  .split-card { background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 14px; margin: 12px 0; }
+  .split-card.idle-active { border-color: #f85149; }
+  .track { position: relative; height: 28px; background: #161b22; border: 1px solid #30363d; border-radius: 6px; margin: 10px 0; }
+  .marker { position: absolute; top: -8px; width: 4px; height: 44px; border-radius: 2px; transition: left 0.15s ease; }
+  .marker-label { position: absolute; top: -28px; font-size: 11px; white-space: nowrap; transform: translateX(-50%); font-family: monospace; }
+  .window-line { position: absolute; top: -8px; width: 2px; height: 44px; background: #8b949e; }
+  .window-label { position: absolute; top: 40px; font-size: 11px; color: #8b949e; transform: translateX(-50%); }
+  .pipe { display: flex; align-items: center; gap: 8px; font-family: monospace; font-size: 13px; margin: 12px 0; flex-wrap: wrap; }
+  .pipe .stage { background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 8px 12px; text-align: center; }
+  .pipe .arrow { color: #8b949e; }
+  .explanation { background: #161b22; border-left: 4px solid #58a6ff; padding: 15px; border-radius: 4px; margin-top: 20px; }
+  code { background: #0d1117; padding: 1px 5px; border-radius: 4px; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: bold; margin-left: 8px; }
+  .badge.ok { background: #1a3a1a; border: 1px solid #3fb950; }
+  .badge.danger { background: #3a1a1a; border: 1px solid #f85149; }
+</style>
+</head>
+<body>
+<h1>Watermark Simulator</h1>
+<p>Two source splits feed one downstream event-time window. Predict the downstream watermark before you move a slider: it is not an average, it is the <strong>minimum</strong> of every active split.</p>
+
+<div class="card">
+  <h3 style="color:#e3b341">Split A</h3>
+  <div class="input-row">
+    <span class="dim-name">Current watermark (s)</span>
+    <input type="range" min="0" max="300" step="1" value="180" oninput="document.getElementById('a-val').textContent=this.value + 's';calculate()" id="a-wm">
+    <span class="val-display" id="a-val">180s</span>
+  </div>
+  <div class="input-row">
+    <span class="dim-name">Idle (stopped emitting)</span>
+    <input type="checkbox" id="a-idle" onchange="calculate()">
+    <span style="color:#8b949e;font-size:12px" id="a-idle-since"></span>
+  </div>
+  <div class="split-card" id="a-card">
+    <div class="track" id="a-track">
+      <div class="marker" id="a-marker" style="background:#58a6ff"></div>
+      <div class="marker-label" id="a-marker-label" style="color:#58a6ff"></div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <h3 style="color:#e3b341">Split B</h3>
+  <div class="input-row">
+    <span class="dim-name">Current watermark (s)</span>
+    <input type="range" min="0" max="300" step="1" value="40" oninput="document.getElementById('b-val').textContent=this.value + 's';calculate()" id="b-wm">
+    <span class="val-display" id="b-val">40s</span>
+  </div>
+  <div class="input-row">
+    <span class="dim-name">Idle (stopped emitting)</span>
+    <input type="checkbox" id="b-idle" onchange="calculate()">
+    <span style="color:#8b949e;font-size:12px" id="b-idle-since"></span>
+  </div>
+  <div class="split-card" id="b-card">
+    <div class="track" id="b-track">
+      <div class="marker" id="b-marker" style="background:#58a6ff"></div>
+      <div class="marker-label" id="b-marker-label" style="color:#58a6ff"></div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <h3 style="color:#e3b341">Idleness detection policy</h3>
+  <div class="input-row">
+    <span class="dim-name">Enable idleness timeout</span>
+    <input type="checkbox" id="idle-enabled" checked onchange="calculate()">
+  </div>
+  <div class="input-row">
+    <span class="dim-name">Idle duration assumed (s)</span>
+    <input type="range" min="0" max="120" step="1" value="45" oninput="document.getElementById('idle-dur-val').textContent=this.value + 's';calculate()" id="idle-dur">
+    <span class="val-display" id="idle-dur-val">45s</span>
+  </div>
+  <div class="input-row">
+    <span class="dim-name">Idleness timeout threshold (s)</span>
+    <input type="range" min="0" max="120" step="1" value="30" oninput="document.getElementById('idle-thresh-val').textContent=this.value + 's';calculate()" id="idle-thresh">
+    <span class="val-display" id="idle-thresh-val">30s</span>
+  </div>
+  <p style="color:#8b949e;font-size:12px;margin-bottom:0">"Idle duration assumed" models how long a split marked idle has been silent. If it exceeds the threshold and the timeout policy is enabled, Flink excludes that split from the downstream watermark computation entirely (<code>withIdleness()</code>).</p>
+</div>
+
+<div class="pipe">
+  <div class="stage">Split A</div>
+  <span class="arrow">→</span>
+  <div class="stage">Split B</div>
+  <span class="arrow">→</span>
+  <div class="stage" id="pipe-down">Downstream operator: min(active splits)</div>
+</div>
+
+<div class="card">
+  <h3 style="color:#e3b341">Downstream watermark</h3>
+  <div class="track" id="down-track" style="height:36px">
+    <div class="marker" id="down-marker" style="background:#e3b341;width:5px"></div>
+    <div class="marker-label" id="down-marker-label" style="color:#e3b341"></div>
+    <div class="window-line" id="window-line"></div>
+    <div class="window-label" id="window-label"></div>
+  </div>
+  <div class="input-row" style="margin-top:24px">
+    <span class="dim-name">1-min tumbling window end (s)</span>
+    <input type="range" min="0" max="300" step="1" value="120" oninput="document.getElementById('win-val').textContent=this.value + 's';calculate()" id="win-end">
+    <span class="val-display" id="win-val">120s</span>
+  </div>
+</div>
+
+<div class="result card" id="result">
+  <div id="big-num" class="big-number ok">0s</div>
+  <div id="breakdown" class="breakdown"></div>
+  <div id="verdict" class="verdict ok"></div>
+</div>
+
+<div class="explanation">
+  <h3 style="color:#58a6ff">🌊 Why the minimum, not the average</h3>
+  <p>A downstream operator reading from multiple source splits (Kafka partitions, files, shards) cannot fire a window until it is certain no earlier event can still arrive on <strong>any</strong> of them. So it advances its own watermark to the <strong>minimum</strong> watermark reported by all splits it considers active — one slow or stalled split holds the whole window back, no matter how far ahead the others race.</p>
+  <ul>
+    <li>On a single active split, a bounded-out-of-orderness watermark only ever <strong>increases</strong>: it tracks <code>max event time seen − allowed lateness</code>. A late/old event on that same split does not move its watermark backward.</li>
+    <li>An idle split (no new records, e.g. a low-traffic Kafka partition) still reports its last watermark forever. With no idleness policy, the downstream watermark freezes at that value and windows never close — this is the exact failure mode in <a href="../flink/windows.md" style="color:#58a6ff">Flink windows</a> and reproduced by the lab script <code>labs/flink/stalled_watermark.py</code>.</li>
+    <li>Marking a split idle (<code>WatermarkStrategy.withIdleness(timeout)</code>) tells the downstream operator to exclude it from the min-computation once it has been silent past the timeout — trading a small correctness risk (events that split resumes emitting may now arrive "late") for progress.</li>
+    <li>This is a planning model, not a live cluster: real idleness detection is time-based against wall-clock gaps between records, and re-including a split that starts emitting again involves its own subtleties not modeled here.</li>
+  </ul>
+</div>
+
+<script>
+function splitState(prefix) {
+  const wm = parseInt(document.getElementById(prefix + '-wm').value);
+  const idle = document.getElementById(prefix + '-idle').checked;
+  return { wm, idle };
+}
+
+function positionMarker(trackId, markerId, labelId, value, max, text) {
+  const track = document.getElementById(trackId);
+  const marker = document.getElementById(markerId);
+  const label = document.getElementById(labelId);
+  const pct = Math.max(0, Math.min(100, (value / max) * 100));
+  marker.style.left = pct + '%';
+  label.style.left = pct + '%';
+  label.textContent = text;
+}
+
+function calculate() {
+  const MAX = 300;
+  const idleEnabled = document.getElementById('idle-enabled').checked;
+  const idleDur = parseInt(document.getElementById('idle-dur').value);
+  const idleThresh = parseInt(document.getElementById('idle-thresh').value);
+  const winEnd = parseInt(document.getElementById('win-end').value);
+
+  const a = splitState('a');
+  const b = splitState('b');
+
+  document.getElementById('a-idle-since').textContent = a.idle ? `(idle for ${idleDur}s assumed)` : '';
+  document.getElementById('b-idle-since').textContent = b.idle ? `(idle for ${idleDur}s assumed)` : '';
+
+  document.getElementById('a-card').className = 'split-card' + (a.idle ? ' idle-active' : '');
+  document.getElementById('b-card').className = 'split-card' + (b.idle ? ' idle-active' : '');
+
+  positionMarker('a-track', 'a-marker', 'a-marker-label', a.wm, MAX, `A: ${a.wm}s${a.idle ? ' (idle)' : ''}`);
+  positionMarker('b-track', 'b-marker', 'b-marker-label', b.wm, MAX, `B: ${b.wm}s${b.idle ? ' (idle)' : ''}`);
+
+  // A split is excluded from the min if it is idle AND idleness timeout is enabled AND assumed idle duration exceeds the threshold.
+  const aExcluded = a.idle && idleEnabled && idleDur > idleThresh;
+  const bExcluded = b.idle && idleEnabled && idleDur > idleThresh;
+
+  const active = [];
+  if (!aExcluded) active.push({ name: 'A', wm: a.wm });
+  if (!bExcluded) active.push({ name: 'B', wm: b.wm });
+
+  const bigNum = document.getElementById('big-num');
+  const breakdown = document.getElementById('breakdown');
+  const verdict = document.getElementById('verdict');
+  const pipeDown = document.getElementById('pipe-down');
+
+  let downstream;
+  let allExcluded = active.length === 0;
+
+  if (allExcluded) {
+    // No active splits at all — watermark cannot advance; treat as frozen at the min of the last known values.
+    downstream = Math.min(a.wm, b.wm);
+  } else {
+    downstream = Math.min(...active.map(s => s.wm));
+  }
+
+  positionMarker('down-track', 'down-marker', 'down-marker-label', downstream, MAX, `downstream: ${downstream}s`);
+
+  const winPct = Math.max(0, Math.min(100, (winEnd / MAX) * 100));
+  const windowLine = document.getElementById('window-line');
+  const windowLabel = document.getElementById('window-label');
+  windowLine.style.left = winPct + '%';
+  windowLabel.style.left = winPct + '%';
+  windowLabel.textContent = `window end: ${winEnd}s`;
+
+  bigNum.textContent = downstream + 's downstream watermark';
+
+  const windowClosed = downstream >= winEnd;
+
+  let cls, label, msg;
+  const frozenBy = [];
+  if (aExcluded) frozenBy.push('A');
+  if (bExcluded) frozenBy.push('B');
+
+  // Determine if a non-excluded idle split is the one holding the watermark back.
+  const holdingIdleActive = active.filter(s => {
+    const isIdle = (s.name === 'A' && a.idle) || (s.name === 'B' && b.idle);
+    return isIdle && s.wm === downstream;
+  });
+
+  if (frozenBy.length > 0 && active.length > 0 && !holdingIdleActive.length) {
+    cls = windowClosed ? 'ok' : 'warn';
+    label = windowClosed ? '✓ Window CLOSED (idle split excluded)' : '⚠ Window OPEN (idle split excluded, waiting on live splits)';
+    msg = `Split(s) ${frozenBy.join(', ')} exceeded the ${idleThresh}s idleness timeout and were excluded from the min. Downstream watermark advances from the remaining active split(s) only.`;
+  } else if (holdingIdleActive.length > 0) {
+    cls = windowClosed ? 'ok' : 'danger';
+    label = windowClosed ? '✓ Window CLOSED' : '✗ Window OPEN — idle split is holding the watermark back';
+    msg = `An idle split has not exceeded the idleness timeout (or the timeout policy is disabled) and its stale watermark (${downstream}s) is the minimum. The downstream watermark is frozen there until that split either resumes or crosses the idleness threshold.`;
+  } else {
+    cls = windowClosed ? 'ok' : 'warn';
+    label = windowClosed ? '✓ Window CLOSED' : '⚠ Window OPEN — waiting for slower split';
+    msg = `Downstream watermark (${downstream}s) is the minimum across all active splits. No idleness exclusion is currently in effect.`;
+  }
+
+  bigNum.className = `big-number ${cls}`;
+
+  breakdown.textContent =
+    `Split A watermark: ${a.wm.toString().padStart(5)}s   idle=${a.idle}${aExcluded ? '  [EXCLUDED: idle > timeout]' : ''}\n` +
+    `Split B watermark: ${b.wm.toString().padStart(5)}s   idle=${b.idle}${bExcluded ? '  [EXCLUDED: idle > timeout]' : ''}\n` +
+    `Downstream watermark = min(active splits) = ${downstream}s\n` +
+    `Window end:            ${winEnd}s\n` +
+    `Window state:          ${windowClosed ? 'CLOSED (watermark >= window end)' : 'OPEN (watermark < window end)'}`;
+
+  verdict.className = `verdict ${cls}`;
+  verdict.innerHTML = `<strong>${label}</strong>: ${msg}`;
+
+  pipeDown.style.borderColor = windowClosed ? '#3fb950' : '#e3b341';
+}
+
+calculate();
+</script>
+</body>
+</html>

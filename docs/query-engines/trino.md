@@ -1,8 +1,16 @@
 # Trino
 
-Product events sit in Iceberg on S3. Customer plans sit in Postgres. An analyst writes one JOIN and expects an answer this afternoon — without a new ETL, without a new warehouse, without waiting on the platform team to copy 40 TB.
+10:41 AM. `WHERE ds = DATE '2024-06-12'` should prune to a single day of a 400 TB Iceberg table. `EXPLAIN` shows Trino scanning all 400 days instead. The analyst who wrote the query swears the `WHERE` clause is right there.
 
-That is the job. Trino is a cluster that runs SQL over connectors. It does not store the events. It does not index Postgres. It **schedules readers** and **shuffles intermediate rows**.
+What broke the prune?
+
+A. Table statistics are stale, so the optimizer estimated wrong.
+B. Something is wrapping the partition column in a function — `date_trunc(ds)` instead of the raw column — and that alone kills prune.
+C. The Iceberg connector doesn't support partition pruning for this table.
+
+Pick one before you scroll to the fix.
+
+It's B, almost always. Product events sit in Iceberg on S3. Customer plans sit in Postgres. An analyst writes one JOIN and expects an answer this afternoon — without a new ETL, without a new warehouse, without waiting on the platform team to copy 40 TB. That is the job. Trino is a cluster that runs SQL over connectors. It does not store the events. It does not index Postgres. It **schedules readers** and **shuffles intermediate rows** — and every one of those steps can be quietly defeated by SQL that looks correct.
 
 ---
 

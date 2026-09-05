@@ -1,5 +1,9 @@
 # Kafka labs
 
+Your team lead asks you to justify raising `service-events` from 12 partitions to 48 before Friday's deploy. You say it will fix the lag. She asks how you know, given that increasing partitions reshuffles every key going forward. The only honest answer right now is "I read that it should help."
+
+Predict before you read on: before you touch a partition count, an ISR setting, or a consumer group in production, could you reproduce the failure — hot key, poison message, broker loss — on a laptop first, and name what the metrics would show before you ran it?
+
 These labs are meant to be run with Docker and `kafka-python`. If you cannot run Docker here, read each step and write down what you **expect** before the "now break it" sections. The point is the failure, not the happy path.
 
 **Prerequisites:** Docker, Python 3.9+, ~2 GB RAM. Commands assume a shell in an empty working directory.

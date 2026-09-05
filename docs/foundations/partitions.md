@@ -1,10 +1,10 @@
 # Partitioning
 
-You have **10 TB** of SaaS analytics events and **20 workers**. Each worker can hold about **500 GB**. Product wants p95 latency per customer for yesterday.
+14:20. Design review. Someone proposes partitioning the 10 TB SaaS events table by `region`, because "that's how the business thinks about it." You have 20 workers, each holds about 500 GB, and product wants p95 latency per customer for yesterday.
 
-How do you assign work so twenty machines do not all read the same 10 TB — and so that `GROUP BY customer_id` is even possible?
+Before you weigh in: does partitioning by `region` help the BI scan that filters `WHERE region = 'eu-west-1'`, the `GROUP BY customer_id` rollup, both, or neither? And what happens to the one worker holding `eu-west-1` if that region is 60% of traffic?
 
-That assignment *is* partitioning. Kafka topics, Spark shuffles, Iceberg files, ClickHouse parts, Cassandra vnodes: different files, same idea. If you only remember one idea from Phase 0, remember this one.
+That's the whole question this page answers: how you assign work so twenty machines don't all read the same 10 TB, and so `GROUP BY customer_id` is even possible. Kafka topics, Spark shuffles, Iceberg files, ClickHouse parts, Cassandra vnodes: different files, same idea. If you only remember one idea from Phase 0, remember this one.
 
 ---
 
@@ -73,6 +73,21 @@ Two different “partitions” get confused in reviews. Keep them separate:
 | **Compute slices** | Spark partition / Kafka partition / Flink key group | Parallelism and ordering |
 
 A well-laid-out lake still **repartitions in memory** when the compute key disagrees with the folder key. That is normal. Paying that shuffle *and* scanning 10 TB because you forgot `date=` is not.
+
+"Partition" is one of the most overloaded words in this academy — the same term names at least seven different mechanisms across the systems you will touch:
+
+| System | "Partition" means | Why it partitions |
+|--------|---------------------|--------------------|
+| Kafka | A topic's ordered, append-only shard | Ordering per key + parallel consumption |
+| Spark | A slice of an RDD/DataFrame held by one task | Unit of parallel execution |
+| Flink | A key group assigned to a parallel subtask | Keyed state locality + parallelism |
+| Iceberg / Hive-style lake | A directory or partition spec value (`date=`, `region=`) | Pruning — skip files without reading them |
+| Parquet row group | A horizontal slice *within one file* | Skip via min/max stats without opening the file's other row groups |
+| ClickHouse `PARTITION BY` | A coarse, time-oriented grouping of parts | Lifecycle — drop/move/TTL a whole partition cheaply |
+| ClickHouse `ORDER BY` | The physical sort order and sparse primary index *within* a part | Skip granules — a different mechanism from `PARTITION BY`, easy to conflate; see [ClickHouse](../olap/clickhouse.md) |
+| Cassandra / DynamoDB | The unit that determines which node(s) own a row | Placement, distribution, and hot-partition throttling limits |
+
+Two of these are worth calling out because they are routinely confused inside the *same* system: ClickHouse's `PARTITION BY` decides which coarse-grained parts exist (and can be dropped/TTL'd together); `ORDER BY` decides the physical row order and sparse index **inside** each part. A query can prune partitions and still scan every granule in the surviving ones if `ORDER BY` doesn't match the filter — the two mechanisms answer different questions and neither substitutes for the other.
 
 Mental test: *If I delete one partition, did I delete a coherent business slice (a day, a tenant, a Kafka shard) or a random 128 MB?* Coherent slices are how you retry and how you expire data.
 

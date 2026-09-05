@@ -1,8 +1,16 @@
 # Why Table Formats Exist
 
-Raw Parquet on S3. Concurrent readers, writers, updates, a schema change, a job that dies mid-write. **Where is the table?** If the answer is "the prefix `s3://events/`," you cannot name a consistent snapshot, you cannot hide the crashed job's files, and you cannot tell Spark and Trino they are talking about the same thing.
+11:40 PM. A retried Spark job just doubled the row count in `s3://orders/dt=2024-01-15/`. The retry itself is idempotent at the application level — it computes the same rows every time. Support opens a ticket: why are there two rows per order?
 
-Table formats exist because **object storage lists files; it does not run transactions.**
+Which is it?
+
+A. The retry re-ran with different partition boundaries.
+B. Kafka redelivered the same batch to a downstream consumer.
+C. There is no atomic commit for this directory — the retry just added a second set of files next to the first attempt's, and nothing ever named which files were "the table."
+
+Sit with an answer before reading on.
+
+It's C, and it is the same root cause behind every failure mode on this page: concurrent readers, writers, updates, a schema change, a job that dies mid-write. Ask **where is the table?** and if the answer is "the prefix `s3://events/`," you cannot name a consistent snapshot, you cannot hide the crashed job's files, and you cannot tell Spark and Trino they are talking about the same thing. Table formats exist because **object storage lists files; it does not run transactions.**
 
 ---
 

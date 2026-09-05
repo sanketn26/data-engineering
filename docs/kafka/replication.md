@@ -1,5 +1,14 @@
 # Replication and durability
 
+03:41 AM. The `service-events` producer starts logging `NotEnoughReplicas` on every write with `acks=all`. Two of three brokers for partition 7 dropped out of the ISR eight minutes ago; nobody paged on that. Now checkout cannot write orders at all.
+
+A. Durability is broken — `acks=all` failed to protect the data.
+B. Durability is working exactly as configured — `min.insync.replicas=2` is refusing to accept writes it cannot guarantee, which is inconvenient, not wrong.
+C. The leader election picked the wrong broker.
+D. This is a disk-full incident on the leader, not a replication incident.
+
+Pick one before reading on. A broker holding the leader for hundreds of partitions can lose its disk at any moment — replication is how Kafka survives that **without** turning producers into a backup system.
+
 ## Use case
 
 A broker holds the leader for 800 partitions of `service-events`. It loses its disk. Observability cannot drop 20 minutes of logs. E-commerce cannot lose `acks=1` checkout events that the API already treated as stored. Fraud cannot "mostly" have the login stream.

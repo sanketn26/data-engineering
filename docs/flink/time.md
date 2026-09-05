@@ -1,5 +1,14 @@
 # Time semantics
 
+10:47 PM. The EU fraud dashboard has not moved in twenty minutes. Kafka consumer lag on `login-events` is flat at zero on all 12 partitions — the topic is not backed up. A `SELECT count(*)` against the raw topic confirms events are still arriving. The 5-minute failed-login windows just are not closing.
+
+A. The sink is down and silently swallowing output.
+B. One or more Kafka partitions went idle overnight, and the job's watermark — the minimum across all partitions — froze with them.
+C. The window trigger is misconfigured.
+D. Someone disabled checkpointing and the job is stuck.
+
+Predict which one before reading on, then check it against how a watermark is actually computed across partitions.
+
 ## Use case
 
 Fraud asks: **failed logins per user in the last 5 minutes.**

@@ -1,8 +1,15 @@
 # Cassandra & ScyllaDB
 
-The observability pipeline needs to **append ~400,000 spans per second**, keep the last 24 hours queryable as “this service, this time range,” survive a zone loss, and ack writes in a few milliseconds. There is no join. There is no ad-hoc `WHERE payload LIKE`. There is no single primary to fail over.
+03:14 AM. PagerDuty: p99 write latency on the spans cluster jumped from 4 ms to 400 ms. One node is pegged at 100% CPU; the other five in the ring are idle. Writes are still acking, just slow, and only for traffic tagged `service=checkout-api`.
 
-Cassandra (and Scylla as a shard-per-core runtime for the same model) is the write-optimised, query-bound store for that shape. It is a poor warehouse and a poor session cache. Model it as **partition key + clustering key** or do not use it.
+What's paging you?
+
+A. Compaction fell behind and SSTables are piling up.
+B. A hot partition — one partition key is absorbing far more traffic than the others.
+C. Tombstone accumulation from a TTL or delete-heavy workload on that key.
+D. A network partition or GC pause on that one node.
+
+Pick one before reading on. This cluster exists to **append ~400,000 spans per second**, keep the last 24 hours queryable as "this service, this time range," survive a zone loss, and ack writes in a few milliseconds — no join, no ad-hoc `WHERE payload LIKE`, no single primary to fail over — and Cassandra (with Scylla as a shard-per-core runtime for the same model) is the write-optimised, query-bound store built for exactly that shape, provided you model it as **partition key + clustering key** and nothing else.
 
 ---
 

@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Iceberg Manifest Explorer</title>
+<style>
+  body { font-family: system-ui, sans-serif; background: #0d1117; color: #e6edf3; margin: 0; padding: 20px; }
+  h1 { color: #58a6ff; font-size: 22px; }
+  h3 { margin-top: 0; }
+  .card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 20px; margin: 15px 0; }
+  label { display: block; margin-bottom: 4px; color: #8b949e; font-size: 14px; }
+  .input-row { display: flex; align-items: center; gap: 12px; margin: 10px 0; flex-wrap: wrap; }
+  .dim-name { width: 140px; font-size: 14px; }
+  input[type=text] { background: #0d1117; color: #e6edf3; border: 1px solid #30363d; padding: 6px 10px; border-radius: 4px; }
+  select { background: #0d1117; color: #e6edf3; border: 1px solid #30363d; padding: 6px 10px; border-radius: 4px; }
+  button { background: #238636; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 14px; }
+  button:hover { background: #2ea043; }
+  button.secondary { background: #21262d; border: 1px solid #30363d; }
+  button.secondary:hover { background: #30363d; }
+  .result { margin: 20px 0; }
+  .big-number { font-size: 40px; font-weight: bold; margin: 10px 0; }
+  .ok { color: #3fb950; }
+  .warn { color: #e3b341; }
+  .danger { color: #f85149; }
+  .breakdown { font-family: monospace; font-size: 14px; background: #0d1117; padding: 15px; border-radius: 6px; white-space: pre-wrap; }
+  .verdict { padding: 15px; border-radius: 6px; margin-top: 15px; }
+  .verdict.ok { background: #1a3a1a; border: 1px solid #3fb950; }
+  .verdict.warn { background: #3a2a00; border: 1px solid #e3b341; }
+  .verdict.danger { background: #3a1a1a; border: 1px solid #f85149; }
+  .explanation { background: #161b22; border-left: 4px solid #58a6ff; padding: 15px; border-radius: 4px; margin-top: 20px; }
+  code { background: #0d1117; padding: 1px 5px; border-radius: 4px; }
+
+  /* tree */
+  .tree { display: flex; flex-direction: column; align-items: center; gap: 4px; overflow-x: auto; padding: 10px 0; }
+  .node { border-radius: 6px; padding: 8px 14px; font-size: 13px; text-align: center; border: 1px solid #30363d; background: #0d1117; }
+  .node.pointer { border-color: #58a6ff; color: #58a6ff; font-weight: bold; }
+  .node.snapshot { border-color: #58a6ff; }
+  .node.snapshot.old { border-color: #8b949e; color: #8b949e; opacity: 0.7; }
+  .connector { color: #8b949e; font-size: 16px; line-height: 1; }
+  .level-label { color: #8b949e; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 6px; }
+  .snapshots-row { display: flex; gap: 24px; flex-wrap: wrap; justify-content: center; }
+  .snapshot-col { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .manifests-row { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; }
+  .manifest-col { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .manifest { border: 1px solid #e3b341; color: #e3b341; border-radius: 6px; padding: 6px 10px; font-size: 12px; }
+  .manifest.new { border-color: #3fb950; color: #3fb950; }
+  .manifest.reused { border-color: #30363d; color: #8b949e; }
+  .files-row { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; max-width: 220px; }
+  .file { border: 1px solid #30363d; border-radius: 4px; padding: 5px 7px; font-size: 11px; font-family: monospace; text-align: center; min-width: 74px; transition: all 0.2s; }
+  .file .stat { color: #8b949e; font-size: 10px; display: block; margin-top: 2px; }
+  .file.match { border-color: #3fb950; background: #1a3a1a; color: #3fb950; }
+  .file.match .stat { color: #7ee08a; }
+  .file.skip { border-color: #30363d; background: #0d1117; color: #484f58; opacity: 0.5; }
+  .file.skip .stat { color: #484f58; }
+  .file.neutral { border-color: #30363d; color: #e6edf3; }
+
+  .counter-box { display: flex; gap: 30px; flex-wrap: wrap; }
+  .counter { text-align: center; }
+  .counter .n { font-size: 32px; font-weight: bold; }
+  .counter .lbl { color: #8b949e; font-size: 12px; }
+</style>
+</head>
+<body>
+<h1>Iceberg Manifest Explorer</h1>
+<p>Iceberg answers "what is the table right now" with a small tree of metadata, not by listing the object store. A query plans by walking this tree and comparing stats — it never opens a data file it can rule out first.</p>
+
+<div class="card">
+  <h3 style="color:#e3b341">Table state</h3>
+  <p style="color:#8b949e;font-size:13px">The tree below is the whole table as Iceberg sees it: <code>metadata pointer → snapshot → manifest list → manifests → data files</code>. Each data file shows a fake min/max for its <code>date</code> column.</p>
+  <div class="input-row">
+    <button onclick="commitWrite()">+ Commit a new write</button>
+    <button class="secondary" onclick="reset()">Reset table</button>
+  </div>
+</div>
+
+<div class="card">
+  <h3 style="color:#e3b341">Metadata tree</h3>
+  <div class="tree" id="tree"></div>
+</div>
+
+<div class="card">
+  <h3 style="color:#e3b341">Run a query</h3>
+  <div class="input-row">
+    <span class="dim-name">Filter</span>
+    <span style="font-family:monospace">date =</span>
+    <input type="text" id="filter-date" value="2024-01-15">
+    <button onclick="runQuery()">Run query</button>
+  </div>
+  <p style="color:#8b949e;font-size:13px;margin-bottom:0">Query plans against the <strong>current snapshot only</strong>. Files whose min/max range cannot contain the filter value are skipped without being opened.</p>
+</div>
+
+<div class="result card" id="result">
+  <div class="counter-box">
+    <div class="counter"><div class="n ok" id="opened-count">0</div><div class="lbl">files opened</div></div>
+    <div class="counter"><div class="n" id="total-count" style="color:#8b949e">0</div><div class="lbl">total files in snapshot</div></div>
+    <div class="counter"><div class="n warn" id="manifests-count">0</div><div class="lbl">manifests read</div></div>
+  </div>
+  <div id="verdict" class="verdict ok" style="margin-top:16px">Run a query to see pruning in action.</div>
+</div>
+
+<div class="explanation">
+  <h3 style="color:#58a6ff">Why this tree is the point</h3>
+  <p>Raw Parquet on an object store has no "what is the table right now" — only a prefix you'd have to <code>LIST</code>, which gets slower and more expensive as file counts grow (see <a href="../foundations/object-storage.md" style="color:#58a6ff">Object Storage Internals</a>). Iceberg's metadata tree — metadata file → snapshot → manifest list → manifests → data files — <strong>is</strong> the table. Planning a query means walking a small tree of Avro/JSON files with embedded stats, never listing the bucket. See <a href="../lakehouse/iceberg.md" style="color:#58a6ff">Apache Iceberg</a> for the full hierarchy and why this is one of the reasons table formats exist over raw files.</p>
+  <ul>
+    <li>The manifest list carries partition-level bounds, so whole <strong>manifests</strong> can be skipped before opening any manifest file.</li>
+    <li>Each manifest carries per-file min/max stats, so individual <strong>data files</strong> can be skipped before opening any Parquet.</li>
+    <li>Old snapshots are not deleted on commit — they stay valid until <code>expire_snapshots</code> removes them, which is what makes time travel possible.</li>
+    <li>This is a teaching simplification: real manifests batch many files and stats cover every column, not just the partition column shown here.</li>
+  </ul>
+</div>
+
+<script>
+let nextFileId = 1;
+let nextSnapshotId = 8735625001;
+let snapshots = [];
+
+function makeFile(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00Z');
+  const jitterLo = Math.floor(Math.random() * 6);
+  const jitterHi = Math.floor(Math.random() * 6);
+  const lo = new Date(d.getTime() - jitterLo * 3600 * 1000);
+  const hi = new Date(d.getTime() + jitterHi * 3600 * 1000 + 23 * 3600 * 1000);
+  return {
+    id: 'data-' + String(nextFileId++).padStart(3, '0') + '.parquet',
+    min: lo.toISOString().slice(0, 10),
+    max: hi.toISOString().slice(0, 10)
+  };
+}
+
+function makeManifest(dates, tag) {
+  return {
+    id: 'm-' + Math.random().toString(36).slice(2, 7),
+    tag: tag, // 'reused' | 'new'
+    files: dates.map(makeFile)
+  };
+}
+
+function initTable() {
+  nextFileId = 1;
+  nextSnapshotId = 8735625001;
+  const m1 = makeManifest(['2024-01-13', '2024-01-13', '2024-01-14'], 'base');
+  const m2 = makeManifest(['2024-01-14', '2024-01-15', '2024-01-15'], 'base');
+  snapshots = [{
+    id: nextSnapshotId++,
+    ts: '2024-01-15 02:00:00',
+    manifests: [m1, m2]
+  }];
+}
+
+function reset() {
+  initTable();
+  render();
+  document.getElementById('verdict').className = 'verdict ok';
+  document.getElementById('verdict').innerHTML = 'Table reset. Run a query to see pruning in action.';
+  document.getElementById('opened-count').textContent = '0';
+  document.getElementById('total-count').textContent = countCurrentFiles();
+  document.getElementById('manifests-count').textContent = '0';
+}
+
+function countCurrentFiles() {
+  const cur = snapshots[snapshots.length - 1];
+  return cur.manifests.reduce((a, m) => a + m.files.length, 0);
+}
+
+function commitWrite() {
+  const prev = snapshots[snapshots.length - 1];
+  // reuse all but (arbitrarily) the oldest manifest; add one new manifest with new files
+  const reused = prev.manifests.map(m => ({ ...m, tag: 'reused' }));
+  const newDates = ['2024-01-16', '2024-01-16', '2024-01-17'];
+  const newManifest = makeManifest(newDates, 'new');
+  const next = {
+    id: nextSnapshotId++,
+    ts: '2024-01-16 02:00:00',
+    manifests: [...reused, newManifest]
+  };
+  snapshots.push(next);
+  render();
+  document.getElementById('total-count').textContent = countCurrentFiles();
+  document.getElementById('opened-count').textContent = '0';
+  document.getElementById('manifests-count').textContent = '0';
+  document.getElementById('verdict').className = 'verdict warn';
+  document.getElementById('verdict').innerHTML =
+    '<strong>New snapshot committed.</strong> The current pointer now points at snapshot ' + next.id +
+    '. Old snapshot ' + prev.id + ' still exists and is still queryable (time travel) — it just is not "current" anymore. ' +
+    (reused.length) + ' manifest(s) were reused unchanged; 1 new manifest was added.';
+}
+
+function render() {
+  const tree = document.getElementById('tree');
+  tree.innerHTML = '';
+
+  const pointer = document.createElement('div');
+  pointer.className = 'node pointer';
+  pointer.textContent = 'Table pointer → current metadata file';
+  tree.appendChild(pointer);
+  tree.appendChild(arrow());
+
+  const snapRow = document.createElement('div');
+  snapRow.className = 'snapshots-row';
+
+  snapshots.forEach((snap, idx) => {
+    const isCurrent = idx === snapshots.length - 1;
+    const col = document.createElement('div');
+    col.className = 'snapshot-col';
+
+    const snapNode = document.createElement('div');
+    snapNode.className = 'node snapshot' + (isCurrent ? '' : ' old');
+    snapNode.innerHTML = (isCurrent ? '&#9733; CURRENT<br>' : '(retained, not current)<br>') +
+      'Snapshot ' + snap.id + '<br><span style="color:#8b949e;font-size:11px">' + snap.ts + '</span>';
+    col.appendChild(snapNode);
+    col.appendChild(arrow());
+
+    const mlNode = document.createElement('div');
+    mlNode.className = 'node';
+    mlNode.style.borderColor = isCurrent ? '#58a6ff' : '#30363d';
+    mlNode.textContent = 'Manifest list (' + snap.manifests.length + ' manifests)';
+    col.appendChild(mlNode);
+    col.appendChild(arrow());
+
+    const mRow = document.createElement('div');
+    mRow.className = 'manifests-row';
+    snap.manifests.forEach(m => {
+      const mCol = document.createElement('div');
+      mCol.className = 'manifest-col';
+      const mNode = document.createElement('div');
+      mNode.className = 'manifest' + (m.tag === 'new' ? ' new' : (m.tag === 'reused' ? ' reused' : ''));
+      mNode.textContent = m.id + (m.tag === 'new' ? ' (new)' : (m.tag === 'reused' ? ' (reused)' : ''));
+      mCol.appendChild(mNode);
+      mCol.appendChild(arrow());
+
+      const fRow = document.createElement('div');
+      fRow.className = 'files-row';
+      m.files.forEach(f => {
+        const fNode = document.createElement('div');
+        fNode.className = 'file neutral';
+        fNode.id = 'file-' + f.id;
+        fNode.innerHTML = f.id + '<span class="stat">[' + f.min + ' .. ' + f.max + ']</span>';
+        fRow.appendChild(fNode);
+      });
+      mCol.appendChild(fRow);
+      mRow.appendChild(mCol);
+    });
+    col.appendChild(mRow);
+    if (!isCurrent) col.style.opacity = '0.55';
+    snapRow.appendChild(col);
+  });
+
+  tree.appendChild(snapRow);
+}
+
+function arrow() {
+  const a = document.createElement('div');
+  a.className = 'connector';
+  a.textContent = '↓';
+  return a;
+}
+
+function runQuery() {
+  const filterStr = document.getElementById('filter-date').value.trim();
+  const filterDate = new Date(filterStr + 'T12:00:00Z');
+  const cur = snapshots[snapshots.length - 1];
+  let opened = 0;
+  let total = 0;
+  let manifestsTouched = 0;
+
+  cur.manifests.forEach(m => {
+    manifestsTouched++;
+    m.files.forEach(f => {
+      total++;
+      const lo = new Date(f.min + 'T00:00:00Z');
+      const hi = new Date(f.max + 'T00:00:00Z');
+      const el = document.getElementById('file-' + f.id);
+      if (!isNaN(filterDate) && filterDate >= lo && filterDate <= hi) {
+        opened++;
+        if (el) el.className = 'file match';
+      } else {
+        if (el) el.className = 'file skip';
+      }
+    });
+  });
+
+  document.getElementById('opened-count').textContent = opened;
+  document.getElementById('total-count').textContent = total;
+  document.getElementById('manifests-count').textContent = manifestsTouched;
+
+  const verdict = document.getElementById('verdict');
+  if (isNaN(filterDate)) {
+    verdict.className = 'verdict danger';
+    verdict.innerHTML = '<strong>Invalid date.</strong> Use YYYY-MM-DD.';
+    return;
+  }
+  const pct = total ? Math.round((opened / total) * 100) : 0;
+  const cls = pct <= 40 ? 'ok' : (pct <= 70 ? 'warn' : 'danger');
+  verdict.className = 'verdict ' + cls;
+  verdict.innerHTML = '<strong>' + opened + ' of ' + total + ' data files opened</strong> (' + pct + '%) for <code>date = ' + filterStr +
+    '</code>. The other ' + (total - opened) + ' file(s) were skipped using only manifest min/max stats — never opened. ' +
+    'Manifest list and manifests were read (small metadata, not data); the object store was never <code>LIST</code>ed.';
+}
+
+initTable();
+render();
+document.getElementById('total-count').textContent = countCurrentFiles();
+</script>
+</body>
+</html>

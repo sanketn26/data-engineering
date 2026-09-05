@@ -1,8 +1,10 @@
 # Time Windows
 
-A stream of `{timestamp, device_id, sensor, value}` never ends. A chart is a finite picture. Windows are how you cut the stream into finite aggregates without pretending you loaded “all rows.”
+**2:03 PM.** A dashboard request comes in: "rolling 5-minute average temperature, updated every 30 seconds, across the whole fleet." An engineer writes it as a SQL window function directly over 90 days of raw readings from 10 million devices. The query never returns; the cluster's CPU sits at 100%.
 
-This is the storage/query side. The streaming side (watermarks, allowed lateness) is [Flink windows](../flink/windows.md). Same shapes, different engines.
+Predict before you read on: (A) a bigger cluster, (B) an index on `timestamp`, (C) precompute tumbling windows first and slide over those instead of raw, or (D) switch this chart to Prometheus?
+
+It's (C) — a stream of `{timestamp, device_id, sensor, value}` never ends, a chart is a finite picture, and windows are how you cut the stream into finite aggregates without pretending you loaded "all rows." This is the storage/query side; the streaming side (watermarks, allowed lateness) is [Flink windows](../flink/windows.md) — same shapes, different engines.
 
 ---
 

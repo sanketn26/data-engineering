@@ -1,6 +1,13 @@
 # Catalyst & Tungsten
 
-You write a DataFrame query over a week of SaaS events. Spark does not “run the API.” It **rewrites** the query into something that might scan 40 GB of three columns instead of 8 TB of JSON-shaped Parquet, might filter before it joins, and might generate JVM bytecode that never boxes a `Row`.
+A teammate opens a PR: a query joining a week of SaaS events to a 40 MB customer dimension, filtered to one region and one day. In review you ask for `explain("formatted")`. It shows a `FileScan` of the full 8 TB week and a `SortMergeJoin` — not the 40 GB, broadcast-joined plan either of you expected.
+
+A. The optimiser has a bug.
+B. The filter is on a computed column (`to_date(timestamp)`), not the partition column, so pruning never fires.
+C. The dimension is over the broadcast threshold.
+D. AQE is disabled in this environment.
+
+Pick one before reading on — the answer changes what you fix. You write a DataFrame query over a week of SaaS events. Spark does not “run the API.” It **rewrites** the query into something that might scan 40 GB of three columns instead of 8 TB of JSON-shaped Parquet, might filter before it joins, and might generate JVM bytecode that never boxes a `Row`.
 
 If you do not read `explain()`, you are hoping Catalyst agrees with you. Production is not a hope.
 
@@ -18,15 +25,15 @@ events.join(customers, "customer_id") \
 
 `events` is date-partitioned Parquet, 8 TB for the week, 1.1 TB for the 15th. `customers` is 40 MB. `region` is a **data** column, not a partition.
 
-What you want Catalyst to do:
+What you want Catalyst to *consider*:
 
 1. Push `date =` into **partition pruning** (only one day’s files).
 2. Push `region =` into **Parquet row-group filters** if stats allow.
 3. Read **only** `customer_id, service, latency_ms, region, date`.
-4. **Broadcast** `customers` instead of shuffling 1.1 TB.
-5. Partial aggregate `service` before any remaining exchange.
+4. **Broadcast** `customers` instead of shuffling 1.1 TB — *if* its measured size is under the broadcast threshold. Broadcast is not guaranteed: it depends on table/column statistics being present and accurate, AQE being enabled, and the join being broadcast-compatible. A hint (`.hint("broadcast", ...)`) is a request, not an order — Spark's own docs are explicit that join hints are not guarantees.
+5. Partial aggregate `service` before any remaining exchange — the exact rewrite Catalyst produces depends on query shape and join semantics; do not assume this chain in general.
 
-If any of those is missing in `explain("formatted")`, the job is wrong even if it “works” on a sample.
+None of this is a guaranteed physical plan — it is the plan you should check for. If any of it is missing in `explain("formatted")` for **this specific query**, the job is wrong even if it “works” on a sample.
 
 Observability: pruning on `hour=` is the difference between a 2 TB trace scan and a 12 GB one. CDC: `MERGE` plans that explode into Cartesian nested-loop joins. IoT: skipping the `value` column until the last projection.
 

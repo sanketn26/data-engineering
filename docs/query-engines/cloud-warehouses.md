@@ -9,7 +9,15 @@ description: Decide when managed warehouse separation, elasticity, and operation
 **Prerequisites:** [columnar storage](../olap/columnar-storage.md), [Trino](trino.md), [data modelling](../foundations/data-modelling.md)<br>
 **Outcomes:** explain what BigQuery, Snowflake, and Redshift actually do with a query and a byte on disk; predict which one queues, which one scans everything, and which one skews; compare managed warehouses with lakehouse/query-engine stacks; choose from workload evidence, not the vendor slide.
 
-A finance analyst runs the same `GROUP BY region` query every Monday. On BigQuery it costs money per byte scanned whether the warehouse is busy or idle. On Snowflake it queues behind Friday's batch load if the warehouse is undersized. On Redshift it is fast for years, then one day a table grows past the machine's memory and every query holding a hash table for that table starts spilling to disk together.
+Monday, 9 AM. A finance analyst kicks off the same `GROUP BY region` query as every week — same SQL, same data volume as last Monday.
+
+Guess which failure belongs to which vendor before you read on:
+
+A. Same query, bigger bill this time.
+B. Same query, but it queues for ten minutes behind Friday's batch load.
+C. Was instant for years; now one table has outgrown a node's memory, and every query touching it starts spilling to disk together.
+
+Match them up, then check: on BigQuery it costs money per byte scanned whether the warehouse is busy or idle (A). On Snowflake it queues behind Friday's batch load if the warehouse is undersized (B). On Redshift it is fast for years, then one day a table grows past the machine's memory and every query holding a hash table for that table starts spilling to disk together (C).
 
 None of that is a vendor defect. It is the architecture showing through the SQL. BigQuery, Snowflake, and Redshift are not interchangeable implementations of Trino wearing different logos — they package storage, execution, governance, workload management, and operations behind three different physical models and three different commercial contracts.
 

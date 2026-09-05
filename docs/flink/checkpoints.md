@@ -1,5 +1,14 @@
 # Checkpoints and recovery
 
+The checkpoint dashboard shows the last successful checkpoint 47 minutes ago and climbing. Job status: RUNNING. Kafka consumer lag on the source: also climbing. Nobody has touched the job.
+
+A. A TaskManager silently died.
+B. The sink is slow, backpressure is filling the pipeline, and checkpoint barriers cannot get through it to complete a snapshot.
+C. S3 (the checkpoint store) is down.
+D. The checkpoint interval was misconfigured to something absurd.
+
+Predict which one before reading on — the fraud job downstream has been counting failed logins for six hours, and whichever answer is right determines how much of that six hours you can actually lose.
+
 ## Use case
 
 The fraud job has been counting failed logins for 10 million `user_id`s for six hours. A TaskManager loses its disk. Without a recovery story, those six hours of [state](state.md) are gone and you reprocess from Kafka `earliest` — if [retention](../kafka/log.md) still has the data.

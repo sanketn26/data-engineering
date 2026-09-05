@@ -1,6 +1,12 @@
 # ClickHouse vs Trino
 
-These are the most commonly smashed-together names in analytics. They do not compete if you specify the workload.
+Someone points a new Grafana panel at Trino, because "Trino can already query everything — Iceberg, Postgres, ClickHouse, all of it." The panel needs a sub-second refresh on the last 15 minutes of traffic. It times out.
+
+A. Trino's coordinator needs more memory.
+B. The panel should scan a smaller time window.
+C. Trino is a federated query engine, not a storage-optimized hot path, and the panel belongs on ClickHouse instead.
+
+Pick one before reading on — the answer is C: these are the most commonly smashed-together names in analytics, and they do not compete if you specify the workload.
 
 **ClickHouse** is storage **plus** a vectorised engine. It is fast because of **how it lays out parts** (`ORDER BY`, granules, compression).
 

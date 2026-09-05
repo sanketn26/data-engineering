@@ -1,6 +1,8 @@
 # Spark vs Flink
 
-Both process data at scale. They are not two brands of the same engine. Spark's unit of work is a **batch (or micro-batch) of partitions**. Flink's unit of work is an **event and the keyed state it updates**. That origin story decides latency, time, recovery, and APIs. If you ignore it, you will implement sessionization in Spark and hate your life, or shuffle-join a 20 TB lake in Flink and hate your cluster.
+A code review comment on a new streaming job: "why not just use Structured Streaming with a 1-second trigger instead of standing up a whole Flink cluster?" The PR author is building per-user login-velocity sessions with 30-minute event-time windows and late data up to 10 minutes. A. Structured Streaming's micro-batches handle this fine at 1-second triggers. B. It technically works but fights the engine the whole way. C. Flink is native to this shape and Spark is not. Pick one before reading on.
+
+C: both process data at scale, but they are not two brands of the same engine. Spark's unit of work is a **batch (or micro-batch) of partitions**. Flink's unit of work is an **event and the keyed state it updates**. That origin story decides latency, time, recovery, and APIs. If you ignore it, you will implement sessionization in Spark and hate your life, or shuffle-join a 20 TB lake in Flink and hate your cluster.
 
 Related: [Spark mental model](../spark/mental-model.md), [Flink time](../flink/time.md), [fraud](../architectures/fraud.md), [observability](../architectures/observability.md).
 

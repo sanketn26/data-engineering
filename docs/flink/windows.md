@@ -1,5 +1,14 @@
 # Windows
 
+11:58 PM. Fraud expects an alert: `u_44810` racked up 13 failed logins between 11:50 and 11:56 — well over the "10 in 5 minutes" threshold. No alert fired. Kafka lag is zero; the watermark is advancing normally.
+
+A. The window is unkeyed, so it never ran per-user.
+B. The job uses a tumbling 5-minute window, and the burst happened to straddle a bucket boundary — 6 attempts before 11:55, 7 after — so no single window ever saw more than 7.
+C. The watermark is stuck.
+D. Allowed lateness dropped the events.
+
+Predict before reading on: which window shape would have caught this burst, and which one missed it?
+
 ## Use case
 
 A stream never ends. "Average `latency_ms` for `service=api`" is undefined unless you say **over which slice of time**.

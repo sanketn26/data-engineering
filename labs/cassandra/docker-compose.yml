@@ -1,0 +1,22 @@
+# Single-node Cassandra 4.1. Native protocol on 9042.
+# Not for production: RF=1, single node, no repair story.
+# Cassandra is slow to boot (JVM + commitlog init): expect 30-60s before healthy.
+services:
+  cassandra:
+    image: cassandra:4.1
+    container_name: dea-cassandra
+    ports:
+      - "9042:9042"
+    environment:
+      CASSANDRA_CLUSTER_NAME: dea-academy
+      CASSANDRA_DC: dc1
+      CASSANDRA_RACK: rack1
+      CASSANDRA_ENDPOINT_SNITCH: GossipingPropertyFileSnitch
+      HEAP_NEWSIZE: 128M
+      MAX_HEAP_SIZE: 1024M
+    healthcheck:
+      test: ["CMD-SHELL", "cqlsh -e 'describe keyspaces'"]
+      interval: 10s
+      timeout: 10s
+      retries: 18
+      start_period: 60s

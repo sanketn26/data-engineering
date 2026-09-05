@@ -1,6 +1,8 @@
 # ClickHouse vs Pinot
 
-Both are columnar OLAP systems for fast analytics on event-shaped data. They are not interchangeable. **ClickHouse** is a general-purpose analytic database: you own storage, `ORDER BY` is the index, SQL is wide. **Pinot** is a serving system for **ultra-fresh, high-concurrency, mostly single-table** dashboards with a realtime/offline segment split and star-tree indexes.
+A product team wants a customer-facing "live usage" tile that must reflect events from the last 2-5 seconds, and expects tens of thousands of QPS once it ships to every logged-in user. The platform team's instinct is to add a materialized view to the existing ClickHouse cluster that already serves 20 Grafana panels at low QPS. A. ClickHouse with a tight insert interval handles this fine. B. This is a different product than the Grafana dashboards and deserves Pinot. C. Neither — cache the tile in Redis instead. Predict before you read on.
+
+B is the shape this page argues for, though it depends on measuring the QPS and freshness numbers rather than assuming: both ClickHouse and Pinot are columnar OLAP systems for fast analytics on event-shaped data, but they are not interchangeable. **ClickHouse** is a general-purpose analytic database: you own storage, `ORDER BY` is the index, SQL is wide. **Pinot** is a serving system for **ultra-fresh, high-concurrency, mostly single-table** dashboards with a realtime/offline segment split and star-tree indexes.
 
 If you have tens of QPS of Grafana and rich SQL, ClickHouse. If you have thousands of QPS of user-facing tiles that must include the last few seconds, measure Pinot.
 

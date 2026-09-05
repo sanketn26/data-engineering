@@ -9,7 +9,11 @@ description: Build tested, incremental, deployable SQL models rather than a DAG 
 **Prerequisites:** SQL, [data modelling](data-modelling.md)<br>
 **Outcomes:** choose incremental boundaries; separate orchestration from transformation; test contracts; deploy models safely.
 
-Airflow decides **when** a transformation runs. Spark, Trino, a warehouse, or dbt executes the transformation. The model must remain correct under retry, late data, backfill, and concurrent readers — that is, it must be **idempotent**: rerunning the same interval, whether on schedule or as a retry, produces the same output rather than duplicating or corrupting it. [Airflow idempotency](../airflow/idempotency.md) covers the orchestration side of this in depth later; here it drives the merge behavior below.
+09:15. Last night's Airflow retry reran the 02:00 revenue model after a transient timeout. This morning finance reports revenue is double what it should be for that hour. The DAG shows green.
+
+Before you read on, pick one: did the retry duplicate rows because (A) the model does a plain `INSERT` instead of a merge, (B) the incremental boundary has no overlap and skipped a watermark update, or (C) two DAG runs executed concurrently on the same partition?
+
+It's (A) most often, and it's a modelling problem, not an orchestration one: Airflow decides **when** a transformation runs, but Spark, Trino, a warehouse, or dbt executes it, and the model itself must remain correct under retry, late data, backfill, and concurrent readers — that is, it must be **idempotent**: rerunning the same interval, on schedule or as a retry, produces the same output rather than duplicating or corrupting it. [Airflow idempotency](../airflow/idempotency.md) covers the orchestration side of this in depth later; here it drives the merge behavior below.
 
 ## Layer contracts
 

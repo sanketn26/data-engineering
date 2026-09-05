@@ -196,6 +196,14 @@ SELECT count(), avg(latency_ms) FROM tiny_inserts WHERE customer_id = 'cust_0042
 
 Watch `system.metrics` / logs for merge pressure if you push further.
 
+## Check your work
+
+```bash
+python check_order_by.py
+```
+
+Runs the tenant-filtered dashboard query against both physical designs and reads ClickHouse's own `read_rows`/`read_bytes` figures straight from the `X-ClickHouse-Summary` HTTP response header — no waiting on `system.query_log` to flush, no manual `EXPLAIN` reading. It asserts the property behind predictions 1-2: `events_by_tenant` must read meaningfully fewer rows than `events_by_time` for the same single-tenant filter. If the ratio is too small, it raises an `AssertionError` telling you to check that `load_events.py` used enough distinct customers for the sparse index to actually have something to skip.
+
 ## Clean up
 
 ```bash

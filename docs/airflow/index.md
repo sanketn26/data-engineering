@@ -3,6 +3,17 @@
 !!! info "Version and source policy"
     Executor and scheduler behavior changes across releases. Check [Versions & Primary Sources](../reference/version-matrix.md) before production use.
 
+3:47 AM. Step 4 of a 25-task nightly pipeline throws an exception after writing 40% of a partition. Steps 5 through 8 already started — on the partial data. In the incident channel, nobody can say, without opening five different cron logs, which of the 25 jobs actually ran, which are still queued, and which touched today's partition twice.
+
+What's actually missing here?
+
+A. More retries.
+B. A bigger cron box.
+C. A system of record for which task ran, for which data interval, with which outcome.
+D. More logging.
+
+Predict before reading on — then see how precisely the next section states the problem.
+
 ## The Problem
 
 Your data pipeline contains 25 dependent jobs:
@@ -202,6 +213,21 @@ airflow dags backfill daily_analytics \
 **SLAs** are "this TI should have succeeded by T." They are not substitutes for monitoring. An SLA miss without a pager is a log line.
 
 **Data-aware scheduling** (Datasets / Assets) is the conceptual replacement for "DAG B cron is 30 minutes after DAG A." A downstream DAG starts when an upstream dataset is updated, not when a clock fires. Treat it as an event, still with idempotent writers.
+
+```text
+OLD MODEL (schedule-driven)          NEW MODEL (asset/dependency-driven)
+
+02:00 ─▶ Run DAG A                   orders_ready
+02:30 ─▶ Run DAG B (guessed gap)          │
+03:00 ─▶ Run DAG C (guessed gap)          ▼
+                                     customer_ready ──▶ revenue_model
+The 30-minute gaps are a bet on      DAG C starts the moment the asset
+how long upstream usually takes.     it depends on is actually updated —
+When A runs long, B starts on        not 30 minutes after a guess. Late
+stale data anyway.                   or early A still triggers B correctly.
+```
+
+This is a genuine architectural shift, not Airflow trivia: orchestration around **data state** rather than only clock time. A downstream Airflow 3.x `@asset`/`Dataset` consumer, a dbt model with a fresh-data check, and a Kafka consumer are all instances of the same idea — react to state changing, not to a clock you hope matches reality. It composes with the mechanisms above: dynamic task mapping still expands per-tenant work, deferrable operators still free a worker slot while waiting, and idempotent writers are still required because an asset can update twice.
 
 ---
 

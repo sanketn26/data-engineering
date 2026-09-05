@@ -118,6 +118,16 @@ Use the `FailedLoginCounter` in [docs/flink/labs.md](../../docs/flink/labs.md) L
 
 If `labs/kafka` is up, consume `user-events` with a Flink Kafka source (add the connector jar). That is extra credit; the watermark incident does **not** require Kafka.
 
+## Check your work
+
+`stalled_watermark.py` already asserts its own claim (idleness excludes the silent split from the downstream minimum) and prints `PASS`. For the event-time-vs-processing-time prediction, run:
+
+```bash
+python check_event_time.py
+```
+
+It runs the same 20 "5 minutes late" events through both a processing-time window and an event-time window, collects each job's actual window boundary via `execute_and_collect()` instead of reading printed output by eye, and asserts the property from prediction 1: the event-time window buckets them ~5 minutes in the past, the processing-time window buckets them ~now. It raises an `AssertionError` naming which job's window didn't land where predicted.
+
 ## Notes
 
 - Checkpoints succeeding while `records_out=0` is the on-call trap.

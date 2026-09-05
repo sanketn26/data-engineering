@@ -1,5 +1,7 @@
 # Flink labs
 
+Time.md's exercise asked you to predict what happens to a fraud window when one Kafka partition goes idle. Windows.md asked you to predict whether a tumbling or sliding window catches a login-failure burst that straddles a bucket boundary. A prediction on paper is cheap — Lab 3 (stall a watermark) and Lab 9 (sliding versus tumbling) are where you find out if yours was right, by running the failure and reading it off the actual Flink UI instead of reasoning about it from a chair.
+
 Run the committed scripts under [`labs/flink`](https://github.com/sanketn26/data-engineering/tree/main/labs/flink), then use the longer experiments below. The failures (**stall a watermark**, **kill a TaskManager**) must produce the stated pass condition; a paper walkthrough is preparation, not completion.
 
 **Prerequisites:** Docker, Python 3.9–3.11 for the pinned PyFlink wheel, ~4 GB RAM. Kafka labs' `service-events` topic is reused ([Kafka labs](../kafka/labs.md)). PyFlink 1.18.1 APIs are the tested teaching baseline; see [versions and primary sources](../reference/version-matrix.md) before changing it.

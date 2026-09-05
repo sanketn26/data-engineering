@@ -1,8 +1,10 @@
 # Downsampling
 
-10 million devices × 1 sample / 30 s ≈ 3.3×10⁵ points/s ≈ **2.9×10¹⁰ / day** ≈ **10¹³ / year**.
+**Storage review, Thursday.** Finance flags the observability budget: the raw-readings disk has grown to 160 TB and is still climbing. Someone points out the dashboards only ever render a 1,200-pixel-wide chart — nobody looks at more than 1,200 points at once, no matter how many billions of rows sit behind it.
 
-At 16 bytes/point (time + id hash + value) you are already at **~160 TB/year** before indexes and replicas. The year chart is 1,200 pixels wide. You will aggregate. The only question is whether you aggregate **once**, on write, or **every time someone opens Grafana**.
+Predict before you read on: (A) buy more/cheaper disk, (B) shorten raw retention with nothing to replace it, (C) build tiered rollups (1 min / 1 hour / 1 day) and drop raw after days not years, or (D) compress harder at the same resolution?
+
+It's (C). 10 million devices × 1 sample / 30 s ≈ 3.3×10⁵ points/s ≈ **2.9×10¹⁰ / day** ≈ **10¹³ / year**, and at 16 bytes/point (time + id hash + value) that's already **~160 TB/year** before indexes and replicas. You will aggregate. The only question is whether you aggregate **once**, on write, or **every time someone opens Grafana**.
 
 ---
 

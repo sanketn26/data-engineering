@@ -1,5 +1,14 @@
 # Flink vs Kafka Streams vs Spark Structured Streaming
 
+In tomorrow's design review, the fraud team proposes routing "10 failed logins in 5 minutes" through Spark Structured Streaming, because the platform team already runs a Spark cluster for the lake. The ticket's SLO says alert within 2 seconds of the 11th failure.
+
+Before you read the comparison table below, predict: does Spark Structured Streaming meet that SLO?
+
+A. Yes — Spark is Spark, it will just run faster with more executors.
+B. No — micro-batch triggers put realistic latency at seconds to minutes, not sub-2-second, regardless of cluster size.
+C. Only if you enable continuous processing mode, which is production-ready.
+D. It depends only on how the DataFrame is partitioned.
+
 ## Use case
 
 You already have `{timestamp, customer_id, user_id, service, endpoint, region, latency_ms, status_code, bytes}` in Kafka. A team asks "should this be Flink?" The staff-engineer answer is never the vendor matrix first. It is: **what is the workload, the state, the latency, and who will be paged?**

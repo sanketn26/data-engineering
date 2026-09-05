@@ -59,7 +59,7 @@ See [Labs](labs/index.md).
 3. Change one variable (partition count, skew, `ORDER BY`, cardinality)
 4. Explain the picture in one sentence
 
-Simulations live under [Practice → Simulations](simulations/index.md). They verify a mental model; they do not replace one.
+Simulations live under [Phase 12: Production → Simulations](simulations/index.md). They verify a mental model; they do not replace one.
 
 ## Treat every “Production is on fire” section as an exam
 
@@ -71,15 +71,17 @@ These are incident scenarios with real-shaped telemetry. Form a hypothesis **bef
 
 If you are new to data-system internals, follow the phases in order:
 
-1. [Foundations](foundations/index.md) — mental models before product names
-2. [Kafka](kafka/index.md) + [Spark](spark/index.md) — the core data plane
-3. [Flink](flink/index.md) — stream processing and time
-4. [Lakehouse](lakehouse/index.md) — what a table is on object storage
-5. [Trino](query-engines/trino.md) + [ClickHouse](olap/clickhouse.md) — query engines
-6. Specialised: [Time series](time-series/index.md), [Graph](graph/index.md), [NoSQL](databases/index.md)
-7. [Ray](distributed-python/ray.md) — distributed Python
-8. Platform: [Airflow](airflow/index.md), [Metadata](metadata/index.md), [Quality](quality/index.md), [Security](security/index.md)
-9. [Architectures](architectures/index.md) — end-to-end design
+1. Phase 0-1 [Foundations](foundations/index.md) — mental models and data representation before product names
+2. Phase 2 [Kafka](kafka/index.md) + CDC — the log and the change stream
+3. Phase 3 [Spark](spark/index.md) — distributed compute
+4. Phase 4 [Flink](flink/index.md) — stream processing and time
+5. Phase 5 [Airflow](airflow/index.md) — orchestration
+6. Phase 6 [Lakehouse](lakehouse/index.md) — what a table is on object storage
+7. Phase 7-8 [Trino](query-engines/trino.md) + [ClickHouse](olap/clickhouse.md) — query engines and real-time OLAP
+8. Phase 9 Specialised: [Time series](time-series/index.md), [Graph](graph/index.md), [NoSQL](databases/index.md), [Ray](distributed-python/ray.md)
+9. Phase 10 Platform: [Metadata](metadata/index.md), [Quality](quality/index.md), [Security](security/index.md)
+10. Phase 11 Architecture & Economics: [selection framework](reference/selection-framework.md), [cost engineering](reference/cost-engineering.md)
+11. Phase 12 Production: [Architectures](architectures/index.md), [Incidents](incidents/index.md), [Capstone](capstone.md)
 
 If you are experienced and targeting a gap, use [Learning paths](learning-paths.md) and jump.
 

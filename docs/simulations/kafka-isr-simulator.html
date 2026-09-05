@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kafka ISR Failure Simulator</title>
+<style>
+  body { font-family: system-ui, sans-serif; background: #0d1117; color: #e6edf3; margin: 0; padding: 20px; }
+  h1 { color: #58a6ff; font-size: 22px; }
+  h3 { margin-top: 0; }
+  .card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 20px; margin: 15px 0; }
+  label { display: block; margin-bottom: 4px; color: #8b949e; font-size: 14px; }
+  .input-row { display: flex; align-items: center; gap: 12px; margin: 10px 0; }
+  .dim-name { width: 210px; font-size: 14px; }
+  input[type=number] { background: #0d1117; color: #e6edf3; border: 1px solid #30363d; padding: 6px 10px; border-radius: 4px; width: 110px; }
+  input[type=range] { flex: 1; }
+  input[type=checkbox] { width: 18px; height: 18px; accent-color: #58a6ff; }
+  select { background: #0d1117; color: #e6edf3; border: 1px solid #30363d; padding: 6px 10px; border-radius: 4px; font-size: 14px; }
+  .val-display { width: 90px; text-align: right; color: #58a6ff; font-weight: bold; font-size: 13px; }
+  .result { margin: 20px 0; }
+  .big-number { font-size: 32px; font-weight: bold; margin: 10px 0; }
+  .ok { color: #3fb950; }
+  .warn { color: #e3b341; }
+  .danger { color: #f85149; }
+  .breakdown { font-family: monospace; font-size: 14px; background: #0d1117; padding: 15px; border-radius: 6px; white-space: pre-wrap; }
+  .verdict { padding: 15px; border-radius: 6px; margin-top: 15px; }
+  .verdict.ok { background: #1a3a1a; border: 1px solid #3fb950; }
+  .verdict.warn { background: #3a2a00; border: 1px solid #e3b341; }
+  .verdict.danger { background: #3a1a1a; border: 1px solid #f85149; }
+  button { background: #238636; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 14px; }
+  button:hover { background: #2ea043; }
+  button.reset { background: #30363d; }
+  button.reset:hover { background: #484f58; }
+  .brokers { display: flex; gap: 14px; flex-wrap: wrap; margin: 12px 0; }
+  .broker { background: #0d1117; border: 2px solid #30363d; border-radius: 8px; padding: 14px; width: 160px; text-align: center; position: relative; }
+  .broker.leader { border-color: #58a6ff; }
+  .broker.in-isr { border-color: #3fb950; }
+  .broker.out-isr { border-color: #f85149; opacity: 0.75; }
+  .broker.dead { border-color: #6e7681; opacity: 0.4; }
+  .broker .role { font-size: 12px; color: #8b949e; text-transform: uppercase; letter-spacing: 0.5px; }
+  .broker .name { font-size: 20px; font-weight: bold; margin: 6px 0; }
+  .broker .status { font-size: 12px; margin-top: 6px; }
+  .explanation { background: #161b22; border-left: 4px solid #58a6ff; padding: 15px; border-radius: 4px; margin-top: 20px; }
+  code { background: #0d1117; padding: 1px 5px; border-radius: 4px; }
+</style>
+</head>
+<body>
+<h1>Kafka ISR Failure Simulator</h1>
+<p>One partition, three replicas. Predict whether a produce succeeds, blocks, or throws before you flip a toggle — <code>acks</code> and <code>min.insync.replicas</code> only ever promise durability from the replicas currently <strong>in the ISR</strong>, not from all three.</p>
+
+<div class="card">
+  <h3 style="color:#e3b341">Producer &amp; topic configuration</h3>
+  <div class="input-row">
+    <span class="dim-name">Producer <code>acks</code></span>
+    <select id="acks" onchange="calculate()">
+      <option value="0">0 (fire and forget)</option>
+      <option value="1">1 (leader only)</option>
+      <option value="all" selected>all (ISR)</option>
+    </select>
+  </div>
+  <div class="input-row">
+    <span class="dim-name">Topic <code>min.insync.replicas</code></span>
+    <select id="minisr" onchange="calculate()">
+      <option value="1">1</option>
+      <option value="2" selected>2</option>
+      <option value="3">3</option>
+    </select>
+  </div>
+  <div class="input-row">
+    <span class="dim-name"><code>unclean.leader.election.enable</code></span>
+    <input type="checkbox" id="unclean" onchange="calculate()">
+    <span style="color:#8b949e;font-size:12px">allow an out-of-ISR replica to become leader if ISR is empty</span>
+  </div>
+</div>
+
+<div class="card">
+  <h3 style="color:#e3b341">Replica state</h3>
+  <div class="brokers" id="brokers">
+    <div class="broker" id="broker-A">
+      <div class="role">Leader</div>
+      <div class="name">Broker A</div>
+      <div class="status" id="status-A"></div>
+    </div>
+    <div class="broker" id="broker-B">
+      <div class="role">Follower</div>
+      <div class="name">Broker B</div>
+      <div class="input-row" style="margin:8px 0 0 0;justify-content:center">
+        <input type="checkbox" id="b-isr" checked onchange="calculate()">
+        <label style="margin:0;font-size:12px">in ISR</label>
+      </div>
+      <div class="status" id="status-B"></div>
+    </div>
+    <div class="broker" id="broker-C">
+      <div class="role">Follower</div>
+      <div class="name">Broker C</div>
+      <div class="input-row" style="margin:8px 0 0 0;justify-content:center">
+        <input type="checkbox" id="c-isr" checked onchange="calculate()">
+        <label style="margin:0;font-size:12px">in ISR</label>
+      </div>
+      <div class="status" id="status-C"></div>
+    </div>
+  </div>
+  <div class="input-row">
+    <button onclick="killLeader()">Kill the leader</button>
+    <button class="reset" onclick="resetSim()">Reset</button>
+  </div>
+</div>
+
+<div class="result card" id="result">
+  <div id="big-num" class="big-number ok">✓ Write succeeds</div>
+  <div id="breakdown" class="breakdown"></div>
+  <div id="verdict" class="verdict ok"></div>
+</div>
+
+<div class="explanation">
+  <h3 style="color:#58a6ff">Durability, availability, and what "in sync" really means</h3>
+  <p>Kafka gives you a three-way tradeoff, not a free lunch: <strong>durability</strong> (survive a broker failure without losing acknowledged writes), <strong>availability</strong> (keep accepting writes during a failure), and how strict you are about what counts as "in sync." You cannot maximize all three at once.</p>
+  <ul>
+    <li><code>acks=all</code> means "wait for every replica currently in the ISR" — <strong>not</strong> "wait for all 3 replicas." If followers have fallen out of the ISR and only the leader remains, with <code>min.insync.replicas=1</code>, <code>acks=all</code> acknowledges after just the leader writes — exactly as durable as <code>acks=1</code> in that moment, even though the topic config looks strict.</li>
+    <li><code>min.insync.replicas</code> is the floor: if the ISR shrinks below it, the leader rejects writes with <code>NotEnoughReplicas</code> (or <code>NotEnoughReplicasAfterAppend</code>) rather than silently accepting them with weaker durability.</li>
+    <li>When the leader fails, Kafka elects a new leader from the remaining ISR members — safe, no acknowledged data is lost, because every ISR member had every acknowledged record. If the ISR is empty and <code>unclean.leader.election.enable=true</code>, an out-of-ISR (lagging) replica can become leader — the partition stays available, but any records the old leader had that never replicated are gone silently. If ISR is empty and unclean election is disallowed, the partition goes offline: unavailable, but no silent data loss.</li>
+    <li>This model fixes one partition and one produce request; it does not simulate replication lag dynamics, controller failover time, or `min.insync.replicas` interacting with multiple partitions. See <a href="../kafka/replication.md" style="color:#58a6ff">Kafka replication</a> for the full ISR and controller mechanics.</li>
+  </ul>
+</div>
+
+<script>
+let leaderKilled = false;
+
+function resetSim() {
+  leaderKilled = false;
+  document.getElementById('b-isr').checked = true;
+  document.getElementById('c-isr').checked = true;
+  document.getElementById('acks').value = 'all';
+  document.getElementById('minisr').value = '2';
+  document.getElementById('unclean').checked = false;
+  calculate();
+}
+
+function killLeader() {
+  leaderKilled = true;
+  calculate();
+}
+
+function calculate() {
+  const acks = document.getElementById('acks').value;
+  const minIsr = parseInt(document.getElementById('minisr').value);
+  const bInIsr = document.getElementById('b-isr').checked;
+  const cInIsr = document.getElementById('c-isr').checked;
+  const uncleanAllowed = document.getElementById('unclean').checked;
+
+  const brokerA = document.getElementById('broker-A');
+  const brokerB = document.getElementById('broker-B');
+  const brokerC = document.getElementById('broker-C');
+  const statusA = document.getElementById('status-A');
+  const statusB = document.getElementById('status-B');
+  const statusC = document.getElementById('status-C');
+
+  const bigNum = document.getElementById('big-num');
+  const breakdown = document.getElementById('breakdown');
+  const verdict = document.getElementById('verdict');
+
+  // ISR always includes the leader while it is alive.
+  let isrCount = 1 + (bInIsr ? 1 : 0) + (cInIsr ? 1 : 0);
+
+  let cls, label, msg;
+  let newLeaderInfo = '';
+
+  if (!leaderKilled) {
+    brokerA.className = 'broker leader';
+    brokerB.className = 'broker ' + (bInIsr ? 'in-isr' : 'out-isr');
+    brokerC.className = 'broker ' + (cInIsr ? 'in-isr' : 'out-isr');
+    statusA.textContent = `ISR size: ${isrCount}`;
+    statusB.textContent = bInIsr ? 'in sync' : 'lagging / out of ISR';
+    statusC.textContent = cInIsr ? 'in sync' : 'lagging / out of ISR';
+
+    // Determine produce outcome.
+    if (isrCount < minIsr) {
+      cls = 'danger';
+      label = '✗ NotEnoughReplicas';
+      msg = `ISR has ${isrCount} replica(s), below min.insync.replicas=${minIsr}. The leader rejects the produce request outright, regardless of acks.`;
+    } else if (acks === '0') {
+      cls = 'warn';
+      label = '⚠ Write "succeeds" (no ack requested)';
+      msg = `acks=0: the producer never waits for any acknowledgement. It cannot detect a failed or rejected write; on the leader restarting or failing, data may be silently lost.`;
+    } else if (acks === '1') {
+      cls = 'warn';
+      label = '⚠ Write succeeds after leader-only write';
+      msg = `acks=1: acknowledged as soon as the leader writes to its local log, before followers replicate. If the leader fails before replication completes, this acknowledged record can be lost.`;
+    } else {
+      // acks = all
+      if (isrCount === 1) {
+        cls = 'warn';
+        label = '⚠ Write succeeds — but only the leader';
+        msg = `acks=all is satisfied by the current ISR, which is just the leader (min.insync.replicas=${minIsr} allows this). This gives no more durability than acks=1: if the leader fails now, the record is gone.`;
+      } else {
+        cls = 'ok';
+        label = `✓ Write succeeds, durable across ${isrCount} replicas`;
+        msg = `acks=all waits for all ${isrCount} ISR members (leader + ${isrCount - 1} in-sync follower(s)) to replicate before acknowledging. Any of these replicas could become leader without losing this record.`;
+      }
+    }
+  } else {
+    // Leader killed — election time.
+    const isrFollowers = [];
+    if (bInIsr) isrFollowers.push('B');
+    if (cInIsr) isrFollowers.push('C');
+
+    brokerA.className = 'broker dead';
+    statusA.textContent = 'DEAD';
+
+    if (isrFollowers.length > 0) {
+      const newLeader = isrFollowers[0];
+      brokerB.className = 'broker ' + (newLeader === 'B' ? 'leader' : (bInIsr ? 'in-isr' : 'out-isr'));
+      brokerC.className = 'broker ' + (newLeader === 'C' ? 'leader' : (cInIsr ? 'in-isr' : 'out-isr'));
+      statusB.textContent = newLeader === 'B' ? 'NEW LEADER (from ISR)' : (bInIsr ? 'in sync' : 'lagging / out of ISR');
+      statusC.textContent = newLeader === 'C' ? 'NEW LEADER (from ISR)' : (cInIsr ? 'in sync' : 'lagging / out of ISR');
+
+      cls = 'ok';
+      label = `✓ Safe failover — Broker ${newLeader} elected from ISR`;
+      msg = `The leader failed, but the ISR was non-empty (${isrFollowers.join(', ')}). Kafka elects Broker ${newLeader} as the new leader. Every ISR member had all acknowledged records, so no acknowledged data is lost.`;
+    } else if (uncleanAllowed) {
+      // ISR empty, unclean election allowed — pick an out-of-ISR follower (prefer B, else C).
+      const newLeader = !bInIsr ? 'B' : (!cInIsr ? 'C' : null);
+      brokerB.className = 'broker ' + (newLeader === 'B' ? 'leader' : 'out-isr');
+      brokerC.className = 'broker ' + (newLeader === 'C' ? 'leader' : 'out-isr');
+      statusB.textContent = newLeader === 'B' ? 'NEW LEADER (unclean, out of ISR)' : 'lagging / out of ISR';
+      statusC.textContent = newLeader === 'C' ? 'NEW LEADER (unclean, out of ISR)' : 'lagging / out of ISR';
+
+      cls = 'danger';
+      label = `✗ Unclean election — Broker ${newLeader} elected, data loss risk`;
+      msg = `The ISR was empty when the leader failed. unclean.leader.election.enable=true allowed out-of-sync Broker ${newLeader} to become leader. Any records the old leader acknowledged (especially under acks=1 or acks=all with a shrunk ISR) that never reached Broker ${newLeader} are permanently gone, and future produces continue.`;
+    } else {
+      brokerB.className = 'broker out-isr';
+      brokerC.className = 'broker out-isr';
+      statusB.textContent = 'lagging / out of ISR';
+      statusC.textContent = 'lagging / out of ISR';
+
+      cls = 'warn';
+      label = '⚠ Partition OFFLINE — unavailable, no silent data loss';
+      msg = `The ISR was empty when the leader failed, and unclean.leader.election.enable=false. Kafka refuses to elect an out-of-sync replica. The partition goes offline for both produces and consumes until an ISR member recovers or an operator intervenes manually.`;
+    }
+  }
+
+  bigNum.textContent = label.replace(/^[✓✗⚠]\s*/, '');
+  bigNum.className = `big-number ${cls}`;
+
+  breakdown.textContent =
+    `acks:                  ${acks}\n` +
+    `min.insync.replicas:   ${minIsr}\n` +
+    `Leader alive:          ${!leaderKilled}\n` +
+    `Broker B in ISR:       ${bInIsr}\n` +
+    `Broker C in ISR:       ${cInIsr}\n` +
+    `ISR size (pre-kill):   ${isrCount}\n` +
+    `unclean election:      ${uncleanAllowed}`;
+
+  verdict.className = `verdict ${cls}`;
+  verdict.innerHTML = `<strong>${label}</strong>: ${msg}`;
+}
+
+calculate();
+</script>
+</body>
+</html>

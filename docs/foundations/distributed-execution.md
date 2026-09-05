@@ -1,8 +1,10 @@
 # Distributed Execution
 
-A product manager asks for yesterday’s p95 latency per `service` for the SaaS events. You type `groupBy("service").agg(...)` and hit run. Spark does **not** run that function on 8 TB. It builds a graph, cuts the graph at every place data must move, turns each cut into thousands of **tasks**, and hopes the slowest task is still inside the SLA.
+16:03. The Spark UI is open. 199 tasks in this stage finished in under 10 seconds each. One is still running at 25 minutes. On-call is asked: is the cluster undersized, or is something else going on?
 
-If you cannot name the job, the stages, the tasks, and the straggler, the Spark UI is just a colourful 404. The same hierarchy is how Flink, Trino, and Ray explain themselves — different nouns, same physics.
+Before you answer: does adding 20 more executors fix a straggler task, or does it just add 20 more machines waiting on the same one? And what actually turns `groupBy("service").agg(...)` into "199 fast tasks and one slow one" in the first place?
+
+Spark does not run your function on 8 TB directly — it builds a graph, cuts the graph at every place data must move, turns each cut into thousands of **tasks**, and bets the SLA on the slowest one. If you cannot name the job, the stages, the tasks, and the straggler, the Spark UI is just a colourful 404. The same hierarchy is how Flink, Trino, and Ray explain themselves — different nouns, same physics.
 
 ---
 

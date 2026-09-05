@@ -2,11 +2,15 @@
 
 This module compares engines that query external storage with [managed cloud warehouses](cloud-warehouses.md), where storage, workload isolation, governance, and operations are bundled behind a service contract.
 
-You already have the data. Product events live as Iceberg tables on object storage. Customer records live in Postgres. Billing lives in another team's MySQL. An analyst wants one SQL statement that joins all three and returns this afternoon.
+4:15 PM. An analyst posts in the platform channel: "I need product events, customer records from Postgres, and billing from another team's MySQL, joined, by end of day." Someone replies "sure — we'll pipeline it into a warehouse, give us two weeks." The analyst says they need it today, not in two weeks.
 
-Nobody wants to copy 40 TB into a fourth system first. That copy is stale the moment it lands, expensive to keep, and somebody else's on-call.
+Is a new ETL pipeline actually the right call here?
 
-A **query engine** is the piece that runs SQL over data it does not own. Compute is a cluster. Storage is whatever the connectors can read. That split is the entire product.
+A. Yes — always land it in a warehouse first; federation is a shortcut that costs you later.
+B. No — a query engine can run SQL across all three stores today, at the price of paying network and each source's worst access path on every run.
+C. It depends on whether this becomes a recurring query or stays a one-off.
+
+It's B for today's ask, and C is the honest answer for next quarter — which is exactly the tension this module is built around. You already have the data: product events live as Iceberg tables on object storage, customer records live in Postgres, billing lives in another team's MySQL. Nobody wants to copy 40 TB into a fourth system first — that copy is stale the moment it lands, expensive to keep, and somebody else's on-call. A **query engine** is the piece that runs SQL over data it does not own. Compute is a cluster. Storage is whatever the connectors can read. That split is the entire product.
 
 ---
 

@@ -1,5 +1,11 @@
 # Exactly-once semantics
 
+09:15 AM incident review: a customer was charged twice for the same order. The checkout worker crashed between charging the card and committing its Kafka offset; on restart, at-least-once delivery replayed the charge event. Someone in the room says, "just turn on exactly-once."
+
+Predict before you read on: does wrapping the read-process-write in a Kafka transaction actually stop this double charge — given that the charge itself is a call to Stripe, not a write to Kafka?
+
+The honest answer is no, and the reason why is the entire subject of this page: **exactly-once *of what*, between which two systems?**
+
 ## Use case
 
 The e-commerce checkout service writes an `orders` event. A worker reads it, charges the card, and writes `orders-charged`. If the worker crashes after the charge but before committing its Kafka offset, at-least-once delivery charges the card twice. If it commits the offset before the charge, a crash **drops** the charge.

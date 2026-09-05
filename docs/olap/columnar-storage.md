@@ -1,8 +1,10 @@
 # Why Columnar Storage
 
-A dashboard over hundreds of millions of events a day almost never wants a row. It wants two or three columns, aggregated. The storage layout that matches that question is columns on disk, not tuples.
+**Code review, 11:14 AM.** A teammate submits a query — two columns, one time filter, one `GROUP BY` — and argues it should be near-instant: "it only touches two columns out of eighty." In prod it takes 8 seconds and reads 17 GB.
 
-This page is the physics. [ClickHouse](clickhouse.md) and [Pinot](pinot.md) are two different ways to operationalize it. [Trino](../query-engines/trino.md) does not own the files, but it is only fast when those files are columnar too.
+Predict before you read on: is the two-column claim wrong, or is the disk layout the actual problem — even though the query itself is fine?
+
+The claim about which columns matter is right and the assumption about what the engine reads off disk is wrong: a dashboard over hundreds of millions of events a day almost never wants a row, it wants two or three columns, aggregated, and the storage layout that matches that question is columns on disk, not tuples — the physics [ClickHouse](clickhouse.md) and [Pinot](pinot.md) operationalize, and the reason [Trino](../query-engines/trino.md) is only fast when the files underneath it are columnar too.
 
 ---
 
@@ -155,6 +157,8 @@ Trino pages and Spark whole-stage codegen are the same idea on data they **read*
 | Zone map / skip index | all of the above | “this block has no `customer_id = X`” |
 
 Columnar **without** skip metadata is still better than rows (you read fewer columns) but you cannot jump. Columnar **with** a sort key is the OLAP jackpot.
+
+For the specific byte-level anatomy of a Parquet file — row groups, column chunks, pages, the footer, and how predicate pushdown and small-file pathology follow directly from that structure — see [Parquet Internals](../foundations/parquet-internals.md).
 
 ---
 

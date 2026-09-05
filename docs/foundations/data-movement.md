@@ -1,10 +1,10 @@
 # Data Movement
 
-You have 500 GB of SaaS events spread across twenty executors. You need `sum(bytes)` and p95 latency **per `customer_id`**. Customer `cust_0042` has rows on machines A, B, and C.
+11:40. The Spark UI shows `percentile_approx` — the actual math — finishing in nine seconds. The whole job takes fourteen minutes. Nobody on the team can point at where the other thirteen-plus minutes went.
 
-Until those rows **meet**, the aggregation is a lie. Meeting means bytes on a wire, on disk, and through a serialiser. That meeting is often **most of the wall clock** of a Spark job — more than the `percentile_approx`.
+Before you open the DAG: is the missing time (A) reading 500 GB from S3, (B) the shuffle for `groupBy("customer_id")`, or (C) writing the output? Customer `cust_0042` alone has rows sitting on machines A, B, and C — pick where you'd bet first.
 
-Moving data is expensive in time first, money second (especially cross-AZ and egress). Treat it as the design constraint, not as an implementation detail Spark will hide.
+It's usually (B): until those rows **meet**, the aggregation is a lie, and meeting means bytes on a wire, on disk, and through a serialiser. Moving data is expensive in time first, money second (especially cross-AZ and egress) — treat it as the design constraint, not as an implementation detail Spark will hide.
 
 ---
 

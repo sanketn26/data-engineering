@@ -1,6 +1,13 @@
 # Production Gotchas
 
-The SaaS p95 job that worked on 20 GB will fail in stereotyped ways at 2 TB: the driver will eat a `collect`, one executor will eat `cust_0042`, the lake will eat a million 2 MB files, and a Python UDF will eat the NIC between JVM and pandas. These are not “Spark quirks.” They are the [mental model](mental-model.md) plus [shuffle](shuffle.md) plus [execution](../foundations/distributed-execution.md) showing up as pages.
+03:00 AM: the driver process for last night's SaaS rollup got OOM-killed four minutes in. The same code ran fine on last week's smaller batch. Nothing in the diff touched memory settings.
+
+A. `events.groupBy("customer_id").count().toPandas()` — cardinality is 50 million.
+B. The broadcast dimension grew from 8 MB to 900 MB and nobody noticed.
+C. `.cache()` on the full 2 TB frame is stealing execution memory.
+D. A Python UDF's `memoryOverhead` was never budgeted.
+
+All four are real, and all four show up in the diff below — that is the point. The SaaS p95 job that worked on 20 GB will fail in stereotyped ways at 2 TB: the driver will eat a `collect`, one executor will eat `cust_0042`, the lake will eat a million 2 MB files, and a Python UDF will eat the NIC between JVM and pandas. These are not “Spark quirks.” They are the [mental model](mental-model.md) plus [shuffle](shuffle.md) plus [execution](../foundations/distributed-execution.md) showing up as pages.
 
 This page is the on-call list. For each item: what the SaaS (or CDC / IoT) job looked like, why it is lethal at scale, how to see it, how to fix it.
 

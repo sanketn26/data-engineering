@@ -1,12 +1,15 @@
 # NoSQL Thinking
 
-The e-commerce API has three storage problems that look similar in a slide deck and are not:
+Monday, design review. An engineer's one-pager proposes moving `sessions`, `spans`, and `devices` off the overloaded Postgres primary and "into a NoSQL database" — same three tables, same columns, new vendor logo. The reviewer asks one question before approving anything: "What's the primary key of your hottest query, for each table?" The room goes quiet.
 
-1. **Session store** — `GET/PUT session_id`, TTL 24 h, 200k QPS, 3 ms p99.
-2. **Observability writes** — 400k spans/s, read last 15 minutes per `service`.
-3. **IoT device registry** — 20M devices, point read/write by `device_id`, rare fleet queries by region + firmware.
+What should the answer have been?
 
-A single Postgres primary can pretend for a while. The modelling mistake is to replace it with “a NoSQL database” as if that were one thing. The modelling skill is **access-pattern-first design**: you are not schema-less; you are **query-bound**.
+A. Whichever column is already the primary key in Postgres today.
+B. The column filtered on most often, across all queries combined.
+C. A key chosen so each named hot query — this session, this service's last 15 minutes, this device — hits exactly one partition.
+D. It doesn't matter much, since the value can just be JSON.
+
+Pick one before reading on. The e-commerce API actually has three storage problems that look similar in a slide deck and are not — a **session store** (`GET/PUT session_id`, TTL 24h, 200k QPS, 3ms p99), **observability writes** (400k spans/s, read last 15 minutes per `service`), and an **IoT device registry** (20M devices, point read/write by `device_id`, rare fleet queries by region + firmware) — and the modelling mistake in that one-pager is treating "NoSQL" as one thing instead of practicing **access-pattern-first design**: not schema-less, but **query-bound**.
 
 ---
 

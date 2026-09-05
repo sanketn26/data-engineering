@@ -1,6 +1,18 @@
 # Metadata & Data Catalogues
 
-A platform with 10,000 tables and no operating model for metadata is a swamp with a search box. Tools (DataHub, OpenLineage, a schema registry) are **how you implement** the model. They are not the model.
+09:40, design review. An engineer asks whether `gold.events_agg` already exists or needs to be built. Ten people shrug. It turns out someone built it eleven months ago under a different name — the owner left, nobody renamed it, and a dashboard has been reading it ever since without anyone able to vouch for it.
+
+What actually failed?
+
+A. No catalogue — buy DataHub and move on.
+B. No lineage — the table's origin was never recorded anywhere queryable.
+C. No operating model — ownership, freshness, and naming were never policy, so no tool could have caught this.
+D. No PII review — a compliance gap, not a discovery one.
+
+Pick one before reading on. A platform with 10,000 tables and no operating model for metadata is a swamp with a search box — tools like DataHub, OpenLineage, or a schema registry are **how you implement** a model, not a substitute for having one, and the answer above is (C).
+
+!!! note "This is SaaSCo at Stage 6"
+    [SaaSCo: The Evolving Company](../architectures/saasco-evolution.md#stage-6-400-engineers-contracts-and-lineage-become-load-bearing-phase-10) reaches this exact wall at 400 engineers: the bottleneck stops being volume and becomes "nobody can tell you if the number is right."
 
 Metadata answers operational questions on-call and in design review:
 

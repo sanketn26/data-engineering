@@ -3,11 +3,16 @@
 !!! info "Version and source policy"
     Ray APIs and scheduling behavior evolve. Check [Versions & Primary Sources](../reference/version-matrix.md) before production use.
 
-You have a working Python function that scores one user: load a pickle, walk their session events, emit a feature vector. It is 80 lines of pandas, numpy, and a small sklearn model. On one machine it takes 40 ms. You have 40 million users to score before the next training window.
+02:50 AM. The nightly feature-scoring job for 40 million SaaS accounts is still running — it was due to finish by 03:00 so the training job can start on time. The Spark stage is 80% done after four hours; a function that profiled at 40 ms/user in a notebook is now averaging closer to 400 ms/user in production. The UDF, `score_user(events) -> vector`, is 80 lines of pandas, numpy, and a small sklearn model, unchanged since last week's deploy.
 
-`multiprocessing` saturates a single box. Spark can read the Parquet, but the moment you wrap that function in a UDF you leave Catalyst, pay JVM↔Python serialisation on every row, and watch executors idle while the Python worker chokes. The work is not “SQL over a table.” It is a **graph of Python calls** — some embarrassingly parallel, some stateful (a loaded model, a simulator, a running counter).
+What's actually slow?
 
-That is the workload this module is for.
+A. The cluster is under-provisioned — add executors.
+B. The UDF runs row-at-a-time instead of vectorized.
+C. Every call re-pickles the model and event batch across the JVM↔Python boundary.
+D. The Parquet scan itself is the bottleneck, not the UDF.
+
+Pick one before reading on — the answer is why this module exists: the work here is not "SQL over a table," it is a **graph of Python calls** (some embarrassingly parallel, some stateful — a loaded model, a simulator, a running counter), and that shape is what this module is for.
 
 ---
 

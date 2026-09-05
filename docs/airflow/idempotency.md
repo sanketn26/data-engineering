@@ -1,10 +1,15 @@
 # Idempotency in Airflow Pipelines
 
-Task 4 of 25 failed after writing 40% of yesterday's orders. Airflow retries it. If the write is an append, you now have 140% of yesterday. If the retry is a partition overwrite, you have 100% and a story you can tell in standup.
+11:52 PM. Task `load_orders`, step 4 of 25, throws an exception after writing 40% of yesterday's order rows. Airflow's defaults kick in: `retries=3`, retry in 5 minutes.
 
-Idempotency is the single most important property of a production data pipeline. A pipeline is idempotent if running it twice for the same time period produces the same result as running it once.
+Before the retry fires, predict the final row count for `ds=2024-01-15` once it succeeds:
 
-Airflow will retry. Humans will clear TIs. Backfills will replay `ds`. The scheduler assumes that is safe. Only your write path can make it true.
+A. 40% of expected rows — the failure froze the write.
+B. 100% — the retry cleanly redoes the day.
+C. 140% — the original partial write plus a full second write.
+D. It depends on how many times Airflow happens to retry.
+
+The honest answer is B or C, and which one you get is not decided by Airflow — Airflow just calls the same function again with the same `ds`. It is decided entirely by whether that function appends or replaces. Idempotency is the single most important property of a production data pipeline: a pipeline is idempotent if running it twice for the same time period produces the same result as running it once. Airflow will retry. Humans will clear TIs. Backfills will replay `ds`. The scheduler assumes that is safe. Only your write path can make it true.
 
 ---
 

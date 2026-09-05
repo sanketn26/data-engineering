@@ -1,5 +1,9 @@
 # The Spark Mental Model
 
+14:40. Code review on a one-line PR: `events = spark.read.parquet(...)`. The reviewer asks three questions before approving — which process holds the plan, which process holds the 5 TB, and does line 1 touch S3, or does the `write` three lines down? You cannot answer confidently in the thread.
+
+Predict before you read on: for a `filter` then `groupBy` then `write`, how many stages does Spark run, and does `hourly.collect()` afterward cost the same as `hourly.write()`?
+
 Yesterday’s SaaS events: 5 TB of
 
 ```text

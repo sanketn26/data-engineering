@@ -153,6 +153,14 @@ spark.stop()
 
 If the process OOMs, you have reproduced the incident on a laptop scale. Fix: `broadcast(rdf)` (small) or salt `cust_0042`.
 
+## Check your work
+
+```bash
+python check_skew.py --rows 200000
+```
+
+Runs both the uniform and skew aggregations, reads the actual per-key row counts back from the Parquet output, and asserts the data-shape half of the prediction: no key dominates in uniform mode, and `cust_0042` dominates in skew mode. It prints the measured share for each and raises an `AssertionError` naming which mode failed to reproduce, instead of asking you to eyeball a bar chart. It does not replace watching the Spark UI — that's still how you see the *consequence* (one task's duration and shuffle read dwarfing the rest); this only confirms the *cause* (the skewed key distribution) actually happened.
+
 ## Notes
 
 - `collect()` on 1M rows is a **driver** OOM drill; do not add it "to inspect."

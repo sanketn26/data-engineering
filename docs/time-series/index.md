@@ -3,9 +3,11 @@
 !!! info "Capacity is measured, not universal"
     Product ceilings depend on workload and deployment. Treat numerical thresholds as planning examples, then load-test. Primary documentation is listed in [Versions & Primary Sources](../reference/version-matrix.md).
 
-Ten million devices. Each thirty seconds: `{timestamp, device_id, sensor, value}`. That is ~3.3×10⁵ points/s, ~3×10¹⁰ points/day, ~10¹³/year. Nobody looks at 10¹³ points. They look at a 1,200-pixel chart of “temperature last 90 days” and an alert on “rate of failed logins.”
+**Design review, Tuesday.** An engineer proposes one Postgres table for the new IoT fleet: `{timestamp, device_id, sensor, value}`, indexed on `(device_id, timestamp)`. Ten million devices report every 30 seconds. Someone does the arithmetic on a whiteboard and the room goes quiet.
 
-Time-series systems exist because **time is the primary access path**, writes are appends, and the answer is almost always an aggregate over a window — not a row.
+Predict before you read on: at ~3.3×10⁵ points/s, does plain Postgres survive this, survive it with tuning, or is this simply the wrong category of database regardless of tuning?
+
+Ten million devices at that rate is ~3×10¹⁰ points/day and ~10¹³/year — and nobody actually looks at 10¹³ points, they look at a 1,200-pixel chart of "temperature last 90 days" and an alert on "rate of failed logins." Time-series systems exist because **time is the primary access path**, writes are appends, and the answer is almost always an aggregate over a window — not a row.
 
 ---
 

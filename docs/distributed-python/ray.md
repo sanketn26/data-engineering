@@ -1,8 +1,15 @@
 # Ray
 
-You need to compute **per-user ML features** for 40 million SaaS accounts before the next training window, plus a **marketplace simulation** that steps millions of agents. The feature function is pandas + numpy + a 200 MB sklearn model. Spark already owns the Iceberg scan. Wrapping the function in a UDF is what made the job miss its SLO.
+Thursday, 4:15 PM, code review. The PR replaces the feature-scoring UDF with `@ray.remote` tasks and swaps the loaded sklearn model into a Ray actor. A reviewer comments: "Before I approve this — convince me this isn't just `spark.sql.shuffle.partitions` and more executors. What does Ray actually buy us that tuning Spark doesn't?"
 
-Ray is the cluster that runs that Python — as a graph of tasks and actors — without pretending to be a SQL engine.
+What's the honest answer?
+
+A. Ray tasks are just faster, lighter processes than a Spark UDF invocation.
+B. Ray's win is a shared-memory object store that avoids re-serializing the model and data on every call.
+C. Ray replaces Spark outright for this pipeline — one engine, one plan.
+D. The real fix is actors holding the loaded model as long-lived state, not tasks alone.
+
+Pick one before reading on: the same task — score 40 million SaaS accounts before the next training window, plus a marketplace simulation stepping millions of agents — is what made wrapping the function in a Spark UDF miss its SLO, and Ray is the cluster built to run that Python, as a graph of tasks and actors, without pretending to be a SQL engine.
 
 ---
 
@@ -192,7 +199,7 @@ samples = ray.get(tick_refs)
 
 Actor methods on a given actor **queue**. Throughput per actor is one Python thread (unless `max_concurrency` and you are careful with the GIL). Scale-out is **more actors**, not more concurrency inside one.
 
-### Nested tasks (the part Spark cannot say)
+### Nested tasks (a workload Ray expresses more naturally than Spark)
 
 ```python
 @ray.remote
@@ -210,7 +217,7 @@ cohort_refs = [score_cohort.remote(cid, chunk) for cid, chunk in cohorts]
 ray.get(cohort_refs)
 ```
 
-The inner fan-out is scheduled as real tasks. This is a **dynamic graph**, not a UDF inside a stage.
+The inner fan-out is scheduled as real tasks. This is a **dynamic graph**, not a UDF inside a stage. Spark can express nested or data-dependent fan-out too — via UDFs, `mapPartitions`, or multiple driver-side jobs — but the pattern fights Spark's stage-based, statically-planned execution model. Ray schedules it natively.
 
 ### Object store control
 

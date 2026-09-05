@@ -1,18 +1,16 @@
 # Batch vs Stream Processing
 
-The SaaS analytics team wants three numbers from the same event:
+Design review, Thursday. Someone proposes: "let's just put everything on Flink so we're real-time-ready." The same event —
 
 ```text
 {timestamp, customer_id, user_id, service, endpoint, region, latency_ms, status_code, bytes}
 ```
 
-1. Revenue-adjacent usage for last month — on the CFO’s desk **Monday 09:00**.
-2. Active users in the last hour — chart **every minute**.
-3. This checkout request looks fraudulent — **200 ms** or we already charged the card.
+— needs to answer three different questions: revenue-adjacent usage for last month, on the CFO's desk **Monday 09:00**; active users in the last hour, charted **every minute**; and whether this checkout request is fraudulent, in **200 ms**, before the card is charged.
 
-Those are not three flavours of Spark. They are three **latency classes**, with three failure stories and three cost curves. Calling all of them “real-time” is how you inherit a Flink cluster that computes yesterday’s CSV.
+Before you agree to "just put everything on Flink": does "real-time" mean the same thing for all three? Which of those three, answered an hour late, causes an actual incident rather than an annoyed Slack message?
 
-Batch and stream are not rivals. They are points on a spectrum defined by **how late an answer is allowed to be**, and by **how much state you must remember between events**.
+Those are not three flavours of Spark — they are three **latency classes**, with three failure stories and three cost curves. Calling all of them "real-time" is how you inherit a Flink cluster that computes yesterday's CSV. Batch and stream are not rivals. They are points on a spectrum defined by **how late an answer is allowed to be**, and by **how much state you must remember between events**.
 
 ---
 

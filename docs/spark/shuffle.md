@@ -1,6 +1,13 @@
 # The Shuffle
 
-Every serious Spark investigation ends here. The SaaS p95 job is “slow” because **rows for `cust_0042` live on twenty executors and must live on one** before `groupBy("customer_id")` is correct. The mechanism that makes them meet — serialise, write, fetch, deserialise, maybe spill — is the shuffle.
+02:47 AM page: the `groupBy("customer_id")` stage has been stuck at 199 of 200 tasks for forty minutes. Yesterday's run of the same code, same cluster, finished in twelve minutes. CPU dashboards look idle; the bill does not.
+
+A. The network is saturated moving shuffle data.
+B. One reducer owns a single hot key's share of the data, and the other 199 finished long ago.
+C. `spark.sql.shuffle.partitions` is set too low for the data volume.
+D. Every task is spilling to disk equally.
+
+Pick one before reading on. Every serious Spark investigation ends here. The SaaS p95 job is “slow” because **rows for `cust_0042` live on twenty executors and must live on one** before `groupBy("customer_id")` is correct. The mechanism that makes them meet — serialise, write, fetch, deserialise, maybe spill — is the shuffle.
 
 If you only internalise one Spark lesson, internalise this page. It is the concrete form of [Data Movement](../foundations/data-movement.md) and [Partitioning](../foundations/partitions.md).
 

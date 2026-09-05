@@ -1,6 +1,13 @@
 # Graph Algorithms
 
-Storing User → Device → IP → Transaction → Merchant lets you **walk**. Finding a **ring**, a **bridge account**, or **similar merchants** is a different class of work: global (or large-subgraph) algorithms. In fraud, three matter first: **Weakly Connected Components (WCC)**, **PageRank**, **node similarity**. The Staff skill is **when they run** — not calling GDS on the payment path.
+Code review, 4:02 PM. A PR adds `CALL gds.wcc.stream()` directly inside the risk API's request handler, "so fraud rings are always fresh." The reviewer's first question: what happens to the serving cluster the first time this runs against a 40-million-edge graph in the middle of the afternoon?
+
+A. Nothing — WCC is O(log n) with the right index.
+B. The one request just takes longer; other traffic is unaffected.
+C. The in-memory graph projection pins RAM and CPU, and every other Bolt session queued behind it stalls.
+D. It fails fast with an out-of-memory error and the request moves on.
+
+Pick one before reading on. Storing User → Device → IP → Transaction → Merchant lets you **walk**. Finding a **ring**, a **bridge account**, or **similar merchants** is a different class of work — global (or large-subgraph) algorithms. In fraud, three matter first: **Weakly Connected Components (WCC)**, **PageRank**, **node similarity**. The Staff skill is **when they run** — not calling GDS on the payment path.
 
 ---
 

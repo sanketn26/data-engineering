@@ -1,6 +1,15 @@
 # JupyterHub & Shared Compute
 
-Analysts need a REPL with data, CPUs, and packages. JupyterHub (often Zero to JupyterHub on Kubernetes) is the usual shared answer. It is also a **cost, isolation, and exfiltration** problem wearing a friendly UI. Treat it as a production-adjacent service, not as "just notebooks."
+Friday, 4:50 PM. A security ticket lands: 200,000 rows of customer emails found in a personal Google Drive folder. The trail leads to a JupyterHub notebook: `spark.read.parquet("s3://lake/raw/...")`, then `.toPandas().to_csv("~/export.csv")`, then a browser download.
+
+Which single control would have stopped this fastest?
+
+A. Disable browser download from user pods.
+B. Give the notebook masked, curated data instead of raw IAM.
+C. Deny network egress so the file can't leave the pod.
+D. Audit logging on the query, so it's caught after the fact.
+
+Analysts need a REPL with data, CPUs, and packages, and JupyterHub (often Zero to JupyterHub on Kubernetes) is the usual shared answer to that — but as the scenario above shows (B beats the others: A and C are compensating controls, D is forensics, not prevention), it is also a **cost, isolation, and exfiltration** problem wearing a friendly UI, and should be treated as a production-adjacent service, not "just notebooks."
 
 Related: [security](../security/index.md), [Spark vs Ray](../comparisons/spark-vs-ray.md), [quality](../quality/index.md).
 

@@ -3,19 +3,16 @@
 !!! info "Version and source policy"
     PyFlink and connector APIs are version-sensitive. Check [Versions & Primary Sources](../reference/version-matrix.md) and run the committed lab baseline.
 
-Processing one event is easy:
+02:11 AM. PagerDuty: the fraud team's `login-alerts` topic has been silent for six hours. Kafka consumer lag on `login-events` reads 0 — every record is being consumed. The job's CPU and network graphs look idle-normal, not crashed. A user who tripped 40 failed logins in eleven minutes never got flagged.
 
-```python
-for event in kafka_stream:
-    if event["status_code"] >= 500:
-        send_alert(event)
-```
+A. The job crashed quietly.
+B. The alert threshold is wrong.
+C. A watermark stopped advancing, so the 5-minute window that counts failed logins per user never closed.
+D. Kafka silently dropped the events.
 
-Now product asks: **alert when the same user has more than 10 failed logins in the last 5 minutes.**
+Predict which one before reading on. The rule behind that alert — **more than 10 failed logins for the same user in the last 5 minutes** — sounds like a one-line filter until you ask *whose clock* "5 minutes" runs on: the TaskManager's, Kafka's append time, or the timestamp inside the event. Get that wrong and a burst of late mobile retries can trip the rule for the wrong window, or never trip it at all.
 
-Time is part of the computation. "Five minutes" according to whose clock — the TaskManager, Kafka's append time, or `event["timestamp"]`? If a mobile client delivers a burst 90 seconds late, does that user trip the rule?
-
-Those questions are stream processing. Kafka stores the log ([Kafka module](../kafka/index.md)). Flink is the engine that keeps **state** across events and closes **windows** when it believes time has moved.
+Kafka stores the log ([Kafka module](../kafka/index.md)). Flink is the engine that keeps **state** across events and closes **windows** when it believes time has moved — which is exactly the mechanism that failed above.
 
 ---
 

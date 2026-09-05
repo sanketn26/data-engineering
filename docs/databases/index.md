@@ -3,11 +3,16 @@
 !!! info "Version and source policy"
     Limits and billing models change. Verify service-specific numbers against primary documentation; see [Versions & Primary Sources](../reference/version-matrix.md).
 
-The checkout API needs **session state in single-digit milliseconds**. The observability pipeline needs **hundreds of thousands of writes per second** that survive a zone loss. The IoT control plane needs a **device registry** keyed by `device_id` that is updated from the field and read from the fleet manager.
+Capacity review, two weeks before Black Friday. The single Postgres primary that serves checkout sessions, observability writes, and the IoT device registry is projected to blow past its connection limit and WAL throughput at 100× today's traffic. Someone proposes bigger hardware. Someone else proposes read replicas. Someone else says "just move it to NoSQL" without saying which store or why.
 
-Postgres can do all three at 1×. At 100× it becomes the incident: WAL, bloat, vacuum, a single primary, failover measured in tens of seconds, and a schema that still wants joins you will not run on the hot path.
+What actually fixes each workload?
 
-This module is about stores that **start from the access pattern**, not from third-normal-form. They are not “schema-less.” They are **query-bound**.
+A. Vertical-scale the Postgres primary — more CPU, more RAM, same schema.
+B. Add read replicas in front of the existing tables.
+C. Move each workload to a store chosen for its **access pattern** — a key-value or wide-column store keyed the way the hot query is keyed.
+D. Shard Postgres by `user_id` and keep the joins.
+
+Pick one per workload before reading on. The checkout API needs session state in single-digit milliseconds, the observability pipeline needs hundreds of thousands of writes per second that survive a zone loss, and the IoT control plane needs a device registry keyed by `device_id` — three shapes that "bigger Postgres" cannot fix at once, because at 100× the primary itself becomes the incident: WAL, bloat, vacuum, and joins you will not run on the hot path. This module is about stores that **start from the access pattern**, not from third-normal-form — they are not "schema-less," they are **query-bound**.
 
 ---
 

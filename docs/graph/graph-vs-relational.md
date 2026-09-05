@@ -1,8 +1,15 @@
 # Graph vs Relational
 
-Graph databases are not “better at relationships.” **Every OLTP schema has relationships.** They are foreign keys. Graphs become valuable when **multi-hop traversal** is a first-class access pattern — operational pointer chasing — not when you need an analytic scan over facts.
+Design review, 10 AM. A recursive CTE that finds "users within 3 hops of this IP" ran in 40 ms last quarter, back when the table had 2 million rows. Same query, same indexes, now times out at 30 seconds — the table has grown to 40 million rows. Someone proposes migrating the whole fraud ledger to Neo4j. Someone else says "just tune Postgres."
 
-Postgres remains the default. This page is the honest comparison so fraud and recs reviews do not end in a second database by fashion.
+What's the right call?
+
+A. Add or rebuild an index — the query plan just went stale.
+B. Increase `work_mem` and let the planner spill less.
+C. Move this one traversal to a graph store; leave the ledger in Postgres.
+D. Move everything, including the ledger, to Neo4j.
+
+Pick one before reading on. Graph databases are not "better at relationships" — every OLTP schema has relationships, they're called foreign keys. Graphs earn their keep when **multi-hop traversal** is a first-class access pattern — operational pointer chasing — not when you need an analytic scan over facts. Postgres remains the default; this page is the honest comparison so fraud and recs reviews do not end in a second database by fashion.
 
 ---
 

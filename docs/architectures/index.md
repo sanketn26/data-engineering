@@ -1,6 +1,10 @@
 # Architectures
 
+Before you read a single one of these five pages: what is the first box you would draw for a system that ingests events and needs both a live dashboard and a year of history? Most engineers draw Kafka, then a stream processor, then a lakehouse, then an OLAP store — all before writing down a single number. Try instead to name the **one** query that must be fast, the **one** failure that is unacceptable, and the **one** component you refuse to add yet. If you cannot do that in a sentence, you are not ready to draw a box.
+
 These pages are design drills, not catalogues of boxes. Each system starts from **requirements**, not from a favourite stack. The stack is the last thing you write down.
+
+Reading these five as independent case studies is useful; reading them as one company's timeline is more useful. [SaaSCo: The Evolving Company](saasco-evolution.md) walks a single SaaS-analytics business through six growth stages, and every new component in that story — Spark, Kafka, Iceberg, ClickHouse, contracts and lineage — is forced by a measured bottleneck in the stage before it, never adopted ahead of need.
 
 The five running use cases in this academy share event shapes, but they do not share latency, retention, or failure budgets. That is the point: the same Kafka topic can feed a 50 ms fraud score, a 7-day observability dashboard, and a 2-year lakehouse table, and those three jobs should not share an engine.
 
@@ -227,6 +231,49 @@ Fill it for two academy systems and one work system. If cold path is empty, good
 | Do not split when | "logs vs metrics" on the same team and SLA |
 
 Two clusters double ACLs, disk, and on-call. [Security](../security/index.md) ACLs are cheaper than a second cluster until they are not.
+
+---
+
+## Exercise: delete the unnecessary architecture
+
+Senior engineering includes knowing **when not to distribute**. This exercise is deliberately not a greenfield design — the stack already exists, and your job is to say what should not.
+
+A team ingests **30 GB/day** from a single Postgres OLTP database and needs a daily revenue dashboard for **six internal analysts**, refreshed once per morning. Their current architecture:
+
+```text
+Postgres
+   │  Debezium CDC
+   ▼
+Kafka
+   │
+   ▼
+Flink (stateful streaming job)
+   │
+   ▼
+S3 (raw)
+   │
+   ▼
+Iceberg (via Spark compaction job)
+   │
+   ▼
+Trino
+   │
+   ▼
+ClickHouse (materialized for "speed")
+   │
+   ▼
+dbt models on top of ClickHouse
+   │
+   ▼
+Airflow orchestrating the whole thing
+```
+
+1. Name every component that exists to solve a problem this workload does not have (hint: check the volume, the latency requirement, and the number of consumers against each component's reason to exist in this academy — [Kafka's](../kafka/index.md), [Flink's](../flink/index.md), [Iceberg's](../lakehouse/index.md)).
+2. Redesign V1 with the fewest components that satisfy "daily revenue dashboard, six analysts, 30 GB/day, refreshed each morning."
+3. Name the one signal that, if it changed, would justify reintroducing each component you removed.
+
+??? success "Exit check"
+    At 30 GB/day with a once-daily refresh and six analysts, there is no requirement for streaming (Kafka + Flink), no requirement for a lakehouse table format built for concurrent multi-engine writers (Iceberg), and no requirement for a real-time serving store (ClickHouse) — all three exist to solve problems of *volume*, *concurrency*, or *latency* this workload does not have. A defensible V1 is a nightly Postgres → S3/warehouse extract (or direct query if Postgres can absorb six analysts' worth of read load) → dbt models → a warehouse or even Postgres read replica the analysts query directly, orchestrated by a single Airflow DAG. Reintroduce Kafka if a second independent consumer needs the same change log; reintroduce a lakehouse format if a second engine needs concurrent access to the same files; reintroduce ClickHouse if the SLA moves from "each morning" to "sub-second, interactively." Until one of those is true and measured, each component is a pager rotation with no workload behind it — see [When *not* to use distributed data systems](../foundations/index.md#when-not-to-use-distributed-data-systems).
 
 ---
 

@@ -3,9 +3,17 @@
 !!! info "Version and source policy"
     Format specifications, protocol features, and engine support evolve independently. Check [Versions & Primary Sources](../reference/version-matrix.md).
 
-Raw Parquet on S3. Concurrent readers, writers, updates, a schema change, a job that dies after writing half the files. **Where is the table?** Until you can answer that with a pointer, not a directory listing, you do not have a table. You have a pile of files.
+03:14 AM. Spark job status: `SUCCESS`. Files written: 13,429. Trino query for yesterday's revenue: **₹0**. You check S3 — the files are all there, sitting in the prefix.
 
-That question is the lakehouse. Not "warehouse vs lake marketing." A **table format** — Iceberg, Hudi, Delta — is the metadata layer that names which files are the table *right now*, after a crash, during a write, and as of last Tuesday.
+What happened?
+
+A. Trino's result cache is serving a stale answer.
+B. The commit that should have published those 13,429 files never happened — they landed on S3, but nothing ever named them "the table."
+C. A schema mismatch is silently dropping every row.
+
+Pick one before reading on.
+
+It's B. Concurrent readers, writers, updates, a schema change, a job that dies after writing half the files — none of it matters until you can answer **where is the table?** with a pointer, not a directory listing. Until then you do not have a table. You have a pile of files. That question is the lakehouse. Not "warehouse vs lake marketing." A **table format** — Iceberg, Hudi, Delta — is the metadata layer that names which files are the table *right now*, after a crash, during a write, and as of last Tuesday.
 
 ---
 

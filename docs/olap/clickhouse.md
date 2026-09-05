@@ -1,8 +1,13 @@
 # ClickHouse
 
-Hundreds of millions of events per day. Grafana wants p95 latency by endpoint in a few hundred milliseconds. Postgres can store the rows. It cannot answer that chart as a lifestyle.
+**03:14 AM.** Grafana's checkout-service tile times out. `EXPLAIN indexes = 1` on the query behind it shows every granule in the partition selected — none skipped — for a filter on `service = 'checkout'`. The table has an `ORDER BY`. The predicate is right there in the `WHERE` clause.
 
-ClickHouse is a columnar store that **owns** the data: sorted parts, sparse indexes, vectorised execution. It is not Trino (no federation as a purpose) and not Postgres (no OLTP mutations). The design decision you cannot postpone is `ORDER BY`.
+Predict before you read on: (A) `ORDER BY` doesn't include `service` at all, (B) `service` is in `ORDER BY` but not first, (C) the query wraps `service` in a function, or (D) the primary index is just too small for the data volume?
+
+Hundreds of millions of events land every day, Grafana wants p95 latency by endpoint in a few hundred milliseconds, and Postgres cannot answer that chart as a lifestyle — ClickHouse can, but only because `ORDER BY` **is** the index, and the design decision you cannot postpone is which column goes first.
+
+!!! note "This is SaaSCo at Stage 5"
+    [SaaSCo: The Evolving Company](../architectures/saasco-evolution.md#stage-5-customer-dashboards-need-sub-second-clickhouse-appears-phase-8) adds ClickHouse once a customer-facing dashboard needs sub-second answers — a latency class Iceberg and Trino were never built to hit.
 
 ---
 

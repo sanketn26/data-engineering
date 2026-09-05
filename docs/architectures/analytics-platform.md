@@ -1,6 +1,8 @@
 # SaaS Analytics Platform Architecture
 
-You ingest product events from **your customers' users**, and each customer expects dashboards that look like a single-tenant product. The dominant constraints are **multi-tenancy, cost, and not mixing tenants** — not "can Kafka take 100k/s" (it can).
+A support ticket comes in: customer A's dashboard briefly showed a spike in `api-gateway` traffic that, on inspection, belonged to customer B. Nobody wrote a cross-tenant query on purpose — a noisy tenant's burst just happened to land in the same query window as a smaller tenant's aggregate. Predict before you read on: is this a Kafka partitioning bug, a ClickHouse `ORDER BY`/query problem, or a symptom of not treating tenancy as a first-class requirement at every layer?
+
+It's the third one, and it recurs at every layer if you let it: you ingest product events from **your customers' users**, and each customer expects dashboards that look like a single-tenant product. The dominant constraints are **multi-tenancy, cost, and not mixing tenants** — not "can Kafka take 100k/s" (it can).
 
 This is the running "System A" event shape used in labs. Related: [observability](observability.md) (similar ingest, different tenant model), [security](../security/index.md), [metadata](../metadata/index.md), [ClickHouse vs Trino](../comparisons/clickhouse-vs-trino.md).
 

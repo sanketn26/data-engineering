@@ -1,0 +1,6 @@
+# Bakes prometheus.yml into the image instead of a bind mount. Some Docker
+# setups (notably Colima with the virtiofs mount type) can fail to bind-mount
+# a single file reliably; baking the config in at build time sidesteps that
+# entirely and works the same way on every host.
+FROM prom/prometheus:v2.53.0
+COPY prometheus.yml /etc/prometheus/prometheus.yml

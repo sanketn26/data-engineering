@@ -1,8 +1,13 @@
 # Reference
 
-Use [Cost Engineering](cost-engineering.md) to quantify a selection and [Versions & Primary Sources](version-matrix.md) before applying version-sensitive examples in production.
+A design review: someone asks "why not Databricks for everything?" A teammate opens this page, searches for "selection framework," and starts reading glossary definitions instead of answering the question.
 
-Use this section when you need a **decision procedure** or a **precise term**, not a tutorial. If you are still building intuition, go back to the module (foundations → tool → architecture). Looking up "watermark" every time is a signal to replay [Flink time](../flink/time.md), not to live in the glossary.
+Predict before you read on: is that the right reflex, or is reference the wrong place to start when you are still building intuition?
+
+It's the wrong place. Use this section when you need a **precise term** or a **version pin**, not a tutorial or a decision procedure — [Versions & Primary Sources](version-matrix.md) before applying version-sensitive examples in production, the [Glossary](glossary.md) for an operational term you hit mid-page. If you are still building intuition, go back to the module (foundations → tool → architecture); looking up "watermark" every time is a signal to replay [Flink time](../flink/time.md), not to live in the glossary.
+
+!!! note "Selection framework and cost engineering moved"
+    The technology selection framework and cost engineering are now taught as lessons in [Phase 11: Architecture & Economics](selection-framework.md) under **Learn**, not looked up here as reference material — they are decision procedures you work through with a real workload, not definitions you check mid-page. This page keeps the links below for continuity; the module pages themselves are unchanged.
 
 ---
 
@@ -10,8 +15,8 @@ Use this section when you need a **decision procedure** or a **precise term**, n
 
 | Page | Use it when |
 |------|-------------|
-| [Technology selection framework](selection-framework.md) | Designing a system, defending a choice, killing a zoo |
-| [Cost engineering](cost-engineering.md) | Converting architecture into unit economics and a budget |
+| [Technology selection framework](selection-framework.md) | Designing a system, defending a choice, killing a zoo — now Phase 11 |
+| [Cost engineering](cost-engineering.md) | Converting architecture into unit economics and a budget — now Phase 11 |
 | [Versions and primary sources](version-matrix.md) | Checking lab pins and version-sensitive behavior |
 | [Glossary](glossary.md) | Operational meaning of a word used in this academy |
 

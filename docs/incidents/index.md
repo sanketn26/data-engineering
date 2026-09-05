@@ -1,6 +1,10 @@
 # Production Incidents
 
-These are drills, not blog posts. Read **Alert** and **Symptoms**. Write a hypothesis. Only then open **Resolution**.
+02:47 AM. `P1 consumer_lag_seconds{topic="product-events"} > 180`. Three teams' dashboards go stale in the next ten minutes and you have not opened a terminal yet.
+
+A. Restart the consumer group. B. Add more processing slots. C. Check per-partition lag before touching anything else. D. Page the on-call lead and wait for guidance.
+
+Only one of those survives contact with the metrics below — figuring out which one, before you act, is the whole exercise on this page. These are drills, not blog posts. Read **Alert** and **Symptoms**. Write a hypothesis. Only then open **Resolution**.
 
 The skill is not memorising the root cause. It is forming a **falsifiable** story from metrics: which layer, which key, which hop. That is what on-call actually is.
 

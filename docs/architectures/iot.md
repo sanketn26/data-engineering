@@ -1,6 +1,8 @@
 # IoT Platform Architecture
 
-Tens of millions of devices, small numeric samples, a handful of query shapes, and a **downsample pyramid**. The dominant constraint is **write rate + retention cost**, not join complexity. If you model this as "just events in a lakehouse," you will pay full-resolution storage for data nobody plots at 1 Hz a year later.
+A finance review flags the storage bill: 10 million devices, one sample every 30 seconds, and someone kept "just in case" raw resolution for a full year. Nobody has plotted a single point older than three weeks at anything finer than an hourly average. A. The fix is a bigger discount on object storage. B. The fix is a downsample pyramid that never should have been skipped. C. The fix is dropping to 5-minute sampling at the device. Predict before you read on.
+
+B: tens of millions of devices, small numeric samples, a handful of query shapes, and a **downsample pyramid** are the actual shape of this workload. The dominant constraint is **write rate + retention cost**, not join complexity. If you model this as "just events in a lakehouse," you will pay full-resolution storage for data nobody plots at 1 Hz a year later.
 
 Related: [time series](../time-series/index.md), [downsampling](../time-series/downsampling.md), [TSDB vs OLAP](../comparisons/tsdb-vs-olap.md), [cardinality](../time-series/cardinality.md).
 

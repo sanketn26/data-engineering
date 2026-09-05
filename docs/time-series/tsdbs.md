@@ -1,8 +1,10 @@
 # Choosing a TSDB
 
-The market is a pile of logos. The job is an access pattern: scrape-and-alert, IoT `{timestamp, device_id, sensor, value}`, or high-cardinality events that only look like metrics because they have a timestamp.
+**Slack thread, Monday.** "Should we standardize on InfluxDB, Timescale, or just remote_write everything into VictoriaMetrics?" Forty replies in, nobody has mentioned what any of the three teams actually write or query — one pages on service SLOs, one joins device readings to a customer table, one wants `user_id`-level latency charts.
 
-Pick the engine from **how you write and read**, not from who sponsored the conference.
+Predict before you read on: is there one engine that serves all three well, or does the right answer depend entirely on the access pattern each team actually has?
+
+There is no one right logo — the market is a pile of them — and the job is an access pattern: scrape-and-alert, IoT `{timestamp, device_id, sensor, value}`, or high-cardinality events that only look like metrics because they have a timestamp. Pick the engine from **how you write and read**, not from who sponsored the conference.
 
 ---
 

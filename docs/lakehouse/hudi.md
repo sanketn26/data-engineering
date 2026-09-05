@@ -1,16 +1,14 @@
 # Apache Hudi
 
-Orders change. `PENDING → PAID → SHIPPED → RETURNED`. The row in Postgres changed; a Parquet file on S3 did not. Concurrent readers still query "current orders." A job dies mid-upsert. **Where is the table, and where is order_id 8831?**
+9:03 AM. A support ticket: order 8831 shows `PENDING` in the product dashboard but Postgres has said `PAID` for forty minutes. Same lake, same partition. You already ruled out Iceberg and Delta for this table months ago for a reason that's about to become obvious.
 
-Iceberg and Delta Lake are excellent for append-heavy workloads and batch ETL. But what about:
+What's actually going on?
 
-- A database CDC stream producing INSERT, UPDATE, DELETE events
-- A user deletes their account (GDPR) — delete all their records from the lake
-- A late-arriving correction — update a record written 3 days ago
+A. The CDC connector silently dropped an event.
+B. Trino is reading a stale snapshot.
+C. The row lives inside a 128 MB Parquet file next to 500,000 others, and nothing has rewritten that file since the status changed — "append-only" and "this row just changed" don't mix without something built for it.
 
-These are **mutation-heavy** workloads. They require efficient upserts and deletes, not just appends.
-
-Hudi was designed at Uber for exactly this: ingesting database CDC streams into a data lake efficiently.
+It's C. `PENDING → PAID → SHIPPED → RETURNED` — the row in Postgres changed; a Parquet file on S3 did not, and a job can die mid-upsert leaving both readers and the question of **where is order_id 8831** unanswered. Iceberg and Delta Lake are excellent for append-heavy workloads and batch ETL, but a database CDC stream producing INSERT/UPDATE/DELETE, a GDPR account deletion, or a late-arriving correction to a three-day-old record are **mutation-heavy** workloads — they need efficient upserts and deletes, not just appends. Hudi was designed at Uber for exactly this: ingesting database CDC streams into a data lake efficiently.
 
 ---
 

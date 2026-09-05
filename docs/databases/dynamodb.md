@@ -1,8 +1,15 @@
 # DynamoDB
 
-The e-commerce session API must put and get **cart + auth blob** in single-digit milliseconds, without a pager for compaction, repair, or a primary failover. The IoT control plane needs the same shape for **device_id → firmware**. You are on AWS, the access patterns fit a **partition key and an optional sort key**, and you are willing to pay for that convenience.
+CloudWatch alarm, 11:40 AM: `ThrottledRequests` on the sessions table is nonzero. One enterprise tenant's checkout requests are timing out with `ProvisionedThroughputExceededException`; every other tenant reads and writes fine on the same table, same billing mode, same total provisioned capacity.
 
-DynamoDB is that store. It is not a SQL database with a different logo. Single-table design is a **technique**, not a religion.
+Why is one tenant throttled while the rest are healthy?
+
+A. The table's overall throughput is under-provisioned — raise it.
+B. That tenant's partition key is receiving disproportionate traffic — one hot partition, not a table-wide problem.
+C. A GSI on that item is eventually consistent and lagging.
+D. That tenant's items exceed the 400 KB item-size limit.
+
+Pick one before reading on. The e-commerce session API needs to put and get a **cart + auth blob** in single-digit milliseconds, without a pager for compaction, repair, or a primary failover, and the IoT control plane needs the same shape for **device_id → firmware** — the kind of workload where the access pattern fits a **partition key and an optional sort key**, and you're willing to pay AWS for that convenience. DynamoDB is that store. It is not a SQL database with a different logo, and single-table design is a **technique**, not a religion.
 
 ---
 

@@ -1,8 +1,6 @@
-# Phase 0: Foundations
+# Phase 0: Data Systems Foundations
 
-Foundations includes [analytical data modelling](data-modelling.md), [change data capture](cdc.md), and [transformation engineering](transformation-engineering.md). These connect distributed-system mechanics to the tables and pipelines data engineers are accountable for.
-
-Monday morning. Product wants p95 latency by customer, service, and region for last week. The events look like this:
+09:02 Monday. Product wants p95 latency by customer, service, and region for last week. Friday this was 40 GB of Parquet and a pandas script on a laptop, on events shaped like this:
 
 ```json
 {
@@ -18,9 +16,11 @@ Monday morning. Product wants p95 latency by customer, service, and region for l
 }
 ```
 
-On Friday that was 40 GB of Parquet and a pandas script on a laptop. Today it is 8 TB, one enterprise tenant (`cust_0042`) is 38% of volume, and the same script OOMs while the dashboard is still empty. Nothing about the *query* changed. The *physics* did.
+This morning it's 8 TB, one enterprise tenant (`cust_0042`) is 38% of volume, and the identical script OOMs before the dashboard loads. Nobody touched the SQL.
 
-This phase is not “what is a partition.” It is the shared vocabulary you will use when Spark, Kafka, Flink, Iceberg, and ClickHouse all fail in different costumes of the same four problems: **divide the work, move the data, survive a crash, combine the answers**.
+Before you read on, pick one: does the job die first from (A) RAM, (B) the network between machines, or (C) one customer's rows all landing on the same reducer? And would handing this to a 40-node Spark cluster fix the real problem, or just relocate the OOM to a different process?
+
+The SQL didn't change; the *physics* did — and this phase is the shared vocabulary for naming that physics before Spark, Kafka, Flink, Iceberg, and ClickHouse each fail at it in a different costume: **divide the work, move the data, survive a crash, combine the answers**. Two adjacent phases build directly on it: [Phase 1: Data Representation](parquet-internals.md) (Parquet internals, object storage, data modelling, data contracts, transformation engineering) covers how data is *shaped* once it's moving; [Phase 2: Data Movement](../kafka/index.md) (Kafka, plus [Change Data Capture](cdc.md)) covers how it gets from a source to everywhere it's needed. Read this phase first — Phase 1 and 2 both assume it.
 
 Engineers who skip this learn tools in isolation and freeze in front of systems they have not seen. Engineers who have these models can open an unfamiliar UI and already know which metric is lying.
 
@@ -34,12 +34,12 @@ Read in order. Each page is a primitive the rest of the academy reuses.
 |--------|-------------------------|--------------------------|
 | [Data at Scale](scale.md) | What actually breaks as volume grows 10× / 100× / 1000×? | Size a pipeline from bytes, not from a vendor slide |
 | [Partitioning](partitions.md) | How do we assign independent slices of work? | Choose a key, predict hotspots, prune scans |
-| [Data Modelling](data-modelling.md) | What grain, keys, and history policy does a fact need? | Design a model that survives late and changed data |
 | [Data Movement](data-movement.md) | Why is the network the bill, not the CPU? | Count shuffle bytes before you count cores |
 | [Distributed Execution](distributed-execution.md) | How does a job become stages, tasks, and stragglers? | Read a Spark / Flink / Trino UI without guessing |
-| [Change Data Capture](cdc.md) | How do a snapshot and a stream meet without lost updates? | Design a snapshot-to-stream handoff and reconcile a sink |
-| [Transformation Engineering](transformation-engineering.md) | What makes a transformation safe to rerun and backfill? | Choose incremental boundaries and deploy a model safely |
+| [Backpressure & Queueing](backpressure.md) | Where does throughput mismatch go if it doesn't vanish? | Use Little's Law to size a backlog and a recovery time |
 | [Batch vs Stream](batch-vs-stream.md) | When is “real-time” a latency SLA, not a product? | Push back on streaming that a nightly job already covers |
+
+This module does not cover how data is *shaped* (Parquet, object storage, modelling, contracts — [Phase 1](parquet-internals.md)) or how it *moves end to end* (Kafka, CDC — [Phase 2](../kafka/index.md)). Those build on the mechanics here.
 
 Downstream, the same primitives reappear with different names:
 
@@ -182,7 +182,7 @@ After this phase you can, without notes:
 - Draw job → stage → task → partition and point at the straggler.
 - Translate “we need this in real time” into a latency number and a batch/stream recommendation.
 
-Then go to [Spark](../spark/index.md). Spark is the first *implementation* of these primitives, not a new subject.
+Then go to [Phase 1: Data Representation](parquet-internals.md). Spark, Kafka, and the rest are the first *implementations* of these primitives, not a new subject.
 
 ---
 
@@ -190,11 +190,11 @@ Then go to [Spark](../spark/index.md). Spark is the first *implementation* of th
 
 1. [Data at Scale](scale.md) — physics and the three tensions.
 2. [Partitioning](partitions.md) — the lever everything else hangs on.
-3. [Data Modelling](data-modelling.md) — grain, keys, and history before you touch a query.
-4. [Data Movement](data-movement.md) — why locality and serialisation dominate CPU.
-5. [Distributed Execution](distributed-execution.md) — DAGs, drivers, and why `collect()` is an incident.
-6. [Change Data Capture](cdc.md) — snapshot and stream, ordering, and reconciliation.
-7. [Transformation Engineering](transformation-engineering.md) — incremental models that survive retry and backfill.
-8. [Batch vs Stream](batch-vs-stream.md) — latency as a product constraint.
+3. [Data Movement](data-movement.md) — why locality and serialisation dominate CPU.
+4. [Distributed Execution](distributed-execution.md) — DAGs, drivers, and why `collect()` is an incident.
+5. [Backpressure & Queueing](backpressure.md) — Little's Law and where a throughput mismatch goes.
+6. [Batch vs Stream](batch-vs-stream.md) — latency as a product constraint.
+
+Then continue to [Phase 1: Data Representation](parquet-internals.md) — Parquet internals, object storage, data modelling, data contracts, and transformation engineering — before [Phase 2: Data Movement](../kafka/index.md) (Kafka and CDC).
 
 Cross-check yourself against the [selection framework](../reference/selection-framework.md) once you can name the workload’s volume, access pattern, and failure unit.

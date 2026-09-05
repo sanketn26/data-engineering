@@ -1,5 +1,14 @@
 # Partitions and consumers
 
+16:02. Consumer lag on `alert-processor` won't come down. Someone scales the Kubernetes Deployment from 12 pods to 52, certain more workers means more throughput. Ten minutes later, lag is exactly where it was.
+
+A. The new pods need time to warm up.
+B. `service-events` has 12 partitions, so 40 of those pods are sitting idle no matter what.
+C. One `customer_id` is hot and needs to be split, not parallelised around.
+D. The consumer group needs a rebalance to notice the new members.
+
+Pick one before reading on. `service-events` is one logical stream, and how partitions turn one topic into many parallel logs — without throwing away per-key order — is the entire answer.
+
 ## Use case
 
 `service-events` is one logical stream. At 50k records/s the warehouse loader is fine on one thread. At 500k records/s — SaaS analytics on a launch day, or observability in a busy region — one process cannot parse JSON, enrich, and write ClickHouse.

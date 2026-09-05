@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Parquet Row-Group Explorer</title>
+<style>
+  body { font-family: system-ui, sans-serif; background: #0d1117; color: #e6edf3; margin: 0; padding: 20px; }
+  h1 { color: #58a6ff; font-size: 22px; }
+  h3 { margin-top: 0; }
+  .card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 20px; margin: 15px 0; }
+  label { display: block; margin-bottom: 4px; color: #8b949e; font-size: 14px; }
+  .input-row { display: flex; align-items: center; gap: 12px; margin: 10px 0; flex-wrap: wrap; }
+  .dim-name { width: 150px; font-size: 14px; }
+  input[type=number] { background: #0d1117; color: #e6edf3; border: 1px solid #30363d; padding: 6px 10px; border-radius: 4px; width: 110px; }
+  input[type=range] { flex: 1; }
+  .val-display { width: 60px; text-align: right; color: #58a6ff; font-weight: bold; font-size: 13px; }
+  button { background: #238636; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 14px; }
+  button:hover { background: #2ea043; }
+  .toggle-group { display: flex; gap: 8px; }
+  .toggle-btn { background: #21262d; border: 1px solid #30363d; color: #8b949e; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 14px; }
+  .toggle-btn.active { background: #1a3a5c; border-color: #58a6ff; color: #58a6ff; font-weight: bold; }
+  .result { margin: 20px 0; }
+  .big-number { font-size: 40px; font-weight: bold; margin: 10px 0; }
+  .ok { color: #3fb950; }
+  .warn { color: #e3b341; }
+  .danger { color: #f85149; }
+  .breakdown { font-family: monospace; font-size: 14px; background: #0d1117; padding: 15px; border-radius: 6px; white-space: pre-wrap; }
+  .verdict { padding: 15px; border-radius: 6px; margin-top: 15px; }
+  .verdict.ok { background: #1a3a1a; border: 1px solid #3fb950; }
+  .verdict.warn { background: #3a2a00; border: 1px solid #e3b341; }
+  .verdict.danger { background: #3a1a1a; border: 1px solid #f85149; }
+  .explanation { background: #161b22; border-left: 4px solid #58a6ff; padding: 15px; border-radius: 4px; margin-top: 20px; }
+  code { background: #0d1117; padding: 1px 5px; border-radius: 4px; }
+
+  .file-box { border: 1px solid #30363d; border-radius: 8px; padding: 12px; background: #0d1117; }
+  .rowgroups { display: flex; flex-direction: column; gap: 8px; }
+  .rg { display: flex; align-items: center; gap: 12px; border: 1px solid #30363d; border-radius: 6px; padding: 8px 12px; transition: all 0.2s; }
+  .rg .rg-label { width: 90px; font-family: monospace; font-size: 13px; color: #8b949e; }
+  .rg .range-track { position: relative; flex: 1; height: 18px; background: #161b22; border-radius: 4px; overflow: hidden; }
+  .rg .range-fill { position: absolute; top: 0; bottom: 0; background: #30363d; border-radius: 4px; }
+  .rg .rg-stat { width: 150px; font-family: monospace; font-size: 12px; color: #8b949e; text-align: right; }
+  .rg.match { border-color: #3fb950; background: #12241a; }
+  .rg.match .range-fill { background: #3fb950; }
+  .rg.match .rg-stat { color: #7ee08a; }
+  .rg.skip { border-color: #30363d; opacity: 0.45; }
+  .rg.skip .range-fill { background: #484f58; }
+  .filter-marker { position: absolute; top: -3px; bottom: -3px; width: 2px; background: #f85149; }
+
+  .counter-box { display: flex; gap: 30px; flex-wrap: wrap; }
+  .counter { text-align: center; }
+  .counter .n { font-size: 32px; font-weight: bold; }
+  .counter .lbl { color: #8b949e; font-size: 12px; }
+</style>
+</head>
+<body>
+<h1>Parquet Row-Group Explorer</h1>
+<p>Predicate pushdown skips row groups using only the footer's min/max stats. Whether that skipping actually helps depends on one thing: was the data sorted on the filtered column before it was written.</p>
+
+<div class="card">
+  <h3 style="color:#e3b341">Write order</h3>
+  <p style="color:#8b949e;font-size:13px">This file has <strong>no partitioning at all</strong> — one file, 8 row groups, one column: <code>customer_id</code> (integers 0-999). Toggling regenerates each row group's min/max.</p>
+  <div class="toggle-group">
+    <button class="toggle-btn active" id="btn-sorted" onclick="setMode('sorted')">Sorted before write</button>
+    <button class="toggle-btn" id="btn-unsorted" onclick="setMode('unsorted')">Unsorted (random write order)</button>
+  </div>
+</div>
+
+<div class="card">
+  <h3 style="color:#e3b341">File layout: 8 row groups</h3>
+  <div class="file-box">
+    <div class="rowgroups" id="rowgroups"></div>
+  </div>
+  <p style="color:#8b949e;font-size:12px;margin-bottom:0">Red tick marks the filter value on each row group's 0-999 range.</p>
+</div>
+
+<div class="card">
+  <h3 style="color:#e3b341">Run a query</h3>
+  <div class="input-row">
+    <span class="dim-name">Filter</span>
+    <span style="font-family:monospace">customer_id =</span>
+    <input type="number" id="filter-val" min="0" max="999" value="420">
+    <button onclick="runQuery()">Run query</button>
+  </div>
+</div>
+
+<div class="result card" id="result">
+  <div class="counter-box">
+    <div class="counter"><div class="n ok" id="opened-count">0</div><div class="lbl">row groups opened / 8</div></div>
+    <div class="counter"><div class="n warn" id="pct-read">0%</div><div class="lbl">of the file read</div></div>
+  </div>
+  <div id="verdict" class="verdict ok" style="margin-top:16px">Run a query to see which row groups get skipped.</div>
+</div>
+
+<div class="explanation">
+  <h3 style="color:#58a6ff">Partitioning and row-group statistics are different mechanisms</h3>
+  <p>This file has zero partitioning — there is no <code>customer_id=.../</code> directory anywhere. All pruning shown above comes purely from footer min/max stats on row groups <em>within a single file that was already opened</em>. That is the distinction <a href="../foundations/parquet-internals.md" style="color:#58a6ff">Parquet Internals</a> makes explicit: partition pruning skips whole files using directory metadata before any file is opened; row-group statistics skip row groups inside a file you already decided to read.</p>
+  <ul>
+    <li><strong>Sorted before write</strong>: each row group's min/max becomes a tight, non-overlapping range, so a point filter matches roughly 1 of 8 row groups.</li>
+    <li><strong>Unsorted (random order)</strong>: each row group's min/max spans nearly the full 0-999 domain, so almost every row group's range contains the filter value and almost nothing gets skipped — even though the same footer stats exist.</li>
+    <li>Partitioning by <code>date</code> would not have helped this query at all — the filter is on <code>customer_id</code>, a column that was never a partition key. Sorting the write, not adding a partition column, is what makes this query cheap.</li>
+    <li>This is a planning estimate: real pruning also depends on page-level dictionary filtering and encoding, not modeled here.</li>
+  </ul>
+</div>
+
+<script>
+const NUM_ROW_GROUPS = 8;
+const ROWS_PER_RG = 999;
+let mode = 'sorted';
+let rowGroups = [];
+
+function generateSorted() {
+  const groups = [];
+  const span = Math.floor((ROWS_PER_RG + 1) / NUM_ROW_GROUPS);
+  for (let i = 0; i < NUM_ROW_GROUPS; i++) {
+    const lo = i * span;
+    const hi = (i === NUM_ROW_GROUPS - 1) ? ROWS_PER_RG : (lo + span - 1);
+    groups.push({ min: lo, max: hi });
+  }
+  return groups;
+}
+
+function generateUnsorted() {
+  const groups = [];
+  for (let i = 0; i < NUM_ROW_GROUPS; i++) {
+    // heavily overlapping: each row group spans nearly the full domain,
+    // with a little random jitter so they aren't all identical
+    const lo = Math.floor(Math.random() * 60);
+    const hi = ROWS_PER_RG - Math.floor(Math.random() * 60);
+    groups.push({ min: lo, max: hi });
+  }
+  return groups;
+}
+
+function setMode(m) {
+  mode = m;
+  document.getElementById('btn-sorted').classList.toggle('active', m === 'sorted');
+  document.getElementById('btn-unsorted').classList.toggle('active', m === 'unsorted');
+  rowGroups = m === 'sorted' ? generateSorted() : generateUnsorted();
+  renderRowGroups();
+  resetCounters();
+}
+
+function renderRowGroups() {
+  const container = document.getElementById('rowgroups');
+  container.innerHTML = '';
+  rowGroups.forEach((rg, i) => {
+    const row = document.createElement('div');
+    row.className = 'rg';
+    row.id = 'rg-' + i;
+
+    const label = document.createElement('div');
+    label.className = 'rg-label';
+    label.textContent = 'RG ' + i;
+    row.appendChild(label);
+
+    const track = document.createElement('div');
+    track.className = 'range-track';
+    const fill = document.createElement('div');
+    fill.className = 'range-fill';
+    const leftPct = (rg.min / ROWS_PER_RG) * 100;
+    const widthPct = ((rg.max - rg.min) / ROWS_PER_RG) * 100;
+    fill.style.left = leftPct + '%';
+    fill.style.width = Math.max(widthPct, 1) + '%';
+    track.appendChild(fill);
+    const marker = document.createElement('div');
+    marker.className = 'filter-marker';
+    marker.id = 'marker-' + i;
+    marker.style.display = 'none';
+    track.appendChild(marker);
+    row.appendChild(track);
+
+    const stat = document.createElement('div');
+    stat.className = 'rg-stat';
+    stat.id = 'stat-' + i;
+    stat.textContent = 'min=' + rg.min + ' max=' + rg.max;
+    row.appendChild(stat);
+
+    container.appendChild(row);
+  });
+}
+
+function resetCounters() {
+  document.getElementById('opened-count').textContent = '0';
+  document.getElementById('pct-read').textContent = '0%';
+  document.getElementById('verdict').className = 'verdict ok';
+  document.getElementById('verdict').innerHTML = 'Run a query to see which row groups get skipped.';
+  rowGroups.forEach((rg, i) => {
+    const el = document.getElementById('rg-' + i);
+    if (el) el.className = 'rg';
+    const marker = document.getElementById('marker-' + i);
+    if (marker) marker.style.display = 'none';
+  });
+}
+
+function runQuery() {
+  const filterVal = parseInt(document.getElementById('filter-val').value, 10);
+  if (isNaN(filterVal) || filterVal < 0 || filterVal > 999) {
+    const verdict = document.getElementById('verdict');
+    verdict.className = 'verdict danger';
+    verdict.innerHTML = '<strong>Invalid filter.</strong> Use an integer between 0 and 999.';
+    return;
+  }
+
+  let opened = 0;
+  rowGroups.forEach((rg, i) => {
+    const el = document.getElementById('rg-' + i);
+    const marker = document.getElementById('marker-' + i);
+    const leftPct = (filterVal / ROWS_PER_RG) * 100;
+    if (marker) {
+      marker.style.display = 'block';
+      marker.style.left = leftPct + '%';
+    }
+    if (filterVal >= rg.min && filterVal <= rg.max) {
+      opened++;
+      if (el) el.className = 'rg match';
+    } else {
+      if (el) el.className = 'rg skip';
+    }
+  });
+
+  const pct = Math.round((opened / NUM_ROW_GROUPS) * 100);
+  document.getElementById('opened-count').textContent = opened + ' / ' + NUM_ROW_GROUPS;
+  document.getElementById('pct-read').textContent = pct + '%';
+
+  const verdict = document.getElementById('verdict');
+  const cls = pct <= 25 ? 'ok' : (pct <= 60 ? 'warn' : 'danger');
+  verdict.className = 'verdict ' + cls;
+  if (mode === 'sorted') {
+    verdict.innerHTML = '<strong>' + opened + ' of ' + NUM_ROW_GROUPS + ' row groups opened</strong> (~' + pct + '% of the file read) for <code>customer_id = ' + filterVal +
+      '</code>. Data was sorted before write, so each row group has a tight, non-overlapping range and the footer stats rule out most row groups without opening a single page.';
+  } else {
+    verdict.innerHTML = '<strong>' + opened + ' of ' + NUM_ROW_GROUPS + ' row groups opened</strong> (~' + pct + '% of the file read) for <code>customer_id = ' + filterVal +
+      '</code>. Data was written in random order, so almost every row group\'s min/max spans nearly the full 0-999 domain — the same footer stats exist, but they can rule out almost nothing.';
+  }
+}
+
+setMode('sorted');
+</script>
+</body>
+</html>

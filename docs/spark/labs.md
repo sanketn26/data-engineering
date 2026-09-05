@@ -1,5 +1,9 @@
 # Spark Labs
 
+Your teammate wants to bump `spark.sql.shuffle.partitions` in production because "the last run was slow." You ask what the Spark UI showed for shuffle read and task skew on that run. They don't know — they never opened `:4040`.
+
+Predict before you read on: if you cannot name the stage, the shuffle bytes, and the skew ratio for a slow job, is changing a config value a fix or a guess?
+
 These labs exist so the SaaS event
 
 ```text

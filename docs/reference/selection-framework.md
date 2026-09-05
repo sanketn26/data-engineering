@@ -1,6 +1,10 @@
 # Technology Selection Framework
 
-Choose tools from **workload properties**, not from blogs or resume pressure. This page is a procedure: questions, a mapping table, failure questions, anti-patterns, then worked examples from the running systems.
+Design review, Tuesday 2 PM. The proposal: migrate the nightly NPS CSV job (20 MB, due Friday noon) from Airflow to Flink, "so we're stream-native before Q3." Nobody in the room can name what breaks if it stays batch.
+
+A. Approve it — Flink is the more modern choice. B. Reject it and ask what latency requirement changed. C. Approve it, but only if two other jobs migrate too, to amortize the ops cost. D. Table it until someone writes down the SLA.
+
+Only one of these asks the question this page exists to force. Choose tools from **workload properties**, not from blogs or resume pressure. This page is a procedure: questions, a mapping table, failure questions, anti-patterns, then worked examples from the running systems.
 
 Pairwise fights live in [comparisons](../comparisons/index.md). End-to-end boxes live in [architectures](../architectures/index.md). Come here first when the list of tools is still long.
 

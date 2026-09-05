@@ -1,8 +1,10 @@
 # Cardinality
 
-Prometheus outages have a favorite root cause: someone added a label. `user_id` looks like observability. It is a new time series per user per other-label combination — an index that grows until the TSDB cannot compact, scrape, or query.
+**03:14 AM.** Page: Prometheus OOM-killed, restarting, WAL replay taking 40 minutes. Nothing about traffic changed this week. The only recent change: Friday's deploy added one new label, `user_id`, to an existing HTTP metric, "for better debugging."
 
-Cardinality is not “how many rows.” It is **how many distinct series identities** the engine keeps hot.
+What happened? A) a memory leak in Prometheus itself, B) the scrape interval got misconfigured, C) one label turned the metric's series count into the billions, or D) a network partition caused duplicate scrapes. Pick one before reading on.
+
+It's (C): `user_id` looks like observability, but it is a new time series per user per other-label combination — an index that grows until the TSDB cannot compact, scrape, or query — because cardinality is not "how many rows," it is **how many distinct series identities** the engine keeps hot.
 
 ---
 

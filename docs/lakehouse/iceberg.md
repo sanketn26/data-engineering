@@ -1,8 +1,19 @@
 # Apache Iceberg
 
-Raw Parquet on S3. Concurrent readers (Trino), writers (Spark nightly, Flink CDC), updates, a schema change, a job that dies after 80 files. **Where is the table?** Iceberg answers: *the current metadata file's current snapshot*, not the directory.
+2:17 AM. Flink's CDC writer and the nightly Spark MERGE both try to commit to `lake.orders` in the same 90-second window. One succeeds. The other logs `CommitFailedException` and retries a few seconds later. Nobody loses data — but only because of one specific design decision upstream.
 
-Apache Iceberg adds a metadata layer that defines what the table is at any point in time. Raw Parquet files on object storage have no concept of "the table." Multiple engines cannot coordinate — they each see the raw files and have no transaction semantics.
+Which decision?
+
+A. Iceberg locked the table for the duration of the Spark job.
+B. The two engines simply happened not to touch the same files.
+C. Iceberg used optimistic concurrency: the losing writer re-read the new metadata pointer and retried its commit against it.
+
+Pick one.
+
+It's C. Raw Parquet on S3 has concurrent readers (Trino), writers (Spark nightly, Flink CDC), updates, a schema change, a job that dies after 80 files — and no concept of "the table" to arbitrate any of it. Apache Iceberg adds a metadata layer that defines what the table is at any point in time, so multiple engines that would otherwise just see raw files with no transaction semantics can coordinate through it. **Where is the table?** Iceberg answers: *the current metadata file's current snapshot*, not the directory.
+
+!!! note "This is SaaSCo at Stage 4"
+    [SaaSCo: The Evolving Company](../architectures/saasco-evolution.md#stage-4-multiple-writers-collide-iceberg-appears-phase-6) hits exactly this wall once a second writer joins the nightly Spark job: raw Parquet has no atomic commit, and "where is the table?" stops having a good answer.
 
 ---
 

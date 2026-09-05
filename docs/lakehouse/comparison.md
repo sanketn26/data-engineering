@@ -1,6 +1,10 @@
 # Choosing a Table Format
 
-Raw Parquet on S3. Concurrent readers, writers, CDC updates, schema change, mid-job crash. You already know you need a table format. The remaining question is not:
+3:40 PM, design review. Three teams want one name on the whiteboard. Team A streams SaaS events through Spark and serves them from Trino. Team B applies CDC upserts from Postgres. Team C runs nightly MERGE jobs on Databricks. The platform lead asks: "we already know we need a table format — which one do we standardize on?"
+
+Before you read on: is there a single right answer for all three teams, or does the question itself need fixing first?
+
+There is no winner across all three, and that is not a dodge — it is the answer. Raw Parquet on S3. Concurrent readers, writers, CDC updates, schema change, mid-job crash. You already know you need a table format. The remaining question is not:
 
 > Which table format is best?
 

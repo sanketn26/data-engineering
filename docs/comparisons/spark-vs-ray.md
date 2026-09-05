@@ -1,6 +1,8 @@
 # Spark vs Ray
 
-Spark and Ray both spread Python over machines. They answer different questions.
+A ML engineer asks in Slack: "we already have a 40-node Spark cluster for ETL — can't we just run our hyperparameter sweep as a Spark job over the search space instead of standing up Ray?" The sweep is 200 independent training runs, each holding a model in memory across several epochs, with early-stopping logic that needs to talk back to a scheduler. Predict before you read on: does Spark's DataFrame/partition model fit this, or does it fight it?
+
+It fights it. Spark and Ray both spread Python over machines, but they answer different questions.
 
 **Spark:** how do I transform this **dataset** (partitions, shuffle, SQL)?
 **Ray:** how do I run this **Python call graph** (tasks, actors, object store)?
