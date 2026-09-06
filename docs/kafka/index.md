@@ -204,3 +204,12 @@ Related: [foundations — scale](../foundations/scale.md), [observability archit
 6. Continue into [Flink](../flink/index.md) with the same `service-events` topic.
 
 You are done with Kafka as a *platform* when you can look at a lag graph, an ISR shrink, and a rebalance, and say which one is the incident.
+
+!!! success "Exit check — you pass this module if you can"
+    - Predict how keys distribute across partitions, and name which key would create a hot partition before running the simulator.
+    - Identify hot-key risk from a traffic shape (one tenant, one device, one entity id) without needing the incident to happen first.
+    - Explain what a consumer-group rebalance actually does, and why it briefly pauses processing for the whole group, not just the joining/leaving consumer.
+    - Reason about replication and ISR: what `acks=all` and `min.insync.replicas` guarantee, and what happens to writes when ISR shrinks below that minimum.
+    - State precisely where Kafka's exactly-once guarantee starts and stops (producer→topic, not topic→external sink) and what makes an end-to-end pipeline exactly-once anyway.
+    - Diagnose rising consumer lag from metrics alone: distinguish a hot partition, a slow sink, a rebalance storm, and a genuine capacity shortfall before touching any config.
+    - Decide when Kafka is unnecessary — a single consumer, low volume, or no replay requirement is often better served by a simpler queue or direct call.

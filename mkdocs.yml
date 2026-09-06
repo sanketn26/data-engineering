@@ -226,6 +226,7 @@ nav:
       - "Phase 11: Architecture & Economics":
           - Technology Selection Framework: reference/selection-framework.md
           - Cost Engineering: reference/cost-engineering.md
+          - Data Pipeline Correctness: reference/correctness-invariants.md
           - Comparisons: comparisons/index.md
           - Spark vs Flink: comparisons/spark-vs-flink.md
           - Spark vs Ray: comparisons/spark-vs-ray.md

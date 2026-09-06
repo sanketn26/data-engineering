@@ -70,6 +70,20 @@ Alert on:
 - first derivative: lag that was 2k and is 200k an hour later
 - the **hottest** partition, not the sum
 
+!!! question "What would you measure? — lag is rising, which hypothesis is it?"
+    "Lag is rising" is six different incidents wearing one metric. Before touching anything, name the metric that would confirm or kill each hypothesis:
+
+    | Hypothesis | Metric that confirms it |
+    |---|---|
+    | Producer spike | `MessagesInPerSec` / `BytesInPerSec` jumps with no change in consumer throughput |
+    | Consumer slowdown | Consumer `records-consumed-rate` drops while producer rate is flat |
+    | Hot partition | Lag concentrated on one partition-id, not spread across all assigned partitions |
+    | Broker throttling | Client-side quota-throttle-time metrics; broker `request p99` climbing |
+    | Slow downstream sink | Sink write latency / batch-flush duration climbing in lockstep with lag |
+    | Consumer rebalance | `rebalance_rate` / group generation-id incrementing; lag spikes and recovers in a saw-tooth |
+
+    A hypothesis you cannot name a distinguishing metric for is a guess, not a diagnosis — see [how-to-study](../how-to-study.md#what-would-you-measure) for the general pattern.
+
 ---
 
 ## 2. Rebalance storms

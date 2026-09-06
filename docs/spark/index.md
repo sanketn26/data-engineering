@@ -190,6 +190,14 @@ If the team cannot fill that card, they are not ready to tune executor count.
 
 When you can explain why `groupBy("customer_id")` on this schema produces one 40-minute task, you are done with Spark-the-tool and ready to use Spark-the-platform.
 
+!!! success "Exit check — you pass this module if you can"
+    - Predict which stage of a job will shuffle, and roughly how much data crosses the network, before running it.
+    - Identify skew from the Spark UI (one task running long after the rest finish) and name the key causing it.
+    - Explain what AQE can and cannot fix automatically (partition coalescing, skew join splitting — not a bad partition key choice).
+    - Reason about broadcast joins: when the build side fits in `spark.sql.autoBroadcastJoinThreshold`, and what happens when it silently doesn't.
+    - Diagnose a job that's slow from one that's failing — spill-to-disk and small-file explosion vs an actual OOM or stage failure.
+    - Decide when Spark is unnecessary — a workload that fits in DuckDB, Postgres, or a single-node Pandas job on the actual (not hoped-for) data volume.
+
 **Suggested order:** [mental model](mental-model.md) → [shuffle](shuffle.md) (do not skip) → [optimizer](optimizer.md) → [gotchas](gotchas.md) → [labs](labs.md) last, with the UI open.
 
 Next: [The Spark Mental Model](mental-model.md).

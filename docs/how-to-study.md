@@ -52,6 +52,10 @@ Before reading further: think. Where does that imbalance show up? Which consumer
     **Predict → read or run → compare → explain.** A wrong prediction is useful:
     it reveals exactly which part of the model changed.
 
+### Turn a symptom into a measurement { #what-would-you-measure }
+
+A production symptom (rising lag, a slow dashboard, a failing job) is usually consistent with several causes at once. "What would you measure?" is the question that converts a list of plausible stories into one you can actually confirm: for each hypothesis, name the specific metric that would be different if that hypothesis, and only that one, were true. If two hypotheses would move the same metric the same way, you have not found a distinguishing measurement yet — keep going until you have one per hypothesis. You will see this pattern applied directly in [Kafka gotchas — lag rising](kafka/gotchas.md#1-consumer-lag-growing-silently) and in the [cross-system incidents](incidents/index.md).
+
 ## Follow one event, not every feature
 
 When studying ClickHouse, follow one row from insert to immutable part to query.

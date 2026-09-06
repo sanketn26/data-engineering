@@ -214,6 +214,16 @@ RTO ≈ restart + state download + catch-up of the rewind. Incremental checkpoin
 
 If duration is dominated by **sync** phase, alignment or RocksDB snapshot is slow. If **async**, S3 upload. Incremental checkpoints should make async small after the first.
 
+!!! question "What would you measure? — checkpoint duration is growing, which hypothesis is it?"
+    | Hypothesis | Metric that confirms it |
+    |---|---|
+    | State genuinely growing (more keys, wider windows) | `lastCheckpointSize` trending up over days, not spiking |
+    | Slow state backend (RocksDB compaction, disk contention) | Sync-phase duration up while `lastCheckpointSize` is flat |
+    | Slow durable store (S3 upload) | Async-phase duration up specifically, sync phase flat |
+    | A genuinely stuck/backpressured operator | Alignment time spikes on unaligned checkpoints disabled; backpressure badge on that operator in the UI |
+
+    Confusing these means "fixing" a slow disk by adding parallelism, or "fixing" real state growth by tuning RocksDB — same wasted-effort shape as the Kafka lag hypotheses in [Kafka gotchas](../kafka/gotchas.md#1-consumer-lag-growing-silently). See [how to study — what would you measure](../how-to-study.md#what-would-you-measure).
+
 ---
 
 ## Scale: 10× / 100× / 1000×

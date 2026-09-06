@@ -197,3 +197,11 @@ Related: [observability](../architectures/observability.md), [fraud](../architec
 6. [Labs](labs.md), including **stall the watermark** and **kill a TaskManager**.
 
 You are done when you can look at a Flink UI: checkpoint duration, backpressure badges, watermark lag, and say which one is the incident.
+
+!!! success "Exit check — you pass this module if you can"
+    - Predict how late/out-of-order events interact with a given watermark strategy and allowed lateness before running the watermark simulator.
+    - Explain the correctness/latency/state trade-off: tighter watermarks drop more late data faster; looser watermarks hold more state longer.
+    - Read the Flink UI **backward** from the sink to find the true backpressure bottleneck, not just the first "backpressured" badge you see.
+    - Reason about checkpoint duration growth: distinguish state-size growth, a slow state backend, and a genuinely stuck operator.
+    - Explain where Flink's exactly-once guarantee actually ends (the sink needs to cooperate — two-phase commit or idempotent writes) and where it doesn't.
+    - Decide when Flink is unnecessary — a stateless transform, a nightly batch job, or ad-hoc analyst SQL are better served elsewhere.

@@ -79,6 +79,16 @@ Before modelling unit economics, name the specific bytes/requests/CPU-seconds ea
 | Merges | Background CPU proportional to insert rate and part count — see [ClickHouse](../olap/clickhouse.md) `too many parts` |
 | Query scans | Bytes read per query × QPS; a bad `ORDER BY` inflates this without inflating stored bytes |
 
+**Flink**
+
+| Driver | What drives it |
+|---|---|
+| State size | Checkpoint size scales with retained keyed state — the dominant cost for long windows or unbounded state |
+| Checkpoint frequency | More frequent checkpoints trade faster recovery for more sustained I/O and network to the state backend/store |
+| Network shuffle | `keyBy`/rebalance between operators, same cost shape as Spark shuffle but continuous rather than per-batch |
+| Parallelism | Task slots × TaskManager count; over-provisioned parallelism idles slots the same way over-provisioned Spark executors do |
+| Retained state (RocksDB) | Local disk on TaskManagers plus the state backend's own storage bill if state exceeds what compacts away |
+
 **Iceberg / lakehouse**
 
 | Driver | What drives it |
