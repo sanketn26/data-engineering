@@ -40,6 +40,15 @@
 <h1>Kafka Partition Simulator</h1>
 <p>Observe how partition distribution, consumer groups, and hot partitions affect throughput and lag.</p>
 
+<div class="control-group" style="margin-bottom:15px">
+  <label style="margin-bottom:10px">Scenario presets — set the sliders below to a named difficulty level, then Start</label>
+  <button onclick="loadScenario('uniform')">Level 1 — uniform traffic</button>
+  <button onclick="loadScenario('whale')" style="margin-left:8px;background:#e3b341;color:#0d1117">Level 2 — one tenant is 70%</button>
+  <button onclick="loadScenario('underprovisioned')" style="margin-left:8px;background:#da3633">Level 3 — fewer consumers than partitions</button>
+  <button onclick="loadScenario('slowsink')" style="margin-left:8px;background:#8250df">Level 4 — consumer can't keep up</button>
+  <div id="scenario-desc" style="margin-top:10px;font-size:13px;color:#8b949e"></div>
+</div>
+
 <div class="controls">
   <div class="control-group">
     <label>Partitions: <span id="pcount-val">4</span></label>
@@ -181,6 +190,41 @@ function startSim() {
 
 function stopSim() {
   if (simInterval) { clearInterval(simInterval); simInterval = null; }
+}
+
+const scenarios = {
+  uniform: {
+    pcount: 6, ccount: 6, prate: 200, hotkey: 0, cspeed: 40,
+    desc: 'Level 1: 6 partitions, 6 consumers, no hot key. Predict before starting: does lag grow at all? This is the baseline every other level deviates from.'
+  },
+  whale: {
+    pcount: 6, ccount: 6, prate: 200, hotkey: 70, cspeed: 40,
+    desc: "Level 2: one tenant's key hashes to a single partition and is 70% of traffic. Predict: does adding consumers help? (No — Kafka assigns at most one consumer per partition, and the other 5 partitions are already healthy.)"
+  },
+  underprovisioned: {
+    pcount: 8, ccount: 3, prate: 200, hotkey: 0, cspeed: 40,
+    desc: 'Level 3: 8 partitions, only 3 consumers. Predict: which partitions build lag, and is adding a 4th consumer enough on its own?'
+  },
+  slowsink: {
+    pcount: 6, ccount: 6, prate: 300, hotkey: 0, cspeed: 20,
+    desc: "Level 4: even distribution, but every consumer is individually too slow for its share of traffic. Predict: does this look different from Level 2's hot partition in the per-partition lag chart, or the same? (Different — here ALL partitions grow lag evenly, not just one.)"
+  }
+};
+
+function loadScenario(name) {
+  const s = scenarios[name];
+  document.getElementById('pcount').value = s.pcount;
+  document.getElementById('pcount-val').textContent = s.pcount;
+  document.getElementById('ccount').value = s.ccount;
+  document.getElementById('ccount-val').textContent = s.ccount;
+  document.getElementById('prate').value = s.prate;
+  document.getElementById('prate-val').textContent = s.prate;
+  document.getElementById('hotkey').value = s.hotkey;
+  document.getElementById('hotkey-val').textContent = s.hotkey;
+  document.getElementById('cspeed').value = s.cspeed;
+  document.getElementById('cspeed-val').textContent = s.cspeed;
+  document.getElementById('scenario-desc').textContent = s.desc;
+  resetSim();
 }
 
 function renderPartitions(parts, numConsumers) {

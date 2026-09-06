@@ -37,6 +37,17 @@
 <p>A producer, queue, and consumer with mismatched throughput. Predict the backlog and recovery time before you move a slider.</p>
 
 <div class="card">
+  <h3 style="color:#e3b341">Scenario presets</h3>
+  <div class="input-row" style="flex-wrap:wrap">
+    <button onclick="loadScenario('minor')" style="background:#238636;color:white;border:none;padding:8px 16px;border-radius:6px;cursor:pointer">Level 1 — minor, well-scaled recovery</button>
+    <button onclick="loadScenario('major')" style="background:#e3b341;color:#0d1117;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;margin-left:8px">Level 2 — major mismatch, strong scaling</button>
+    <button onclick="loadScenario('barely')" style="background:#8250df;color:white;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;margin-left:8px">Level 3 — "fixed" but barely above arrival</button>
+    <button onclick="loadScenario('never')" style="background:#da3633;color:white;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;margin-left:8px">Level 4 — scaling never exceeds arrival</button>
+  </div>
+  <div id="scenario-desc" style="margin-top:8px;font-size:13px;color:#8b949e"></div>
+</div>
+
+<div class="card">
   <h3 style="color:#e3b341">Rates</h3>
 
   <div class="input-row">
@@ -138,6 +149,39 @@ function calculate() {
   bigNum.className = `big-number ${cls}`;
   verdict.className = `verdict ${cls}`;
   verdict.innerHTML = `<strong>${label}</strong>: ${msg}`;
+}
+
+const bpScenarios = {
+  minor: {
+    arr: 100000, svc: 90000, dur: 20, svc2: 150000,
+    desc: 'Level 1: a small mismatch, scaled well above arrival. Predict: does recovery take minutes or hours?'
+  },
+  major: {
+    arr: 100000, svc: 40000, dur: 20, svc2: 200000,
+    desc: 'Level 2: a large mismatch, but scaled to double the arrival rate. Predict: does the bigger initial backlog matter if the drain rate is strong?'
+  },
+  barely: {
+    arr: 100000, svc: 70000, dur: 20, svc2: 105000,
+    desc: 'Level 3: "fixed" by scaling to just 5% above arrival. Predict: minutes or hours to drain — and would you call this incident actually resolved at the moment service rate exceeded arrival?'
+  },
+  never: {
+    arr: 100000, svc: 70000, dur: 20, svc2: 100000,
+    desc: "Level 4: post-scaling rate exactly equals arrival. Predict: does the backlog ever drain? What does the on-call dashboard show while it doesn't?"
+  }
+};
+
+function loadScenario(name) {
+  const s = bpScenarios[name];
+  document.getElementById('arr').value = s.arr;
+  document.getElementById('arr-val').textContent = s.arr.toLocaleString();
+  document.getElementById('svc').value = s.svc;
+  document.getElementById('svc-val').textContent = s.svc.toLocaleString();
+  document.getElementById('dur').value = s.dur;
+  document.getElementById('dur-val').textContent = s.dur + ' min';
+  document.getElementById('svc2').value = s.svc2;
+  document.getElementById('svc2-val').textContent = s.svc2.toLocaleString();
+  document.getElementById('scenario-desc').textContent = s.desc;
+  calculate();
 }
 
 calculate();

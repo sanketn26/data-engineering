@@ -35,6 +35,8 @@ These are single HTML files. They work offline. In MkDocs they are linked pages.
 
 **Teaches:** Kafka parallelism is **partitions**, not consumer count. Ordering and state locality are **per key**. A hot key is a **hot partition**. Extra consumers idle while one partition's lag explodes.
 
+Four scenario-preset buttons (uniform, whale tenant, under-provisioned consumers, universally-too-slow consumers) load a named difficulty level with one click — use them to check a prediction fast, then go back to the sliders to push past them.
+
 **Read first:** [Kafka partitions](../kafka/partitions.md), [gotchas](../kafka/gotchas.md).
 
 **Predict before touching sliders:**
@@ -137,6 +139,8 @@ These are single HTML files. They work offline. In MkDocs they are linked pages.
 
 **Read first:** [Backpressure & Queueing](../foundations/backpressure.md).
 
+Four scenario-preset buttons (minor mismatch, major mismatch with strong scaling, "fixed" but barely above arrival, scaling that never exceeds arrival) let you jump straight to a named difficulty level.
+
 **Predict before touching sliders:**
 
 - Arrival 100k/s, service 70k/s for 20 minutes — roughly how many events back up?
@@ -163,6 +167,8 @@ These are single HTML files. They work offline. In MkDocs they are linked pages.
 
 **Read first:** [Flink windows & watermarks](../flink/windows.md), [Flink time semantics](../flink/time.md).
 
+Four scenario-preset buttons (balanced splits, one split far behind, idle split with no idleness policy, idle split with the policy enabled) load a named difficulty level in one click.
+
 **Predict before touching sliders:**
 
 - Split A's watermark is way ahead, split B stops advancing. Does the downstream watermark advance, stall, or split the difference?
@@ -187,6 +193,8 @@ These are single HTML files. They work offline. In MkDocs they are linked pages.
 **Teaches:** `acks`, `min.insync.replicas`, and current ISR membership jointly decide whether a write succeeds, blocks, or throws `NotEnoughReplicas` — and `acks=all` only ever means "wait for the *current* ISR," which can have shrunk to just the leader.
 
 **Read first:** [Kafka replication & durability](../kafka/replication.md).
+
+Four scenario-preset buttons (healthy ISR, ISR shrinks from a lagging follower, broker fails with ISR intact, broker fails with ISR empty) set up a named failure level in one click.
 
 **Predict before touching sliders:**
 

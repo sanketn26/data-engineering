@@ -106,6 +106,17 @@
   </div>
 </div>
 
+<div class="card">
+  <h3 style="color:#e3b341">Scenario presets — predict the outcome before clicking</h3>
+  <div class="input-row" style="flex-wrap:wrap">
+    <button onclick="loadScenario('healthy')">Level 1 — healthy ISR</button>
+    <button onclick="loadScenario('shrink')" style="background:#e3b341;color:#0d1117">Level 2 — ISR shrinks (follower lags)</button>
+    <button onclick="loadScenario('failover')" style="background:#8250df">Level 3 — broker fails, ISR intact</button>
+    <button onclick="loadScenario('unclean')" style="background:#da3633">Level 4 — broker fails, ISR empty</button>
+  </div>
+  <div id="scenario-desc" style="margin-top:8px;font-size:13px;color:#8b949e"></div>
+</div>
+
 <div class="result card" id="result">
   <div id="big-num" class="big-number ok">✓ Write succeeds</div>
   <div id="breakdown" class="breakdown"></div>
@@ -254,6 +265,37 @@ function calculate() {
 
   verdict.className = `verdict ${cls}`;
   verdict.innerHTML = `<strong>${label}</strong>: ${msg}`;
+}
+
+const isrScenarios = {
+  healthy: {
+    acks: 'all', minisr: '2', bIsr: true, cIsr: true, unclean: false, kill: false,
+    desc: 'Level 1: acks=all, min.insync.replicas=2, both followers in ISR. Predict: what happens to a produce request right now? (It succeeds, durable across all 3 replicas.)'
+  },
+  shrink: {
+    acks: 'all', minisr: '2', bIsr: false, cIsr: true, unclean: false, kill: false,
+    desc: "Level 2: Broker B has fallen out of the ISR (replication lag). ISR is now {A, C} = 2, still meeting min.insync.replicas=2. Predict: does the write still succeed, and how durable is it compared to Level 1?"
+  },
+  failover: {
+    acks: 'all', minisr: '2', bIsr: true, cIsr: true, unclean: false, kill: true,
+    desc: 'Level 3: the leader (Broker A) is killed with both followers still in the ISR. Predict: does the partition go offline, and if not, is any acknowledged data lost?'
+  },
+  unclean: {
+    acks: 'all', minisr: '1', bIsr: false, cIsr: false, unclean: true, kill: true,
+    desc: 'Level 4: min.insync.replicas=1 let the ISR shrink to just the leader before it died — so the ISR is empty at the moment of failure. unclean.leader.election.enable=true is set. Predict: does the partition stay available, and at what cost?'
+  }
+};
+
+function loadScenario(name) {
+  const s = isrScenarios[name];
+  document.getElementById('acks').value = s.acks;
+  document.getElementById('minisr').value = s.minisr;
+  document.getElementById('b-isr').checked = s.bIsr;
+  document.getElementById('c-isr').checked = s.cIsr;
+  document.getElementById('unclean').checked = s.unclean;
+  leaderKilled = s.kill;
+  document.getElementById('scenario-desc').textContent = s.desc;
+  calculate();
 }
 
 calculate();

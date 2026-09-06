@@ -48,6 +48,17 @@
 <p>Two source splits feed one downstream event-time window. Predict the downstream watermark before you move a slider: it is not an average, it is the <strong>minimum</strong> of every active split.</p>
 
 <div class="card">
+  <h3 style="color:#e3b341">Scenario presets — predict, then click</h3>
+  <div class="input-row" style="flex-wrap:wrap">
+    <button onclick="loadScenario('balanced')" style="background:#238636;color:white;border:none;padding:8px 16px;border-radius:6px;cursor:pointer">Level 1 — both splits flowing evenly</button>
+    <button onclick="loadScenario('skewed')" style="background:#e3b341;color:#0d1117;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;margin-left:8px">Level 2 — one split far behind</button>
+    <button onclick="loadScenario('idle-uncovered')" style="background:#da3633;color:white;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;margin-left:8px">Level 3 — idle split, no idleness policy</button>
+    <button onclick="loadScenario('idle-covered')" style="background:#8250df;color:white;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;margin-left:8px">Level 4 — idle split, policy enabled</button>
+  </div>
+  <div id="scenario-desc" style="margin-top:8px;font-size:13px;color:#8b949e"></div>
+</div>
+
+<div class="card">
   <h3 style="color:#e3b341">Split A</h3>
   <div class="input-row">
     <span class="dim-name">Current watermark (s)</span>
@@ -256,6 +267,44 @@ function calculate() {
   verdict.innerHTML = `<strong>${label}</strong>: ${msg}`;
 
   pipeDown.style.borderColor = windowClosed ? '#3fb950' : '#e3b341';
+}
+
+const wmScenarios = {
+  balanced: {
+    aWm: 150, aIdle: false, bWm: 130, bIdle: false, idleEnabled: true, idleDur: 0, idleThresh: 30, winEnd: 120,
+    desc: 'Level 1: both splits advancing close together. Predict: which split determines the downstream watermark, and does the window close?'
+  },
+  skewed: {
+    aWm: 180, aIdle: false, bWm: 40, bIdle: false, idleEnabled: true, idleDur: 0, idleThresh: 30, winEnd: 120,
+    desc: "Level 2: Split A is far ahead, Split B is far behind — but neither is idle, just slow. Predict: does the downstream watermark reflect A, B, or something in between? Does adding more parallelism to the whole job fix this?"
+  },
+  'idle-uncovered': {
+    aWm: 180, aIdle: false, bWm: 40, bIdle: true, idleEnabled: false, idleDur: 45, idleThresh: 30, winEnd: 120,
+    desc: 'Level 3: Split B has genuinely stopped emitting (idle), and the idleness timeout policy is OFF. Predict: does the window ever close while B stays idle?'
+  },
+  'idle-covered': {
+    aWm: 180, aIdle: false, bWm: 40, bIdle: true, idleEnabled: true, idleDur: 45, idleThresh: 30, winEnd: 120,
+    desc: 'Level 4: same idle Split B, but the idleness timeout policy is ON and the assumed idle duration (45s) exceeds the threshold (30s). Predict: does the window close now, and what did enabling the policy actually trade away?'
+  }
+};
+
+function loadScenario(name) {
+  const s = wmScenarios[name];
+  document.getElementById('a-wm').value = s.aWm;
+  document.getElementById('a-val').textContent = s.aWm + 's';
+  document.getElementById('a-idle').checked = s.aIdle;
+  document.getElementById('b-wm').value = s.bWm;
+  document.getElementById('b-val').textContent = s.bWm + 's';
+  document.getElementById('b-idle').checked = s.bIdle;
+  document.getElementById('idle-enabled').checked = s.idleEnabled;
+  document.getElementById('idle-dur').value = s.idleDur;
+  document.getElementById('idle-dur-val').textContent = s.idleDur + 's';
+  document.getElementById('idle-thresh').value = s.idleThresh;
+  document.getElementById('idle-thresh-val').textContent = s.idleThresh + 's';
+  document.getElementById('win-end').value = s.winEnd;
+  document.getElementById('win-val').textContent = s.winEnd + 's';
+  document.getElementById('scenario-desc').textContent = s.desc;
+  calculate();
 }
 
 calculate();
