@@ -24,6 +24,8 @@ Related: [Kafka gotchas](../kafka/gotchas.md), [Spark gotchas](../spark/gotchas.
 
 Every incident below is a shape you will meet in the five architectures. Kafka hot partition is [analytics](../architectures/analytics-platform.md) whales and [fraud](../architectures/fraud.md) keys. Spark skew is e-commerce joins. Flink watermarks are [IoT](../architectures/iot.md) idle devices. ClickHouse parts/`ORDER BY` is every dashboard. Iceberg snapshots are cold paths. Trino coordinator OOM is "just one join."
 
+Incidents 1–6 below are each contained inside one system's page, because that is how you learn the system. Production incidents rarely respect that boundary — the alert fires on a business metric, and the broken layer is three or four hops away from wherever the dashboard lives. The three **cross-system** incidents after them are the harder, more realistic drill: no page tells you which system to open first.
+
 ---
 
 ## Incident 1 — Kafka: lag on one partition
@@ -320,6 +322,127 @@ Unbounded lake ⋈ OLTP replica. Missing partition predicate. Bad stats → broa
 
 ---
 
+## Cross-system incident 1 — Revenue dashboard down 22%, everything green
+
+### Alert
+
+09:10. Executive revenue dashboard (ClickHouse, fed from `events_agg`) shows **-22%** vs the same hour last week. No page fired — this was noticed by a human, not an alert, which is itself the first clue.
+
+### Symptoms
+
+- ClickHouse `events_agg` freshness: **normal** (`max(ts) >= now() - 15m`).
+- Flink checkpoint duration and backpressure: **normal**.
+- Kafka consumer lag on `order-events`: **normal**, near zero on every partition.
+- Iceberg `raw_events` row count for the last 24h: **normal**, matches the usual day-over-day pattern.
+- CDC source reconciliation (Debezium row count vs source Postgres row count for `orders`): **-3%** — the one number that is not normal, and the smallest deviation of the bunch.
+
+!!! question "Form a hypothesis"
+    Every downstream layer says "normal." Where do you look next, and what hypothesis explains a small (-3%) discrepancy at the source feeding a large (-22%) discrepancy at the dashboard? What would disprove it in the next five minutes?
+
+<details>
+<summary>Resolution — revenue drop, cross-system</summary>
+
+### Root cause
+
+The -3% CDC reconciliation gap is not "3% of orders missing" — it is orders **from one customer segment** missing entirely, because a Postgres logical replication slot briefly lagged during a maintenance window and Debezium's snapshot-resume logic skipped a narrow row-id range instead of replaying it. Every layer *downstream* of Kafka reports "normal" because each of them is measuring throughput and freshness of what **did** arrive — none of them can see what never left the source. A 3% gap in orders happens to be concentrated in the company's highest-value enterprise segment (a handful of large customers whose orders dominate revenue $ even though they're a small fraction of order *count*), which is why a 3% row gap becomes a 22% revenue gap.
+
+The chain a learner must walk is: **business metric (revenue) → serving layer (ClickHouse, fine) → transformation (Flink, fine) → stream processor (Kafka, fine, lag=0) → transport (CDC/Debezium) → source (Postgres)**. Every "fine" reading upstream of the actual break is fine *because it correctly reflects what it received* — the break is the one hop nothing downstream can observe at all: data that never entered the pipeline.
+
+### Fix
+
+1. Confirm the specific missing row-id range from the replication slot's last confirmed LSN vs the actual WAL position at the time of the maintenance window.
+2. Backfill the missing range with a bounded snapshot re-read (see [CDC — reconciliation](../foundations/cdc.md#reconciliation)), not a full re-snapshot.
+3. Reprocess only the affected hours through Flink → Iceberg → ClickHouse; do not reprocess the whole day.
+
+### Prevention
+
+- Reconciliation between source row count and CDC-consumed row count, **alerting**, not just dashboarded — the -3% here was visible before the incident but nobody was paged on it.
+- A revenue metric broken down by segment in the alert itself, so "-22% overall, -0% for 95% of segments" surfaces the concentration immediately instead of requiring a human to notice and dig.
+- The general lesson: "every layer is green" proves every layer is internally consistent with what it received — it proves nothing about what never arrived. See [metadata — declared vs observed truth](../metadata/index.md#contracts-vs-catalogues-declared-truth-vs-observed-truth).
+
+</details>
+
+---
+
+## Cross-system incident 2 — Pipeline green, data wrong
+
+### Alert
+
+Airflow: `SUCCESS`. Spark job: `SUCCESS`. Iceberg snapshot committed. ClickHouse ingestion: complete, freshness normal. Conversion-rate dashboard: **+400%** overnight, with no marketing change and no traffic spike.
+
+### Symptoms
+
+- Every system-level health check is green — this is the point of the drill. A pipeline that fails loudly is not the hard case.
+- Row counts at each stage (Iceberg raw → Iceberg clean → ClickHouse agg) are all **higher** than usual by roughly the same factor the metric is inflated by.
+- The conversion-rate SQL is `count(purchase_events) / count(session_events)`, joined on `session_id`.
+- A schema change shipped two days ago added a `retry_count` field to the purchase-event producer for client-side retry visibility.
+
+!!! question "Form a hypothesis"
+    List every plausible cause consistent with "every system reports success, but the specific numerator/denominator of one ratio is wrong": duplicate replay, join explosion, late-arriving data, dimension duplication, a semantic schema change, an incorrect denominator. Which ones does the row-count-inflation clue eliminate, and which metric would you compute next to eliminate the rest?
+
+<details>
+<summary>Resolution — pipeline green, data wrong</summary>
+
+### Root cause
+
+The client-side retry logic added with `retry_count` was implemented as "resend the same purchase event with the same `session_id` on any client-side timeout," including timeouts where the original request actually succeeded server-side. Purchase events are not deduplicated by event id anywhere in the pipeline — Kafka producer idempotence prevents *broker-level* duplication of a single publish call, but does nothing about the application making a second, distinct publish call with the same business meaning. Every stage's row count inflated by the same factor because every stage faithfully processed every row it received — the duplication happened **before** stage 1 of [the correctness chain](../reference/correctness-invariants.md), at Produced→Accepted, and nothing downstream had an invariant that would have caught a business-level duplicate with a fresh producer sequence number.
+
+The elimination sequence: duplicate replay (Kafka-level) is ruled out because consumer offsets are clean and Flink/Spark checkpoint state shows no replay events; join explosion is ruled out because the `session_events` denominator inflated by the *same* factor, not independently; late-arriving data doesn't explain a sustained, uniform inflation; dimension duplication would show as a join fan-out on one specific dimension key, not a uniform multiplier; incorrect denominator alone wouldn't move both numerator and denominator together. What's left, and what the row-count-inflation pattern actually points to, is duplicate *rows entering upstream of any dedup logic* — a producer-side change.
+
+### Fix
+
+1. Add an idempotency key (a client-generated request id, not `session_id`) to the purchase-event schema and dedupe on it at the earliest possible stage — ideally the producer, backstopped by a dedup step in Flink.
+2. Backfill the affected window by deduplicating the existing Iceberg data on the retry-safe key, once the producer team confirms which field actually identifies a unique attempt.
+3. Add a schema-change gate: a client-side retry change is a semantic change to event identity, and should have gone through the same [data contract](../foundations/data-contracts.md) review as a schema-breaking change, even though the schema *technically* only added a field.
+
+### Prevention
+
+- A reconciliation check comparing purchase-event count against an independent source (payment processor's own count) — the "what would you measure" question this incident is really testing.
+- Treat "adds a field for observability" as a semantic-review trigger, not just a backward-compatible schema no-op — the field itself (`retry_count`) was evidence a producer behavior change had happened, and nobody read it that way.
+
+</details>
+
+---
+
+## Cross-system incident 3 — Dashboard 15 minutes stale, Kafka lag near zero
+
+### Alert
+
+Dashboard freshness SLO breach: `gold.events_agg` is **15 minutes** behind wall clock. Kafka consumer lag on the upstream topic: **near zero** across every partition.
+
+### Symptoms
+
+- Kafka lag: healthy. This alone rules out the most reflexive hypothesis ("Kafka is behind").
+- Flink job is consuming near-real-time; its own internal watermark is close to processing time.
+- The sink connector from Flink to Iceberg batches writes and commits a new snapshot only every 5 minutes.
+- ClickHouse ingests from Iceberg via a scheduled Airflow-triggered job, not continuously.
+- Airflow's ingestion DAG runs on a 10-minute schedule interval, not event-driven.
+
+!!! question "Form a hypothesis"
+    Kafka lag near zero means events are being *consumed* promptly. It says nothing about how long each downstream hop takes to make an event *visible* in the final dashboard. Name every hop between "consumed from Kafka" and "visible on the dashboard," and estimate how many minutes each one could plausibly be contributing.
+
+<details>
+<summary>Resolution — latency without Kafka lag</summary>
+
+### Root cause
+
+**Kafka lag measures time spent waiting to be consumed — it says nothing about time spent being processed, batched, committed, or scheduled after that.** Five minutes of Flink→Iceberg commit batching, plus up to 10 minutes of Airflow schedule interval before the next ClickHouse ingestion run picks up the new Iceberg snapshot, sums to the observed ~15-minute staleness — with Kafka lag at zero the entire time, because Kafka's job (deliver the event to a consumer promptly) was done correctly. This is the general lesson: end-to-end freshness is the **sum of every hop's own latency contract**, not the latency of whichever hop happens to have the most visible metric.
+
+### Fix
+
+1. Reduce the Flink→Iceberg commit interval if the workload's small-file cost (see [cost engineering — Iceberg](../reference/cost-engineering.md)) tolerates more frequent, smaller commits.
+2. Move ClickHouse ingestion from a 10-minute Airflow schedule to an [Asset-triggered](../airflow/index.md#sensors-pools-mapping-slas-assets) run fired by the new Iceberg snapshot, removing the schedule-interval tax entirely.
+3. Add a synthetic canary event at the true source, timestamped, and measure its arrival time at the dashboard directly — an end-to-end freshness metric, not a per-hop proxy.
+
+### Prevention
+
+- Alert on **end-to-end freshness** (`gold.events_agg` freshness SLO, as in [metadata — freshness](../metadata/index.md#freshness)) as the primary page, with per-hop metrics (Kafka lag, Flink watermark, Iceberg commit age, Airflow run recency) as the drill-down, not the other way around. Paging on Kafka lag alone, as this incident shows, pages on the wrong layer entirely when the bottleneck moves downstream.
+- Name, for every pipeline, the latency budget each hop is allowed to consume, so "which hop ate the 15 minutes" is a lookup, not an investigation.
+
+</details>
+
+---
+
 ## Cross-walk
 
 | Incident | Architecture | Lab / sim |
@@ -330,6 +453,9 @@ Unbounded lake ⋈ OLTP replica. Missing partition predicate. Bad stats → broa
 | CH 10× | Every Grafana | [CH lab](../labs/index.md), [ORDER BY sim](../simulations/clickhouse-order-by.html) |
 | Iceberg planning | Cold paths | Lakehouse module |
 | Trino OOM | Ad-hoc federation | [CH vs Trino](../comparisons/clickhouse-vs-trino.md) |
+| Revenue drop, all-green | SaaS analytics, CDC reconciliation | [CDC](../foundations/cdc.md), [correctness invariants](../reference/correctness-invariants.md) |
+| Pipeline green, data wrong | Any pipeline with client-side retries | [correctness invariants](../reference/correctness-invariants.md), [data contracts](../foundations/data-contracts.md) |
+| Stale dashboard, zero Kafka lag | Every multi-hop pipeline | [Flink checkpoints](../flink/checkpoints.md), [Airflow](../airflow/index.md#sensors-pools-mapping-slas-assets) |
 
 ---
 
