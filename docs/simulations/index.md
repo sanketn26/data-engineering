@@ -25,6 +25,22 @@ matching simulation before the final understanding check.
 !!! tip "Predict first"
     The sim will happily confirm whatever you already believe if you skip step 2. The academy loop is predict → run → compare → explain.
 
+### The five difficulty levels
+
+There will not be more simulators — thirteen is enough surface area. What there *is* room for is going deeper into each one. Every sim on this page supports the same five-level ladder, and level 5 is the one that actually changes how you design systems:
+
+| Level | Ask yourself | What it trains |
+|---|---|---|
+| **1 — Predict** | With default settings, what will the output be? | That you have a model at all |
+| **2 — Predict** | I change *one* variable by 2×. What happens, and in which direction? | Directional reasoning, not memorised outcomes |
+| **3 — Diagnose** | Here is a broken state. Which input caused it? Which metric would prove it in production? | Working backward from a symptom — this is on-call |
+| **4 — Fix** | Change any input to make it healthy. Which one, and why that one? | Choosing the right lever among several that "work" |
+| **5 — Fix WITHOUT more hardware** | Now fix it again — but you may not add partitions, nodes, capacity, memory, or throughput. | **Architecture.** |
+
+Level 5 is the point of the whole page. Levels 1–4 can all be satisfied by turning a slider up, which is exactly the habit production punishes: it is the fix that costs money, arrives slowly, and often just relocates the bottleneck. Ban the hardware lever and the only remaining moves are the ones that change the *shape* of the problem — re-key the data, change the `ORDER BY`, shard the hot key, batch the writes, drop a dimension, move work to a different hop, or decide the requirement itself was wrong.
+
+If a level-5 answer does not exist for a sim's failure mode, that is a finding too: some constraints genuinely are physical, and knowing which ones is why you would spend the money.
+
 These are single HTML files. They work offline. In MkDocs they are linked pages. You can also open them from `docs/simulations/` in the repo.
 
 ---
@@ -313,22 +329,23 @@ Four scenario-preset buttons (healthy ISR, ISR shrinks from a lagging follower, 
 
 **Open:** [dynamodb-hot-key-simulator.html](dynamodb-hot-key-simulator.html)
 
-**Teaches:** DynamoDB divides a table's total throughput evenly across its physical partitions, so a skewed logical key can throttle its one physical partition while the table's aggregate utilization looks fine and every other partition sits idle. Adding table-level throughput does not fix a key-design problem.
+**Teaches:** a logical key hashes to exactly one physical partition, each partition gets a baseline slice of table throughput, and **adaptive capacity** lets a hot partition borrow throughput idle partitions are not using. Adaptive capacity reduces — but does not eliminate — a pathological hot key: a single key can still hit a per-partition ceiling that no amount of table capacity lifts.
 
 **Read first:** [DynamoDB](../databases/dynamodb.md).
 
 **Predict before touching sliders:**
 
-- Table utilization at 20% overall, one key gets 90% of traffic — throttled or fine?
-- Does raising total table throughput fix that one hot partition?
+- Table utilization at 20% overall, one key gets 90% of traffic — throttled or fine, with adaptive capacity ON?
+- Does raising total table throughput fix that one hot partition? Does it still help once the partition is at its ceiling?
 
 **What to try:**
 
-1. Low overall utilization, high skew — watch one partition redline while others sit idle.
-2. Raise total table throughput — the hot partition's *budget* rises too, but if skew stays concentrated on one physical partition, it can still throttle.
-3. Enable "shard the hot key across N suffixes" instead — the same logical entity's traffic spreads across multiple physical partitions and the throttle clears.
+1. **Adaptive capacity OFF**, low overall utilization, moderate skew — the hot partition redlines at its fixed baseline slice while others sit idle. This is the old static model, and still the right worst case to reason about.
+2. **Adaptive capacity ON**, same settings — the hot partition absorbs spare table capacity and the throttle clears. Watch the amber bars: those partitions are running *above* baseline and only surviving on borrowed throughput.
+3. **Push skew toward 100%** with adaptive capacity still ON — the hot partition pins at the per-partition ceiling and throttles anyway. Raise total table throughput and confirm it changes nothing: spare capacity is irrelevant once one partition is at its ceiling.
+4. Enable "shard the hot key across N suffixes" — the same logical entity's traffic spreads across N physical partitions, each with its own baseline *and* its own ceiling, and the throttle clears for a reason that survives at any scale.
 
-**Production metric:** `ThrottledRequests` and `ConsumedCapacity` per partition (not just per table) — AWS doesn't expose this directly, which is exactly why hot partitions are usually diagnosed from application-side latency first.
+**Production metrics:** you cannot read per-physical-partition consumed capacity directly — DynamoDB deliberately abstracts the partition away — so hot-key behaviour is *inferred* from several signals together: `ThrottledRequests` / `WriteThrottleEvents`, `SuccessfulRequestLatency`, table-level `ConsumedCapacity` (to prove the table is *not* saturated), CloudWatch Contributor Insights (most-accessed keys), and key-level application telemetry. The lesson is the inference, not the metric: when throttles rise while table capacity looks healthy, the missing variable is always distribution.
 
 ---
 
@@ -370,8 +387,32 @@ Four scenario-preset buttons (healthy ISR, ISR shrinks from a lagging follower, 
 | Parquet row-group explorer | Dictionary/RLE compression ratios — this is pruning only, not storage size |
 | Bloom filter playground | A real skip-index's interaction with compression and merges |
 | Consistent hashing visualizer | Real network topology and rack/AZ awareness in placement |
-| DynamoDB hot-key simulator | Adaptive capacity and burst credits, which soften but do not remove this failure |
+| DynamoDB hot-key simulator | Adaptive capacity's real reaction *time* (modelled here as instantaneous), burst credits, and how partition splits actually happen |
 | SCD2 timeline explorer | Concurrent late-arriving changes to the same entity — see [CDC](../foundations/cdc.md) ordering |
+
+---
+
+## Level 5 for each sim: fix it without more hardware
+
+Work these after you can already do levels 1–4 on the sim in question. Each one has at least one good answer that costs nothing but a design change.
+
+| Sim | The tempting hardware fix (banned) | What's left |
+|---|---|---|
+| Kafka partitions | Add partitions and consumers | Re-key the topic (compound key, suffix the hot tenant only). More partitions cannot split one key. |
+| Spark shuffle | More/bigger executors | Salt the skewed key, broadcast the small side, or pre-aggregate before the shuffle. |
+| ClickHouse `ORDER BY` | A bigger node | Reorder the key to match the actual filter prefix; add a skip index; or accept the query is the wrong shape for this table. |
+| Cardinality calculator | More TSDB memory | Move the high-cardinality dimension out of labels and into events — a store change, not a size change. |
+| Backpressure calculator | Scale the consumer | Batch at the sink, cap arrival with admission control, or shed by policy. Note which of these are *data-loss* trades and say so out loud. |
+| Watermark simulator | More parallelism | Set an idleness policy; change the lateness policy; or reconsider whether the window boundary is a business requirement or an assumption. |
+| Kafka ISR | Add brokers | Change `min.insync.replicas` and `acks` — i.e. decide explicitly what you are trading between availability and durability. |
+| Iceberg manifests | A bigger query coordinator | Compact; expire snapshots; partition so manifests prune. |
+| Parquet row groups | Faster disks | Sort on the filter column at write time so row-group statistics can actually prune. |
+| Bloom filter | More memory for the filter | Reduce the key space, or accept the false-positive rate and change what you index. |
+| Consistent hashing | Add nodes | Add virtual nodes — the same hardware, distributed differently. |
+| DynamoDB hot key | Raise table throughput / on-demand | Shard the key. Once the partition is at its ceiling, no amount of table capacity helps — this sim's whole point. |
+| SCD2 timeline | (none — it is a correctness sim) | Fix the join predicate: range join on effective dates instead of `is_current = true`. |
+
+Notice the pattern in the right-hand column: almost every entry is either **change the key**, **change the layout**, or **change the requirement**. That is a short list, and it is most of data architecture.
 
 ---
 
@@ -388,7 +429,7 @@ Four scenario-preset buttons (healthy ISR, ISR shrinks from a lagging follower, 
 9. Bloom filter + consistent hashing → connect to whichever KV/wide-column store you actually operate.
 10. DynamoDB + SCD2 → the two "silent until it's an incident" failure modes: a throttled partition and a fact joined to the wrong dimension version.
 
-If you only do the HTML, you will remember the pictures. If you do lab + incident, you will remember the **metric**.
+If you only do the HTML, you will remember the pictures. If you do lab + incident, you will remember the **metric**. If you do the level-5 pass above, you will remember the **design**.
 
 ---
 

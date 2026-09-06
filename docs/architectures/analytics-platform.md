@@ -84,6 +84,35 @@ Internal analysts: **SQL on ClickHouse with row policy**, or nightly export to I
 - Pinot
 - dbt on ClickHouse **and** Spark **and** a third warehouse copying the same facts
 
+### This architecture works while… / breaks when… { #v1-limits }
+
+**Works while:**
+
+```text
+every query is tenant-scoped and customer_id leads the ORDER BY
+product questions fit a 14–30 day window
+one shared ClickHouse cluster absorbs all tenants without a whale starving the rest
+Kafka retention is a replay buffer, not the product's history
+PII stays out of the serving store because the product does not need it
+```
+
+**Breaks when:**
+
+```text
+a customer asks for "export my data" or two years of SQL — that is a lakehouse
+   requirement, and it will not be satisfied by raising the TTL
+one tenant is large enough to dominate a shard or a partition, and per-tenant
+   quotas at the gateway stop being sufficient isolation
+hot-storage cost per tenant exceeds what the tier's price supports — the fix is a
+   cost/retention decision, not a bigger cluster
+data residency becomes a contractual requirement — "one global Kafka" is now
+   a compliance problem, not an architecture preference
+the number of customers makes per-customer anything (clusters, databases, DAGs)
+   an operational impossibility rather than merely expensive
+```
+
+Only one of these is a scale problem. The rest are requirement changes — which is why the [cost engineering](#cost-engineering-the-real-architecture) and residency sections below are as load-bearing as the capacity sketch.
+
 ---
 
 ## Bottleneck at the end of V1

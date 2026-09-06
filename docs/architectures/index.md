@@ -72,6 +72,63 @@ Add a component when a **measured bottleneck** or a **hard requirement** forces 
 
 ---
 
+## Every architecture has two limits { #two-limits }
+
+An architecture diagram with no stated limits is a picture, not a design. Every V1 and V2 on the five architecture pages carries two statements, and you should write them for your own systems too:
+
+```text
+This architecture works while ...     ← the envelope you designed for
+This architecture breaks when ...     ← the specific conditions that end it
+```
+
+Getting both down does three things at once: it tells a reader whether their situation is inside the envelope, it converts "when do we migrate?" from opinion into a threshold you can put a monitor on, and it makes the *next* architecture feel derived rather than predetermined.
+
+Worked example — the simplest architecture in this academy, a **single-machine analytical pipeline** (one box, Parquet on local NVMe or S3, a Python or DuckDB job on a schedule):
+
+**Works while:**
+
+```text
+the working set fits practical memory/disk on one machine
+the batch SLA is comfortable relative to achievable scan + compute time
+concurrency is low — one job at a time, few interactive readers
+recovery time (rerun the whole job) is within business tolerance
+one person can hold the whole pipeline in their head
+```
+
+**Breaks when:**
+
+```text
+the SLA falls below the achievable scan/compute time  ← do the arithmetic, don't guess
+several workloads contend for the same machine
+backfills block the current production run
+failure recovery (a full rerun) exceeds what the business will accept
+a second team needs to write to the same data concurrently
+```
+
+Note that only the *first* breaking condition is about size. Three of the five are about time, contention, and people — which is why "our data got big" is such an unreliable trigger for re-architecting, and why the [SaaSCo](saasco-evolution.md) story keeps having to justify each step with something more specific than a volume number.
+
+### Do the arithmetic before you distribute
+
+The most common way to skip this reasoning is to jump from a volume to a product. Don't. Ask instead whether the current system can *theoretically* satisfy the requirement:
+
+```text
+Dataset               = 2 TB
+Disk throughput       = 1 GB/s
+
+Minimum possible scan ≈ 2000 s ≈ 33 minutes
+Requirement           = finish in 10 minutes
+```
+
+Now parallelism is *mathematically* forced — no single machine with that disk can do it, and you can say so in one line of a design doc. That is a very different claim from:
+
+```text
+2 TB is big → use Spark
+```
+
+The second is taste. The first is an argument. And notice the arithmetic cuts both ways: if the requirement had been "finish overnight," the same numbers would have told you *not* to distribute. See [SaaSCo Stage 2](saasco-evolution.md) for the same calculation run in earnest, including the case where the raw scan is comfortably feasible and something else forces the change anyway.
+
+---
+
 ## The five systems
 
 | Architecture | Dominant constraint | V1 serving store | First thing you do *not* add |

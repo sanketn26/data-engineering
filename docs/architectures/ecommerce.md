@@ -92,6 +92,34 @@ Orchestrate **batch** models with Airflow + dbt on Iceberg (or on a warehouse if
 !!! tip "Hudi vs Iceberg in V1"
     Orders **update**. Iceberg merge-on-read/copy-on-write can do this; Hudi MoR is purpose-built for high-frequency upserts. If update rate is "status changes a few times per order," Iceberg is simpler and matches Trino/Spark well. If you are merging **every** item-level change at high QPS into a huge fact table, look at Hudi. See [lakehouse comparison](../lakehouse/comparison.md). Do not pick Hudi because CDC exists — pick it because **upsert volume** exists.
 
+### This architecture works while… / breaks when… { #v1-limits }
+
+**Works while:**
+
+```text
+analytics latency of minutes-to-an-hour is genuinely acceptable
+checkout stays entirely in Postgres — the lake is derived, never load-bearing
+CDC volume is a manageable load on the primary (filtered tables and columns)
+order updates are occasional status changes, not high-QPS item-level merges
+Trino concurrency is analyst-shaped: a handful of people, not an app
+GDPR deletes can be satisfied on a batch cadence
+```
+
+**Breaks when:**
+
+```text
+a customer-facing surface needs sub-second answers — an analyst engine cannot serve a product
+upsert volume rises to continuous item-level merges into a huge fact table
+   (the point where Hudi MoR stops being a preference and becomes a requirement)
+inventory-on-site becomes a launched feature with a seconds-level SLA — the batch
+   path cannot express it, and this is what actually buys Flink
+Debezium lag starts pushing WAL retention on the primary — the platform is now a
+   reliability risk to checkout itself
+clickstream volume × bad partitioning makes every Trino query a full scan
+```
+
+Note which of these are volume and which are *product decisions*. The first and third are requirement changes, not growth — they would force the same move at a tenth of the traffic.
+
 ---
 
 ## Bottleneck at the end of V1

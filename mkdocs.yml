@@ -41,7 +41,6 @@ theme:
     - navigation.tabs.sticky
     - navigation.sections
     - navigation.expand
-    - navigation.indexes
     - navigation.top
     - navigation.footer
     - search.highlight
@@ -139,7 +138,7 @@ nav:
       - Learning paths: learning-paths.md
   - Learn:
       - "Phase 0: Data Systems Foundations":
-          - foundations/index.md
+          - Overview: foundations/index.md
           - Data at Scale: foundations/scale.md
           - Partitioning: foundations/partitions.md
           - Data Movement: foundations/data-movement.md
@@ -153,7 +152,7 @@ nav:
           - Data Contracts: foundations/data-contracts.md
           - Transformation Engineering: foundations/transformation-engineering.md
       - "Phase 2: Data Movement":
-          - kafka/index.md
+          - Overview: kafka/index.md
           - The Log Abstraction: kafka/log.md
           - Partitions & Consumers: kafka/partitions.md
           - Replication & Durability: kafka/replication.md
@@ -162,14 +161,14 @@ nav:
           - Production Gotchas: kafka/gotchas.md
           - Labs: kafka/labs.md
       - "Phase 3: Distributed Compute":
-          - spark/index.md
+          - Overview: spark/index.md
           - The Spark Mental Model: spark/mental-model.md
           - The Shuffle: spark/shuffle.md
           - Catalyst & Tungsten: spark/optimizer.md
           - Production Gotchas: spark/gotchas.md
           - Labs: spark/labs.md
       - "Phase 4: Stream Processing":
-          - flink/index.md
+          - Overview: flink/index.md
           - Time Semantics: flink/time.md
           - Windows & Watermarks: flink/windows.md
           - Stateful Processing: flink/state.md
@@ -177,24 +176,24 @@ nav:
           - Flink vs Kafka Streams vs Spark: flink/comparison.md
           - Labs: flink/labs.md
       - "Phase 5: Orchestration":
-          - airflow/index.md
+          - Overview: airflow/index.md
           - DAGs & Tasks: airflow/dags.md
           - Schedulers & Executors: airflow/executors.md
           - Idempotency & Backfills: airflow/idempotency.md
           - Production Gotchas: airflow/gotchas.md
       - "Phase 6: Lakehouse":
-          - lakehouse/index.md
+          - Overview: lakehouse/index.md
           - Why Table Formats Exist: lakehouse/why-table-formats.md
           - Apache Iceberg: lakehouse/iceberg.md
           - Apache Hudi: lakehouse/hudi.md
           - Delta Lake: lakehouse/delta.md
           - Choosing a Table Format: lakehouse/comparison.md
       - "Phase 7: Query Engines":
-          - query-engines/index.md
+          - Overview: query-engines/index.md
           - Trino: query-engines/trino.md
           - Cloud Data Warehouses: query-engines/cloud-warehouses.md
       - "Phase 8: Real-time OLAP":
-          - olap/index.md
+          - Overview: olap/index.md
           - Why Columnar Storage: olap/columnar-storage.md
           - ClickHouse: olap/clickhouse.md
           - Apache Pinot: olap/pinot.md

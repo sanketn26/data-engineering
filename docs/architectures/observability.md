@@ -104,6 +104,34 @@ SETTINGS index_granularity = 8192;
 
 `trace_id` is **not** in `ORDER BY`. Point lookups of a random trace will scan the service+time range — that is acceptable if the UI always has a time window. A bloom skip index on `trace_id` is a later, cheap add. Do not rebuild the primary key around traces unless that is the #1 query.
 
+### This architecture works while… / breaks when… { #v1-limits }
+
+**Works while:**
+
+```text
+ingest stays roughly ≤ 50k events/s and one team owns the whole path
+queries filter by service and a time window — the ORDER BY prefix
+7 days of hot retention fits one ClickHouse shard's disk after ~10:1 compression
+dropping debug logs under overload is an acceptable relief valve
+Kafka is a 24–72 h replay buffer, not the store of record
+enrichment is stateless (parse, cast, attach service metadata)
+```
+
+**Breaks when:**
+
+```text
+one service is a large fraction of traffic — a single-key partition pins ingest
+a required query does NOT lead with service + time (trace_id lookups, "all errors
+  across the fleet by user_id") — the ORDER BY stops pruning and reads go linear
+insert batches get small — thousands of parts, and query time collapses on merges,
+  not on CPU
+hot retention outgrows one shard, so 7 days no longer fits without sharding
+forensics over months arrives as a requirement — it does not belong on hot storage
+enrichment becomes stateful (dedup, trace stitching, tenant-aware field dropping)
+```
+
+The first four are the [V2](#v2-remove-the-measured-bottleneck-500k5m-eventss) triggers, and each has a metric you can alert on today: per-partition lag skew, query scan bytes, active parts per table, disk headroom.
+
 ---
 
 ## Bottleneck at the end of V1

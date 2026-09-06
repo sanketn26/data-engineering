@@ -81,6 +81,36 @@ Do not wait for Iceberg commits on the charge.
 - Per-feature microservices
 - Exactly-once *business* side effects (emails) without an outbox
 
+### This architecture works while… / breaks when… { #v1-limits }
+
+**Works while:**
+
+```text
+the decision needs single-entity features: this user, this card, this device
+the 200 ms budget is met by rules + keyed counters read from Redis/ClickHouse
+a timeout can safely fall back to a default score (the fail policy is written down
+   and someone owns it)
+feature staleness of seconds is acceptable for the async-maintained features
+labels (chargebacks) arrive slowly enough that a batch retrain cadence is fine
+```
+
+**Breaks when:**
+
+```text
+the fraud signal is relational — rings of accounts sharing devices, cards, addresses.
+   No amount of per-user velocity state finds a pattern that only exists BETWEEN
+   entities. This, not volume, is what buys a graph store.
+the feature budget stops closing: each added feature is a lookup, and 200 ms is a
+   hard external constraint you cannot scale your way out of
+fail-open becomes financially unacceptable, so the fallback path itself needs an SLO
+investigation load grows — analysts need ad-hoc history, which is a different store
+   and a different latency class from scoring
+model iteration outpaces the label pipeline, and "is this model better" cannot be
+   answered from what you retained
+```
+
+The first is the important one: it is a *shape* change, not a scale change. The V1 architecture cannot be tuned into answering it.
+
 ---
 
 ## Bottleneck at the end of V1

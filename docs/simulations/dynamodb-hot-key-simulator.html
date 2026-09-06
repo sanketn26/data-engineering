@@ -41,7 +41,8 @@
 </head>
 <body>
 <h1>DynamoDB Hot-Key Simulator</h1>
-<p>DynamoDB spreads a table's total throughput evenly across its <strong>physical partitions</strong>. A single hot logical key lives on exactly one physical partition — so it can throttle even while the rest of the table, and the table's aggregate capacity, sit nowhere near full.</p>
+<p>DynamoDB distributes data across <strong>physical partitions</strong> and gives each one a baseline slice of the table's throughput. <strong>Adaptive capacity</strong> then reshapes that allocation, letting a busy partition borrow throughput other partitions are not using. Adaptive capacity reduces — but does not eliminate — the consequences of a pathological hot key: a single logical key still lives on exactly one physical partition, and that partition has a hard per-partition ceiling it cannot exceed no matter how much spare table capacity exists.</p>
+<p style="color:#8b949e;font-size:13px">Toggle <strong>adaptive capacity</strong> below and push skew to the extreme to see all three regimes: throttling early without it, absorbed by spare capacity with it, and the partition ceiling that survives both.</p>
 
 <div class="card">
   <h3 style="color:#e3b341">Table configuration</h3>
@@ -67,6 +68,17 @@
     <span class="val-display" id="skew-val">0%</span>
   </div>
 
+  <div class="input-row">
+    <span class="dim-name">Per-partition hard ceiling (capacity units/s)</span>
+    <input type="range" min="200" max="3000" step="100" value="3000" id="ceiling" oninput="document.getElementById('ceiling-val').textContent=parseInt(this.value).toLocaleString()+'/s';calculate()">
+    <span class="val-display" id="ceiling-val">3,000/s</span>
+  </div>
+
+  <div class="checkbox-row">
+    <input type="checkbox" id="adaptive" checked onchange="calculate()">
+    <label for="adaptive" style="margin:0">Adaptive capacity <strong>ON</strong> &mdash; a hot partition may borrow throughput other partitions are not using (up to the ceiling)</label>
+  </div>
+
   <div class="checkbox-row">
     <input type="checkbox" id="shard" onchange="calculate()">
     <label for="shard" style="margin:0">Shard the hot key across</label>
@@ -78,11 +90,12 @@
 
 <div class="card">
   <h3 style="color:#e3b341">Per-physical-partition traffic vs. budget</h3>
-  <p style="color:#8b949e;font-size:13px;margin-top:-6px">Each bar is one physical partition. The dashed line is that partition's throughput budget (total ÷ partitions). Red = incoming traffic exceeds budget = throttled.</p>
+  <p style="color:#8b949e;font-size:13px;margin-top:-6px">Each bar is one physical partition. The dashed line is that partition's <em>effective</em> budget: the baseline slice (total ÷ partitions), plus whatever adaptive capacity can lend it from idle partitions, capped at the per-partition ceiling. Red = incoming traffic exceeds the effective budget = throttled.</p>
   <div class="partitions" id="partitions"></div>
   <div class="legend">
-    <span><span class="swatch" style="background:#3fb950"></span>within budget</span>
-    <span><span class="swatch" style="background:#f85149"></span>throttled (traffic &gt; budget)</span>
+    <span><span class="swatch" style="background:#3fb950"></span>within effective budget</span>
+    <span><span class="swatch" style="background:#e3b341"></span>above baseline, absorbed by adaptive capacity</span>
+    <span><span class="swatch" style="background:#f85149"></span>throttled (traffic &gt; effective budget)</span>
     <span><span class="swatch" style="background:#8b949e"></span>idle / near-zero traffic</span>
   </div>
 </div>
@@ -95,13 +108,26 @@
 
 <div class="explanation">
   <h3 style="color:#58a6ff">Why this matters</h3>
-  <p>DynamoDB does not allocate throughput per logical item — it allocates it per <strong>physical partition</strong>, and a table's total provisioned or on-demand capacity is divided roughly evenly across however many physical partitions the table has. Every key hashes to exactly one physical partition. If traffic is skewed toward one logical key, all of that traffic lands on <em>one</em> partition and competes only against that partition's slice of the budget — not the table's total.</p>
-  <p>That is why <code>ProvisionedThroughputExceeded</code> throttling can appear on CloudWatch's per-partition (or Contributor Insights) view while the table-level consumed-capacity metric looks completely healthy — see <a href="../databases/dynamodb.md" style="color:#58a6ff">DynamoDB</a>, "Hot keys" and "On-demand is not a hotspot cure." <strong>A bigger bill without a key redesign does not fix a hot partition</strong> — raising total table throughput only raises every partition's budget by the same small amount; the hot partition is still absorbing nearly all the traffic alone.</p>
+  <p>DynamoDB does not allocate throughput per logical item — it allocates it per <strong>physical partition</strong>. The mental model is a chain, not a single rule:</p>
+  <pre style="background:#0d1117;padding:12px;border-radius:6px;color:#8b949e;font-size:13px;overflow-x:auto">logical key
+    &darr;  (hash)
+physical partition
+    &darr;
+baseline capacity distribution  (table throughput &divide; partitions)
+    &darr;
+adaptive capacity may rebalance available throughput toward hot partitions
+    &darr;
+BUT
+a single very hot item/key can still hit a per-partition ceiling</pre>
+  <p>Adaptive capacity means an uneven access pattern is <em>usually</em> absorbed: a partition running hot borrows throughput that idle partitions are not using. It reduces, but does not eliminate, the consequences of a pathological hot key. Two limits survive it: the table's total capacity (you cannot lend what nobody has spare), and a per-partition/item ceiling that no amount of table capacity raises. That is why AWS still recommends designing partition keys that distribute I/O effectively.</p>
+  <p>When the ceiling is reached, throttling appears while the table-level consumed-capacity metric still looks healthy — see <a href="../databases/dynamodb.md" style="color:#58a6ff">DynamoDB</a>, "Hot keys" and "On-demand is not a hotspot cure."</p>
   <ul>
-    <li>Adding table-level capacity spreads the increase evenly across partitions the hot key never uses — it barely moves its own budget.</li>
-    <li>Sharding the hot key (e.g. appending a random suffix <code>0..N-1</code> and fanning reads/writes across it) spreads the <em>same logical entity's</em> traffic across N physical partitions, each getting its own budget.</li>
-    <li>This is a simplified model: real partition counts and hashing depend on table size, throughput history, and internal splits, and DynamoDB's adaptive capacity can reshape "hot" partitions over time — but it reacts on the order of minutes, not instantly, and has its own ceiling.</li>
-    <li>Watch throttles <strong>per partition</strong>, not average consumed capacity, when diagnosing this in production.</li>
+    <li><strong>Adaptive capacity OFF</strong> (the old static model, and still a useful worst case): the hot partition throttles as soon as it exceeds its baseline slice, however idle the rest of the table is.</li>
+    <li><strong>Adaptive capacity ON</strong>: the hot partition absorbs spare table capacity and rides through moderate skew without throttling.</li>
+    <li><strong>Extreme hot key</strong>: raise skew toward 100% and the hot partition hits the per-partition ceiling anyway — adaptive capacity has nothing left to lend, and the ceiling is not a budget you can buy your way past.</li>
+    <li>Adaptive capacity also does not react instantly; it rebalances over time, so a flash sale can throttle before it catches up.</li>
+    <li><strong>Sharding the hot key</strong> (append a suffix <code>0..N-1</code>, fan reads/writes across it) is the fix that changes the shape of the problem: the same logical entity's traffic now lands on N physical partitions, each with its own baseline and its own ceiling.</li>
+    <li>This is a simplified model — real partition counts, hashing, and splits depend on table size and throughput history.</li>
   </ul>
 </div>
 
@@ -113,8 +139,10 @@ function calculate() {
   const skewPct = parseInt(document.getElementById('skew').value);
   const sharded = document.getElementById('shard').checked;
   const shardN = Math.min(parseInt(document.getElementById('shardN').value), numParts);
+  const adaptive = document.getElementById('adaptive').checked;
+  const ceiling = parseInt(document.getElementById('ceiling').value);
 
-  const budget = total / numParts;
+  const budget = Math.min(total / numParts, ceiling);
   const totalTraffic = total * (utilPct / 100);
 
   const skew = skewPct / 100;
@@ -134,22 +162,40 @@ function calculate() {
     partitionLoads.push(load);
   }
 
-  const maxLoad = Math.max(...partitionLoads, budget);
+  // Adaptive capacity: partitions running above their baseline slice borrow the
+  // throughput idle partitions are not using, in proportion to how far over they
+  // are — but never past the per-partition hard ceiling.
+  const spare = partitionLoads.reduce((acc, l) => acc + Math.max(0, budget - l), 0);
+  const deficits = partitionLoads.map(l => Math.max(0, l - budget));
+  const totalDeficit = deficits.reduce((a, b) => a + b, 0);
+
+  const effective = partitionLoads.map((load, i) => {
+    let b = budget;
+    if (adaptive && totalDeficit > 0) {
+      b += Math.min(spare * (deficits[i] / totalDeficit), deficits[i]);
+    }
+    return Math.min(b, ceiling);
+  });
+
+  const maxLoad = Math.max(...partitionLoads, ...effective);
   const container = document.getElementById('partitions');
   container.innerHTML = '';
   let throttledCount = 0;
   let peakLoad = 0;
+  let borrowedCount = 0;
 
   partitionLoads.forEach((load, i) => {
-    const pct = (load / budget) * 100;
-    if (load > budget) throttledCount++;
+    const eff = effective[i];
+    const pct = (load / eff) * 100;
+    if (load > eff) throttledCount++;
     peakLoad = Math.max(peakLoad, load);
 
     const barHeightPct = Math.min((load / maxLoad) * 100, 100);
-    const budgetLinePct = (budget / maxLoad) * 100;
+    const budgetLinePct = (eff / maxLoad) * 100;
 
     let color = '#3fb950';
-    if (load > budget) color = '#f85149';
+    if (load > eff) color = '#f85149';
+    else if (load > budget * 1.001) { color = '#e3b341'; borrowedCount++; }
     else if (load < budget * 0.15) color = '#8b949e';
 
     const col = document.createElement('div');
@@ -171,18 +217,31 @@ function calculate() {
 
   let cls, label, msg;
 
+  const peakEffective = Math.max(...effective);
+  const atCeiling = adaptive && throttledCount > 0 && peakEffective >= ceiling - 0.5;
+
   if (throttledCount > 0) {
     cls = 'danger';
     label = `✗ ${throttledCount} of ${numParts} partition(s) throttled`;
-    msg = sharded
-      ? `Even sharded across ${shardN} suffixes, the hot key's traffic still exceeds ${shardN} partitions' combined budget. Increase the shard count or address the underlying access pattern.`
-      : `The hot key concentrates ${(hotShare*100).toFixed(0)}% of traffic onto ONE physical partition, which needs ${(peakLoad).toFixed(0)} units/s against a budget of only ${budget.toFixed(0)} units/s — while total table utilization is just ${utilPct}% of ${total.toLocaleString()} units/s.`;
+    if (sharded) {
+      msg = `Even sharded across ${shardN} suffixes, the hot key's traffic still exceeds those partitions' effective budgets. Increase the shard count or address the underlying access pattern.`;
+    } else if (atCeiling) {
+      msg = `Adaptive capacity lent this partition everything it could and it is now pinned at the <strong>per-partition ceiling of ${ceiling.toLocaleString()} units/s</strong>, against ${peakLoad.toFixed(0)} units/s of demand. This is the limit adaptive capacity cannot lift: spare table capacity is irrelevant once one partition is at its ceiling. Only a key redesign (sharding, or a different partition key) moves this.`;
+    } else if (adaptive) {
+      msg = `Adaptive capacity raised this partition's budget to ${peakEffective.toFixed(0)} units/s by borrowing from idle partitions, but the hot key still demands ${peakLoad.toFixed(0)} units/s. There is not enough spare capacity in the table to cover the skew.`;
+    } else {
+      msg = `With adaptive capacity OFF, the hot key concentrates ${(hotShare*100).toFixed(0)}% of traffic onto ONE physical partition, which needs ${peakLoad.toFixed(0)} units/s against a fixed baseline slice of only ${budget.toFixed(0)} units/s — while total table utilization is just ${utilPct}% of ${total.toLocaleString()} units/s. Turn adaptive capacity ON to see how much of this a modern table absorbs.`;
+    }
   } else {
     cls = 'ok';
     label = '✓ No partition throttled';
-    msg = sharded && skewPct > 0
-      ? `Sharding the hot key across ${shardN} suffixes spread its traffic across ${shardN} physical partitions, each now within its ${budget.toFixed(0)} units/s budget.`
-      : `Every physical partition is within its ${budget.toFixed(0)} units/s budget.`;
+    if (sharded && skewPct > 0) {
+      msg = `Sharding the hot key across ${shardN} suffixes spread its traffic across ${shardN} physical partitions, each now within its budget.`;
+    } else if (borrowedCount > 0) {
+      msg = `${borrowedCount} partition(s) are running <strong>above</strong> the ${budget.toFixed(0)} units/s baseline slice and are only surviving because adaptive capacity is lending them throughput from idle partitions (peak effective budget ${peakEffective.toFixed(0)} units/s). Turn adaptive capacity OFF, or push skew higher, to find the edge.`;
+    } else {
+      msg = `Every physical partition is within its ${budget.toFixed(0)} units/s baseline budget.`;
+    }
   }
 
   bigNum.textContent = label;
@@ -191,7 +250,10 @@ function calculate() {
   breakdown.textContent =
     `Table throughput:         ${total.toLocaleString().padStart(10)} units/s\n` +
     `Physical partitions:      ${String(numParts).padStart(10)}\n` +
-    `Per-partition budget:     ${budget.toFixed(0).padStart(10)} units/s\n` +
+    `Baseline slice/partition: ${budget.toFixed(0).padStart(10)} units/s\n` +
+    `Adaptive capacity:        ${(adaptive ? 'ON' : 'OFF').padStart(10)}\n` +
+    `Per-partition ceiling:    ${ceiling.toLocaleString().padStart(10)} units/s\n` +
+    `Peak effective budget:    ${peakEffective.toFixed(0).padStart(10)} units/s\n` +
     `Total traffic (table):    ${totalTraffic.toFixed(0).padStart(10)} units/s  (${utilPct}% of table throughput)\n` +
     `Hot key share of traffic: ${(hotShare*100).toFixed(0).padStart(9)}%\n` +
     `Hot key spread across:    ${String(hotPartitionsCount).padStart(10)} partition(s) ${sharded ? '(sharded)' : '(unsharded)'}\n` +

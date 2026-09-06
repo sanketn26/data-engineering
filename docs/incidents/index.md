@@ -24,7 +24,7 @@ Related: [Kafka gotchas](../kafka/gotchas.md), [Spark gotchas](../spark/gotchas.
 
 Every incident below is a shape you will meet in the five architectures. Kafka hot partition is [analytics](../architectures/analytics-platform.md) whales and [fraud](../architectures/fraud.md) keys. Spark skew is e-commerce joins. Flink watermarks are [IoT](../architectures/iot.md) idle devices. ClickHouse parts/`ORDER BY` is every dashboard. Iceberg snapshots are cold paths. Trino coordinator OOM is "just one join."
 
-Incidents 1–6 below are each contained inside one system's page, because that is how you learn the system. Production incidents rarely respect that boundary — the alert fires on a business metric, and the broken layer is three or four hops away from wherever the dashboard lives. The three **cross-system** incidents after them are the harder, more realistic drill: no page tells you which system to open first.
+Incidents 1–6 below are each contained inside one system's page, because that is how you learn the system. Production incidents rarely respect that boundary — the alert fires on a business metric, and the broken layer is three or four hops away from wherever the dashboard lives. The four **cross-system** incidents after them are the harder, more realistic drill: no page tells you which system to open first. The last of the four is a different category again — every system is correct, and the failure is in the *interpretation*.
 
 ---
 
@@ -337,25 +337,44 @@ Unbounded lake ⋈ OLTP replica. Missing partition predicate. Bad stats → broa
 - CDC source reconciliation (Debezium row count vs source Postgres row count for `orders`): **-3%** — the one number that is not normal, and the smallest deviation of the bunch.
 
 !!! question "Form a hypothesis"
-    Every downstream layer says "normal." Where do you look next, and what hypothesis explains a small (-3%) discrepancy at the source feeding a large (-22%) discrepancy at the dashboard? What would disprove it in the next five minutes?
+    Every downstream layer says "normal." Where do you look next, and what hypothesis explains a small (-3%) discrepancy at the source feeding a large (-22%) discrepancy at the dashboard? What would disprove it in the next five minutes? A specific prompt: the CDC connector restarted cleanly last night after database maintenance and has reported healthy ever since — what could a *clean* restart still have lost?
 
 <details>
 <summary>Resolution — revenue drop, cross-system</summary>
 
 ### Root cause
 
-The -3% CDC reconciliation gap is not "3% of orders missing" — it is orders **from one customer segment** missing entirely, because a Postgres logical replication slot briefly lagged during a maintenance window and Debezium's snapshot-resume logic skipped a narrow row-id range instead of replaying it. Every layer *downstream* of Kafka reports "normal" because each of them is measuring throughput and freshness of what **did** arrive — none of them can see what never left the source. A 3% gap in orders happens to be concentrated in the company's highest-value enterprise segment (a handful of large customers whose orders dominate revenue $ even though they're a small fraction of order *count*), which is why a 3% row gap becomes a 22% revenue gap.
+The -3% CDC reconciliation gap is not "3% of orders missing at random" — it is a contiguous window of changes missing entirely, and it happened because **CDC recovery state was recreated instead of preserved**.
+
+During PostgreSQL maintenance the previous night, the logical replication slot for the Debezium connector was accidentally dropped (it was blocking a WAL cleanup and someone removed it to let the maintenance proceed). The connector restarted afterward and a **new** slot was created at the current WAL position, while Kafka Connect's stored offset for the connector still referenced an older LSN. Changes between that older LSN and the newly created slot's start position exist in neither place: the old slot that was retaining them is gone, and the new slot only begins streaming from where it was created. Debezium resumed cleanly, reported healthy, and streamed everything from that moment forward.
+
+This is the important correction to make to most people's mental model: Debezium's *normal* restart behaviour is safe. It persists LSN offsets and resumes from the previously recorded position, and a brief lag during maintenance is exactly the case it is designed to survive. The dangerous case is not lag — it is when the **replication slot itself** is recreated, upgraded around, or otherwise loses the retention that the stored offset depends on. Debezium's own documentation warns that a recreated slot can make older changes unavailable and lead to skipped events.
+
+```text
+Kafka Connect offset  ──┐
+                        ├── these two must refer to the SAME retained WAL history
+Postgres replication ───┘
+        slot
+
+Drop the slot, keep the offset  →  a silent, unrecoverable gap between them.
+```
+
+Every layer *downstream* of Kafka reports "normal" because each of them is measuring throughput and freshness of what **did** arrive — none of them can see what never left the source. The missing window happens to be concentrated in the company's highest-value enterprise segment (a handful of large customers whose orders dominate revenue $ even though they're a small fraction of order *count*), which is why a 3% row gap becomes a 22% revenue gap.
 
 The chain a learner must walk is: **business metric (revenue) → serving layer (ClickHouse, fine) → transformation (Flink, fine) → stream processor (Kafka, fine, lag=0) → transport (CDC/Debezium) → source (Postgres)**. Every "fine" reading upstream of the actual break is fine *because it correctly reflects what it received* — the break is the one hop nothing downstream can observe at all: data that never entered the pipeline.
 
 ### Fix
 
-1. Confirm the specific missing row-id range from the replication slot's last confirmed LSN vs the actual WAL position at the time of the maintenance window.
-2. Backfill the missing range with a bounded snapshot re-read (see [CDC — reconciliation](../foundations/cdc.md#reconciliation)), not a full re-snapshot.
+1. Establish the gap's boundaries: the connector's stored Kafka Connect offset LSN (the last change it is *sure* it consumed) versus the new slot's `confirmed_flush_lsn` at creation. Everything between them is the missing window; map it to a wall-clock range using the maintenance timeline.
+2. Backfill that window with a bounded, filtered snapshot re-read of `orders` over the affected time range (see [CDC — reconciliation](../foundations/cdc.md#reconciliation)) — an incremental/ad-hoc snapshot, not a full re-snapshot of the table.
 3. Reprocess only the affected hours through Flink → Iceberg → ClickHouse; do not reprocess the whole day.
+4. Do **not** "fix" it by dropping and recreating the slot again — that is the action that caused the incident.
 
 ### Prevention
 
+- **Never casually recreate CDC state.** The stored connector offset and the replication slot are *one recovery contract*, not two independent resources. Deleting either one alone destroys the guarantee that the pair provides. Treat "drop the replication slot" the way you treat "drop the table": a change-controlled action with an explicit plan for the data it strands.
+- Put replication slots in the runbook for every database maintenance and upgrade, with an owner. The most common route to this incident is a DBA clearing a slot that is "blocking WAL cleanup" without knowing a pipeline depends on it — so also alert on slot *WAL retention* long before it becomes an emergency someone resolves by deleting it.
+- Alert on the *existence and identity* of the slot, not just consumer health: a connector reporting healthy against a freshly created slot looks identical to one resuming correctly.
 - Reconciliation between source row count and CDC-consumed row count, **alerting**, not just dashboarded — the -3% here was visible before the incident but nobody was paged on it.
 - A revenue metric broken down by segment in the alert itself, so "-22% overall, -0% for 95% of segments" surfaces the concentration immediately instead of requiring a human to notice and dig.
 - The general lesson: "every layer is green" proves every layer is internally consistent with what it received — it proves nothing about what never arrived. See [metadata — declared vs observed truth](../metadata/index.md#contracts-vs-catalogues-declared-truth-vs-observed-truth).
@@ -443,6 +462,91 @@ Dashboard freshness SLO breach: `gold.events_agg` is **15 minutes** behind wall 
 
 ---
 
+## Cross-system incident 4 — Fraud rate up 40%, every system correct
+
+This one is a different *category* from the three above. Incidents 1–3 were deterministic pipeline failures: something broke, and the job was to find it. Here nothing is broken, and that is the entire lesson.
+
+### Alert
+
+11:40. The fraud team's daily monitor: **`fraud_rate` up 40% week-over-week**, from 0.5% of transactions to 0.7%. The fraud model's alerting thresholds were tuned at 0.5%, so the review queue has tripled and two analysts are drowning. Engineering is paged to find the pipeline bug.
+
+### Symptoms
+
+Everything checks out — and the on-call engineer checks *thoroughly*, which is why this incident takes four hours:
+
+- Kafka: lag zero, no partition skew, no producer errors, no gaps in offsets.
+- Flink: checkpoints healthy, watermark tracking processing time, no late-data drops, no state restore since last deploy.
+- Iceberg: row counts reconcile against Kafka offsets exactly. No duplicate transaction IDs. No missing hours.
+- ClickHouse: `events_agg` matches an independent Trino query over the same Iceberg snapshot, to the row.
+- CDC reconciliation against source Postgres: 0% gap.
+- No deploys to the fraud model, the feature pipeline, or any transformation in the last 14 days.
+- Replaying last week's Kafka data through today's pipeline reproduces last week's 0.5% exactly. Replaying this week's data reproduces 0.7%.
+
+!!! question "Form a hypothesis"
+    Every correctness check passes, including a replay that proves the pipeline is deterministic and unchanged. The data is *correct*. Before reading on: if the pipeline is right and the number moved anyway, what kinds of things can still have changed? Name at least two, and name the query you would run to distinguish them.
+
+<details>
+<summary>Resolution — correct data, wrong conclusion</summary>
+
+### Root cause
+
+**The pipeline is fine. The population changed.**
+
+Break `fraud_rate` down by customer segment and the aggregate 40% rise disappears into something much less alarming:
+
+```text
+                        last week          this week
+segment            txns   fraud_rate    txns   fraud_rate
+─────────────────────────────────────────────────────────
+SMB self-serve     980k       0.50%      985k       0.50%   ← unchanged
+Enterprise (old)    20k       0.40%       20k       0.40%   ← unchanged
+Enterprise (NEW)     —           —       120k       1.40%   ← new customer, onboarded Monday
+─────────────────────────────────────────────────────────
+TOTAL             1000k       0.50%     1125k       0.71%
+```
+
+Not one segment's fraud rate moved. A single new enterprise customer went live on Monday — a marketplace with a fundamentally different traffic profile (guest checkout, high-value electronics, international cards) whose *inherent* fraud rate is legitimately ~3× the platform average. It now contributes 11% of transaction volume. The aggregate moved because the **mix** moved.
+
+This is [Simpson's paradox](https://en.wikipedia.org/wiki/Simpson%27s_paradox) territory, and it is one of the most common ways a perfectly healthy data platform produces a false alarm — or, far worse, hides a real one. The same mechanism runs in reverse: a growing low-fraud segment can *mask* a genuine fraud spike in an existing segment, and every system will still be green.
+
+The conclusion, not the data, was wrong:
+
+```text
+correct data  ≠  correct interpretation
+```
+
+### Fix
+
+There is no pipeline fix, and saying so clearly is the deliverable:
+
+1. Report the finding as a **mix shift**, with the segment breakdown above, not as "no bug found." "Everything is green" closes a ticket; the breakdown changes a decision.
+2. Hand it to the fraud team as their decision: the model's 0.5% threshold was calibrated on a population that no longer exists. Either segment the threshold, or accept the new baseline — a modelling and risk call, not an engineering one.
+3. Add the segment dimension to the fraud monitor so the *next* version of this question answers itself.
+
+### Prevention
+
+- **Monitor rates alongside their denominators.** A ratio alert with no volume or mix context will fire on population change as readily as on the thing it was built to detect. Show `fraud_rate`, transaction count, and segment mix on the same panel.
+- Alert on **within-segment** rates, and treat the aggregate as a summary, not a signal.
+- When traffic composition changes materially — a large customer onboards, a region launches, a pricing tier ships — flag it as a known event on analytics dashboards, the same way deploys are annotated. Business changes are as load-bearing for a metric's interpretation as code changes.
+- Add "what changed in the *population*?" to the incident checklist next to "what changed in the *code*?" Four hours went into proving the pipeline correct because nobody asked the second question first.
+
+### Why this incident is in the curriculum
+
+It marks a boundary that data engineers are repeatedly asked to stand on:
+
+```text
+data engineering     did the right bytes arrive, intact, on time?     ✓ yes
+analytics            is the metric computed as defined?               ✓ yes
+statistics           is the comparison valid across two populations?  ✗ NO
+business semantics   does the number mean what the reader assumes?    ✗ NO
+```
+
+Your job ends at the first two lines — but the *page* you receive will always be phrased as if the failure is in your half. An engineer who can only answer "the pipeline is correct" leaves the organization exactly where it started. An engineer who can produce the segment breakdown, name the mix shift, and hand it to the right owner has actually resolved the incident. The skill is knowing which of the four rows above broke, and being able to demonstrate it.
+
+</details>
+
+---
+
 ## Cross-walk
 
 | Incident | Architecture | Lab / sim |
@@ -456,6 +560,7 @@ Dashboard freshness SLO breach: `gold.events_agg` is **15 minutes** behind wall 
 | Revenue drop, all-green | SaaS analytics, CDC reconciliation | [CDC](../foundations/cdc.md), [correctness invariants](../reference/correctness-invariants.md) |
 | Pipeline green, data wrong | Any pipeline with client-side retries | [correctness invariants](../reference/correctness-invariants.md), [data contracts](../foundations/data-contracts.md) |
 | Stale dashboard, zero Kafka lag | Every multi-hop pipeline | [Flink checkpoints](../flink/checkpoints.md), [Airflow](../airflow/index.md#sensors-pools-mapping-slas-assets) |
+| Fraud rate up 40%, all systems correct | Fraud detection, SaaS analytics | [metric definitions](../metadata/index.md), [data modelling](../foundations/data-modelling.md) |
 
 ---
 

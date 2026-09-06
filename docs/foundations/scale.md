@@ -270,7 +270,7 @@ Assume yesterday’s job was comfortable at volume \(V\).
 Worked numbers for SaaS events:
 
 - **10×** (40 GB → 400 GB/day): Spark on 10 r5.xlarge, Parquet, partition by `date`. p95 job ~15 minutes.
-- **100×** (4 TB/day): 100+ cores, Iceberg with compaction, shuffle ~TB, must partition prune aggressively. Kafka in front because object-store PUT rate from many producers becomes a problem.
+- **100×** (4 TB/day): 100+ cores, Iceberg with compaction, shuffle ~TB, must partition prune aggressively. Kafka in front — not because object storage cannot absorb the writes, but because multiple independent consumers now need the same events, in order per entity, with replay.
 - **1000×** (40 TB/day): you are an observability-shaped company. Ingest is a fleet. Batch is incremental (only new Iceberg snapshots). Some tenants get their own buckets so a whale cannot starve the long tail.
 
 IoT at 1000× is usually **cardinality** (devices × sensors × hours of tiny files), not raw TB. Same lesson, different unit.

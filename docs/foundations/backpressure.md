@@ -1,13 +1,13 @@
 ---
 title: Backpressure & Queueing
-description: Reason about producer/consumer throughput mismatch with Little's Law before it becomes a 3 AM lag page.
+description: Reason about producer/consumer throughput mismatch — queue accumulation first, Little's Law second — before it becomes a 3 AM lag page.
 ---
 
 # Backpressure & Queueing
 
 **Time:** 35 minutes reading + 30 minutes exercise<br>
 **Prerequisites:** [Data at Scale](scale.md), [Partitioning](partitions.md)<br>
-**Outcomes:** compute backlog growth from a throughput mismatch; choose between admission control, load shedding, and autoscaling; read Little's Law off any queue in the academy.
+**Outcomes:** compute backlog growth from a throughput mismatch; keep queue accumulation and Little's Law in separate boxes; choose between admission control, load shedding, and autoscaling.
 
 A producer writes 100k events/s. Kafka decouples producer and consumer rates — a topic keeps accepting writes up to its disk/retention limits rather than reacting live to a slow reader, so it does not propagate downstream slowness back to the writer the way a bounded in-process queue would. A processor downstream can only handle 70k/s. A sink after that can only accept 40k/s.
 
@@ -33,6 +33,21 @@ Where does the missing 60k/s go? It does not vanish. It becomes **lag** — a gr
 - **Request failures/timeouts** — an overloaded broker or under-replicated partition causes produce requests to fail or time out, which the client surfaces as errors, not silent success.
 
 None of these are Kafka *propagating consumer lag upstream* — they are independent producer-side or broker-side limits. The distinction matters: a slow consumer, on its own, does not throttle the producer; a full producer buffer or a broker quota does.
+
+## Ask the three questions in order
+
+Before any formula, decide which regime you are in. Almost every wrong answer in a lag incident comes from applying the stable-system formula to an unstable system:
+
+```text
+1. Is the queue stable?          (is arrival ≤ service capacity?)
+2. If NOT stable, how fast is    → queue accumulation:  dQ/dt = λ_in − μ
+   the backlog growing?
+3. If stable, what relationship  → Little's Law:        L = λW
+   ties throughput, queue depth
+   and waiting time together?
+```
+
+Question 2 and question 3 use different formulas because they are different questions. The rest of this page takes them one at a time.
 
 ## Queue accumulation (not Little's Law)
 
@@ -130,7 +145,7 @@ Backpressure symptoms look similar across systems, but the metric that separates
 - An unbounded in-memory queue "to avoid dropping data" that turns a slow sink into an OOM instead of a controlled lag metric.
 - Load shedding with no metric on *what* was shed — silent data loss looks identical to "everything is fine" until an audit.
 - Autoscaling with no maximum, so a downstream outage causes the consumer fleet to scale to a size the sink then cannot survive when it recovers (the "thundering herd on recovery" failure).
-- Treating Kafka retention as backpressure — it is a deadline, not a signal; the producer never learns to slow down.
+- Treating Kafka retention as backpressure — it is a deadline, not a signal. Consumer lag is not fed back to the producer, so nothing in that loop tells an independent producer to slow down (the producer-side limits above are separate mechanisms, and they do not fire because a consumer is behind).
 
 ## Practice the idea
 

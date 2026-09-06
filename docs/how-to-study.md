@@ -128,8 +128,8 @@ before moving forward:
 6. Phase 6 [Lakehouse](lakehouse/index.md) — what a table is on object storage
 7. Phase 7-8 [Trino](query-engines/trino.md) + [ClickHouse](olap/clickhouse.md) — query engines and real-time OLAP
 8. Phase 9 Specialised: [Time series](time-series/index.md), [Graph](graph/index.md), [NoSQL](databases/index.md), [Ray](distributed-python/ray.md)
-9. Phase 10 Platform: [Metadata](metadata/index.md), [Quality](quality/index.md), [Security](security/index.md)
-10. Phase 11 Architecture & Economics: [selection framework](reference/selection-framework.md), [cost engineering](reference/cost-engineering.md)
+9. Phase 10 Platform: [Metadata, lineage & catalogues](metadata/index.md), [Quality](quality/index.md), [Security](security/index.md), [Notebooks](notebooks/index.md), [Platform delivery & IaC](platform-delivery.md)
+10. Phase 11 Architecture & Economics: [selection framework](reference/selection-framework.md), [cost engineering](reference/cost-engineering.md), [data pipeline correctness](reference/correctness-invariants.md), [comparisons](comparisons/index.md)
 11. Phase 12 Production: [Architectures](architectures/index.md), [Incidents](incidents/index.md), [Capstone](capstone.md)
 
 If you are experienced and targeting a gap, use [Learning paths](learning-paths.md) and jump.

@@ -47,6 +47,29 @@ During the overlap, snapshot rows and live updates can arrive close together. Si
 
 Kafka log compaction preserves the latest keyed record, but retention, downstream snapshots, and physical GDPR deletion are separate concerns.
 
+### The recovery contract: offsets and log retention are one thing { #recovery-contract }
+
+A CDC connector's ability to resume without loss depends on **two** pieces of state that must refer to the same retained history:
+
+```text
+connector offset (Kafka Connect / connector store)   "I have consumed up to position X"
+        +
+source-side log retention (Postgres replication      "I am retaining everything from X onward"
+slot, MySQL binlog retention, Oracle logminer
+window)
+        =
+        one recovery contract
+```
+
+Destroying either half alone creates a silent gap. The most common production route to this is a replication slot dropped during maintenance because it is blocking WAL cleanup: the connector restarts, a new slot is created at the *current* position, the stored offset still names an older one, and everything between them is unrecoverable from the log. The connector reports healthy the whole time, because from its point of view it resumed and is now streaming.
+
+Treat "drop the replication slot" (or "shorten binlog retention," or "recreate the connector's offsets") as a change-controlled action with an explicit plan for the range it strands — usually a bounded, filtered snapshot of that range, not a full re-snapshot. Debezium's documentation carries the same warning: a recreated slot can make older changes unavailable and lead to skipped events.
+
+Two operational consequences:
+
+- Alert on slot WAL retention **early**, so nobody ever resolves a disk-space emergency by deleting the slot.
+- Alert on slot *identity/creation time*, not only connector health — a connector streaming happily from a brand-new slot looks exactly like one that resumed correctly.
+
 ## Schema evolution
 
 Additive nullable fields are the easy case. Renames, type narrowing, semantic changes, and table splits require a versioned contract and consumer migration. Database DDL appearing in the WAL does not prove every sink can apply it.
@@ -84,6 +107,7 @@ Periodically repair from a bounded source snapshot. A replay procedure that has 
 ## How it fails { #failure-modes }
 
 - WAL retention fills source disk while the connector is down.
+- A replication slot is dropped and recreated while the stored offset still names an older position — see [the recovery contract](#recovery-contract). Silent, unrecoverable gap; connector reports healthy.
 - Snapshot row overwrites a newer streamed update.
 - Primary-key update leaves the old key alive.
 - DDL reaches Kafka before a consumer understands it.

@@ -105,6 +105,36 @@ At fleet scale, `argMax` over 7 days of **all** devices is a bad query. Constrai
 !!! note "MQTT vs Kafka"
     MQTT is a **device protocol** (fan-in from constrained clients). Kafka is the **platform bus**. Bridge MQTT → Kafka; do not make Flink speak MQTT unless you enjoy operational pain.
 
+### This architecture works while… / breaks when… { #v1-limits }
+
+**Works while:**
+
+```text
+queries lead with device_id (+ sensor) and a time window — the ORDER BY prefix
+"latest value" queries are constrained to a short recent window
+sample rate stays in-range for one modest ClickHouse cluster (~333k samples/s)
+asset metadata is small enough to join in Grafana or denormalise at ingest
+7 days of raw plus a 1-minute rollup covers the operational questions
+device clocks are trusted enough that event time ≈ ingest time
+```
+
+**Breaks when:**
+
+```text
+a fleet-wide query arrives ("latest value for ALL devices") — argMax over 7 days of
+   every device is a different workload than argMax over three, and needs a
+   ReplacingMergeTree latest-value table instead
+device_id keying goes skewed — a gateway or a chatty firmware version dominates
+   one partition
+retention questions extend past raw+7d into months or years of history — that is a
+   downsampling pyramid, not a bigger TTL
+clock skew becomes material: late and out-of-order samples from disconnected devices
+   need watermarks and a lateness policy, not "sort on read"
+metadata joins get large enough that per-query dimension joins dominate the cost
+```
+
+Two of these — the fleet query and the clock domain — are the ones teams discover late, because both look fine at pilot scale with 100 well-connected devices.
+
 ---
 
 ## Bottleneck at the end of V1

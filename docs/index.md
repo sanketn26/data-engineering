@@ -19,10 +19,11 @@ hide:
   <div class="course-terminal" aria-label="Academy roadmap">
     <div class="course-terminal__bar"><i></i><i></i><i></i><span>data-engineering / roadmap</span></div>
     <div class="course-terminal__body">
-      <p><span class="terminal-muted">00</span> Scale, partitions, shuffle, time</p>
-      <p><span class="terminal-muted">01–02</span> Spark + Kafka as the data plane</p>
-      <p><span class="terminal-muted">03–04</span> Event time, state, orchestration</p>
-      <p><span class="terminal-muted">05–12</span> Storage, query, specialised stores, platform</p>
+      <p><span class="terminal-muted">00</span> Data systems foundations</p>
+      <p><span class="terminal-muted">01–02</span> Data representation, data movement</p>
+      <p><span class="terminal-muted">03–05</span> Distributed compute, streams, orchestration</p>
+      <p><span class="terminal-muted">06–09</span> Lakehouse, query engines, OLAP, specialised stores</p>
+      <p><span class="terminal-muted">10–12</span> Platform engineering, architecture, production</p>
       <div class="terminal-status"><span></span> Five production systems throughout</div>
     </div>
   </div>
