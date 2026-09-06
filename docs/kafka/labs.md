@@ -1,5 +1,5 @@
 ---
-description: Hands-on Kafka labs: reproduce lag, hot partitions, and broker failure on a laptop before touching production settings.
+description: "Hands-on Kafka labs: reproduce lag, hot partitions, and broker failure on a laptop before touching production settings."
 ---
 
 # Kafka labs

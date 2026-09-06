@@ -1,5 +1,5 @@
 ---
-description: What actually changes when a pipeline crosses from gigabytes to terabytes: the resource that was invisible becomes the bottleneck overnight.
+description: "What actually changes when a pipeline crosses from gigabytes to terabytes: the resource that was invisible becomes the bottleneck overnight."
 ---
 
 # Data at Scale

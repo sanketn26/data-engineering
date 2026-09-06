@@ -1,5 +1,5 @@
 ---
-description: Phase 0 of the data engineering academy: partitioning, shuffle, and scale problems that turn a working pandas script into a 3 AM OOM.
+description: "Phase 0 of the data engineering academy: partitioning, shuffle, and scale problems that turn a working pandas script into a 3 AM OOM."
 ---
 
 # Phase 0: Data Systems Foundations

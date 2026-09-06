@@ -1,5 +1,5 @@
 ---
-description: A field guide to Kafka production incidents in a live system: hot partitions, rebalance storms, poison pills, and schema breakage.
+description: "A field guide to Kafka production incidents in a live system: hot partitions, rebalance storms, poison pills, and schema breakage."
 ---
 
 # Production gotchas

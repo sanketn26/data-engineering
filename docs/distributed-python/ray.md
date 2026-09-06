@@ -1,5 +1,5 @@
 ---
-description: Ray tasks and actors explained through a feature-scoring SLO miss: why a shared-memory object store beats re-serializing models per call.
+description: "Ray tasks and actors explained through a feature-scoring SLO miss: why a shared-memory object store beats re-serializing models per call."
 ---
 
 # Ray
