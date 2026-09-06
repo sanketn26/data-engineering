@@ -17,7 +17,7 @@ If you do not read `explain()`, you are hoping Catalyst agrees with you. Product
 
 ---
 
-## Use case
+## Start with the situation { #use-case }
 
 ```python
 events.join(customers, "customer_id") \
@@ -43,7 +43,7 @@ Observability: pruning on `hour=` is the difference between a 2 TB trace scan an
 
 ---
 
-## Why this is hard at scale
+## Why the obvious approach breaks at scale { #why-this-is-hard-at-scale }
 
 The optimiser is a **pattern matcher**, not an oracle:
 
@@ -57,7 +57,7 @@ At 8 TB, a missed pushdown is an incident. At 80 MB, it is a lab.
 
 ---
 
-## Intuition
+## Build the mental picture { #intuition }
 
 Two layers:
 
@@ -78,7 +78,7 @@ Your job is to write queries **the optimiser can see through**: native functions
 
 ---
 
-## Internals
+## Under the hood { #internals }
 
 ### Catalyst pipeline
 
@@ -142,7 +142,7 @@ It will **not**: invent a partition column you forgot; push through UDFs; make `
 
 ---
 
-## How
+## Put it to work { #how }
 
 ### Always explain expensive jobs
 
@@ -218,7 +218,7 @@ Table formats give Catalyst **manifest-level** pruning (min/max, partition specs
 
 ---
 
-## Failure modes
+## How it fails { #failure-modes }
 
 | Failure | Optimiser story |
 |---------|-----------------|
@@ -232,7 +232,7 @@ Type mismatch joins are infamous: `customer_id` int vs string → **cast** → s
 
 ---
 
-## Debugging
+## How to investigate { #debugging }
 
 ```python
 spark.conf.set("spark.sql.adaptive.enabled", "true")
@@ -319,7 +319,7 @@ If scan bytes in the last prod run were 8 TB for a “yesterday” job, Catalyst
 
 ---
 
-## Exercise
+## Check your understanding { #exercise }
 
 ```python
 q = (

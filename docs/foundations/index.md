@@ -132,7 +132,7 @@ Distributed systems earn their keep when **at least one** of these is true and m
 
 ## How the five systems will keep showing up
 
-Treat these as the exam workloads, not flavour text.
+Treat these as familiar stories you can use to test each new idea.
 
 | System | Events | Foundation stress |
 |--------|--------|-------------------|
@@ -155,11 +155,12 @@ Do not skim. For each page:
 3. **Name the metric** you would open first (shuffle spill, consumer lag, straggler task).
 4. **Write the wrong partition key** on paper, then the blast radius.
 
-If you cannot explain a shuffle to a backend engineer without saying “Spark,” you are not done.
+You are ready to move on when you can explain a shuffle to a backend engineer
+without relying on the word “Spark.”
 
 ---
 
-## Mistakes this phase is designed to kill
+## Misconceptions this phase clears up
 
 You will see these in design reviews. Name the foundation page that refutes each:
 

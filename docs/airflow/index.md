@@ -288,7 +288,7 @@ If you cannot answer those, you cannot operate the DAG.
 
 ---
 
-## Exercise
+## Check your understanding { #exercise }
 
 A SaaS analytics DAG starts at 02:00 UTC. Task `spark_metrics` submits a Spark job. Task `wait_stripe` is an `HttpSensor` in poke mode with a 6-hour timeout. There are 12 Celery workers, concurrency 1 each. Twelve tenants each have this DAG.
 

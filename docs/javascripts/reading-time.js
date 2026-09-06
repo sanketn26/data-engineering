@@ -12,6 +12,6 @@ document$.subscribe(function () {
   const minutes = Math.max(5, Math.ceil(words / 220 / 5) * 5);
   const effort = document.createElement("p");
   effort.className = "course-effort";
-  effort.textContent = `Estimated reading: ${minutes} minutes. Add the exercise or lab time shown in the learning path.`;
+  effort.textContent = `Full-page reading time: about ${minutes} minutes. Use the first-pass route below if you want the idea before the detail.`;
   heading.insertAdjacentElement("afterend", effort);
 });

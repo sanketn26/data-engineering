@@ -2,7 +2,15 @@
 
 One single-node Cassandra container. You will load the **same** SaaS events into two tables that differ only in partition key, then watch one design absorb an entire hot service into a single ever-growing partition while the other bounds it by day.
 
-Docs: [Cassandra & ScyllaDB](../../docs/databases/cassandra.md), [consistent hashing visualizer](../../docs/simulations/consistent-hashing-visualizer.html), [labs index](../../docs/labs/index.md).
+## Before you run
+
+1. Read [Cassandra & ScyllaDB](../../docs/databases/cassandra.md) through **Build the mental picture**.
+2. Add a node in the [consistent-hashing visualiser](../../docs/simulations/consistent-hashing-visualizer.html).
+3. Predict why an evenly distributed token ring can still contain one enormous application partition.
+
+The simulation shows node placement; this lab shows data-model skew. Keeping
+those two layers separate is the lesson. See the [practice map](../../docs/practice-map.md)
+for the full sequence.
 
 ## Prerequisites
 

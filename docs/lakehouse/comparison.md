@@ -48,7 +48,7 @@ They differ in **log shape**, **upsert implementation**, **engine coverage**, **
 
 ---
 
-## Intuition
+## Build the mental picture { #intuition }
 
 Pick the constraint that will kill you first:
 
@@ -315,7 +315,7 @@ If you cannot write one of those sentences, you are not ready to create the tabl
 
 ---
 
-## Exercise
+## Check your understanding { #exercise }
 
 Team A: SaaS events, Spark+Trino, append, 20 TB, hidden `day(event_time)` desired.  
 Team B: orders CDC 2k updates/s, Spark only, incremental to Elasticsearch.  

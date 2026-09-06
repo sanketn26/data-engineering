@@ -94,7 +94,7 @@ This is the same shape as [metadata's contract sketch](../metadata/index.md#v1-c
 
 This is the same deploy-order discipline as [CDC schema evolution](cdc.md#schema-evolution) — a data contract is CDC's schema-evolution problem generalized to every producer, not only databases feeding a log.
 
-## Failure modes
+## How it fails { #failure-modes }
 
 - Nullable field silently changes meaning (not-yet-known vs not-applicable) with no consumer notified.
 - New enum value reaches a consumer with an exhaustive switch and no default branch — crash or silent misclassification.
@@ -103,7 +103,7 @@ This is the same deploy-order discipline as [CDC schema evolution](cdc.md#schema
 - A currency, unit, or timezone change ships as a "just a rename" PR with no semantic review.
 - Two teams both claim to own the same field's contract; neither one is accountable when it breaks.
 
-## Exercise
+## Check your understanding { #exercise }
 
 `orders-value` (Avro, `BACKWARD` compatibility) is read by three consumers: a Flink job with a strict reader schema, a Spark batch job that projects only `order_id, status, amount`, and an analyst's Trino query that does `CASE status WHEN 'PAID' THEN ... WHEN 'SHIPPED' THEN ... ELSE 'unknown' END`. The checkout team wants to add `status = REFUNDED_PARTIAL` and change `amount` from integer cents to decimal with explicit currency.
 

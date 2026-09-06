@@ -12,7 +12,7 @@ It's (C): `user_id` looks like observability, but it is a new time series per us
 
 ---
 
-## Use case
+## Start with the situation { #use-case }
 
 SaaS observability. You already scrape:
 
@@ -34,7 +34,7 @@ Explore numbers: [cardinality calculator](../simulations/cardinality-calculator.
 
 ---
 
-## Why this is hard
+## Why the obvious approach breaks { #why-this-is-hard }
 
 Every unique `(name, label set)` is a series. Each series has:
 
@@ -52,7 +52,7 @@ They are never fully independent, but the product is the planning bound. Enginee
 
 ---
 
-## Intuition
+## Build the mental picture { #intuition }
 
 A series is a **named line** on a graph. Grafana can draw 20 lines. Prometheus can hold millions of lines in the index. It cannot hold a line per customer per endpoint per status per user.
 
@@ -74,7 +74,7 @@ If you can name a **bound** (“we have ≤ 200 endpoints”), it can be a label
 
 ---
 
-## Internals
+## Under the hood { #internals }
 
 ### What Prometheus stores
 
@@ -153,7 +153,7 @@ They raise the ceiling (better compression, sharding). They do **not** make `use
 
 ---
 
-## How
+## Put it to work { #how }
 
 **Bound labels (Prom):**
 
@@ -204,7 +204,7 @@ print("with users", services * regions * statuses * endpoints * users)
 
 ---
 
-## Gotchas
+## Where teams get caught { #gotchas }
 
 !!! production-gotcha "Un-templated HTTP path"
     `endpoint="/users/uuid/orders/uuid"` is a unique series per request path. Middleware must templatize **before** metrics.
@@ -223,7 +223,7 @@ print("with users", services * regions * statuses * endpoints * users)
 
 ---
 
-## Failure modes
+## How it fails { #failure-modes }
 
 | Failure | Signal |
 |---------|--------|
@@ -235,7 +235,7 @@ print("with users", services * regions * statuses * endpoints * users)
 
 ---
 
-## Debugging
+## How to investigate { #debugging }
 
 1. `topk(20, count by (__name__, user_id)(http_requests_total))` — if this even parses slowly, stop.
 2. Cardinality dashboard: series per metric name, per label name.
@@ -306,7 +306,14 @@ Compare engines once the identity is a column: [TSDBs](tsdbs.md), [ClickHouse](.
 
 ---
 
-## Exercise
+## Practice the idea
+
+Use the [cardinality calculator](../simulations/cardinality-calculator.html) to
+predict the multiplier from adding `user_id`. Then run the
+[time-series lab](../labs/index.md#time-series-labstime-series) and observe
+`prometheus_tsdb_head_series` before and after the label is enabled.
+
+## Check your understanding { #exercise }
 
 `http_request_duration_seconds_bucket` has labels `service` (80), `le` (12 buckets), `endpoint` (templated 40), `method` (8). Traffic: 200 M requests/day, 2 M DAU.
 

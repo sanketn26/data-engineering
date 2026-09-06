@@ -184,7 +184,7 @@ This belongs in Flink keyed state. Do not query ClickHouse per sample for a z-sc
 
 ---
 
-## Failure modes
+## How it fails { #failure-modes }
 
 | Failure | Symptom | Absorb with |
 |---------|---------|-------------|

@@ -10,7 +10,7 @@ Predict before you read on: does wrapping the read-process-write in a Kafka tran
 
 The honest answer is no, and the reason why is the entire subject of this page: **exactly-once *of what*, between which two systems?**
 
-## Use case
+## Start with the situation { #use-case }
 
 The e-commerce checkout service writes an `orders` event. A worker reads it, charges the card, and writes `orders-charged`. If the worker crashes after the charge but before committing its Kafka offset, at-least-once delivery charges the card twice. If it commits the offset before the charge, a crash **drops** the charge.
 
@@ -20,7 +20,7 @@ People say "turn on exactly-once". The staff-engineer question is: **exactly-onc
 
 ---
 
-## Why this is hard at scale
+## Why the obvious approach breaks at scale { #why-this-is-hard-at-scale }
 
 A produce is a network RPC. Timeouts are indistinguishable from success. A consumer poll is another RPC. Your process also talks to Redis, Stripe, Postgres, and webhooks. Those systems do not join Kafka's transaction.
 
@@ -36,7 +36,7 @@ At scale, transactions add a coordinator, extra RPCs, and `read_committed` filte
 
 ---
 
-## Intuition
+## Build the mental picture { #intuition }
 
 **At most once:** commit (or not retry) *before* the side effect. Duplicates: no. Loss: yes.
 
@@ -245,7 +245,7 @@ Retries may call `execute` twice; the Postgres unique key makes the *effect* onc
 
 ---
 
-## Gotchas
+## Where teams get caught { #gotchas }
 
 **Default isolation is uncommitted.** Building a transactional producer and leaving consumers on default undoes the visibility half of EOS. You will see aborted records.
 
@@ -259,7 +259,7 @@ Retries may call `execute` twice; the Postgres unique key makes the *effect* onc
 
 ---
 
-## Failure modes
+## How it fails { #failure-modes }
 
 | Failure | Effect without care | With txn EOS (Kafka-to-Kafka) |
 |---------|---------------------|-------------------------------|
@@ -271,7 +271,7 @@ Retries may call `execute` twice; the Postgres unique key makes the *effect* onc
 
 ---
 
-## Debugging
+## How to investigate { #debugging }
 
 | Metric / signal | What it tells you |
 |-----------------|-------------------|
@@ -327,7 +327,7 @@ If a design doc says "exactly-once" and the sink is ClickHouse, send it back wit
 
 ---
 
-## Exercise
+## Check your understanding { #exercise }
 
 Pipeline: `login-events` → worker → (1) Redis `INCR user:{id}:failures` (2) produce `fraud-alerts` if count ≥ 10 in 5 minutes. Product asks for "exactly-once so we don't page twice".
 

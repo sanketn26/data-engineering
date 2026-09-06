@@ -17,7 +17,7 @@ If you only internalise one Spark lesson, internalise this page. It is the concr
 
 ---
 
-## Use case
+## Start with the situation { #use-case }
 
 ```python
 events.groupBy("customer_id").agg(F.count("*"), F.sum("bytes"))
@@ -37,7 +37,7 @@ Observability analogue: `groupBy("cluster", "pod")` after a cardinality explosio
 
 ---
 
-## Why this is hard at scale
+## Why the obvious approach breaks at scale { #why-this-is-hard-at-scale }
 
 A shuffle is not a function call. It is a **distributed sort-merge of the cluster’s working set**:
 
@@ -50,7 +50,7 @@ Retries amplify it: lose an executor, **recompute its map outputs** (or fetch fr
 
 ---
 
-## Intuition
+## Build the mental picture { #intuition }
 
 **Narrow** ops (`filter`, `select`) are a conveyor belt inside one partition.
 
@@ -85,7 +85,7 @@ The **law of the stage**: wall time = time until the **last** mailbox is process
 
 ---
 
-## Internals
+## Under the hood { #internals }
 
 ### Sort-based shuffle (default since Spark 1.2, what you run in 3.x)
 
@@ -191,7 +191,7 @@ AQE does **not** split a 280 GB skewed partition by itself unless **skew join** 
 
 ---
 
-## How
+## Put it to work { #how }
 
 ### Broadcast join (eliminate the fat shuffle)
 
@@ -281,7 +281,7 @@ Operationally this is how SaaS platforms survive a new enterprise logo on Tuesda
 
 ---
 
-## Failure modes
+## How it fails { #failure-modes }
 
 | Mode | Mechanism | What you see |
 |------|-----------|----------------|
@@ -297,7 +297,7 @@ Operationally this is how SaaS platforms survive a new enterprise logo on Tuesda
 
 ---
 
-## Debugging
+## How to investigate { #debugging }
 
 **Order of operations on `:4040`:**
 
@@ -372,7 +372,16 @@ If (3) is 50×, the fix is keys, not `spark.executor.instances+20`.
 
 ---
 
-## Exercise
+## Practice the idea
+
+First use the [shuffle visualiser](../simulations/spark-shuffle.html) to compare
+uniform, skewed, and salted keys. Then run the
+[Spark lab](../labs/index.md#spark-labsspark) and find the max-versus-median task
+duration in the Spark UI. The
+[skewed-join incident](../incidents/index.md#incident-2-spark-executor-oom-on-a-skewed-join)
+turns that observation into a diagnosis.
+
+## Check your understanding { #exercise }
 
 Cluster: 50 executors × 4 cores × 16 GB. Day of SaaS events: **2 TB** Parquet. `groupBy("customer_id")` sum/count. AQE off, \(R=200\). `cust_0042` = 38% of rows. Then a join to `customers` (1.2 GB SCD).
 

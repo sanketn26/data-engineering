@@ -2,7 +2,15 @@
 
 One official ClickHouse container. You will load the **same** SaaS events into two tables that differ only in `ORDER BY`, then **break** ingest with tiny inserts until `system.parts` explodes.
 
-Docs: [ClickHouse](../../docs/olap/clickhouse.md), [ORDER BY sim](../../docs/simulations/clickhouse-order-by.html), [incident 4](../../docs/incidents/index.md), [analytics architecture](../../docs/architectures/analytics-platform.md).
+## Before you run
+
+1. Read [ClickHouse](../../docs/olap/clickhouse.md) through **Build the mental picture**.
+2. Compare both keys in the [ORDER BY explorer](../../docs/simulations/clickhouse-order-by.html).
+3. Predict which table will read fewer marks for the tenant query below.
+
+After the check passes, diagnose the [slow-query incident](../../docs/incidents/index.md)
+and connect it to the [analytics architecture](../../docs/architectures/analytics-platform.md).
+The full sequence is in the [practice map](../../docs/practice-map.md).
 
 ## Prerequisites
 

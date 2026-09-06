@@ -212,7 +212,7 @@ Do not keep raw 5M/s in Iceberg "just in case" without a compaction and expiry p
 
 ---
 
-## Failure modes
+## How it fails { #failure-modes }
 
 | Failure | What you see | Absorb with |
 |---------|--------------|-------------|

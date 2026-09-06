@@ -20,7 +20,7 @@ You do **not** need Docker. A local `SparkSession` and `http://localhost:4040` a
 
 ---
 
-## Use case
+## Start with the situation { #use-case }
 
 You are the on-call for the analytics platform. Before you change production `spark.sql.shuffle.partitions`, you must be able to:
 
@@ -34,7 +34,7 @@ Observability / IoT / CDC / fraud: same labs, different keys (`pod`, `device_id`
 
 ---
 
-## Why this is hard at scale
+## Why the obvious approach breaks at scale { #why-this-is-hard-at-scale }
 
 Laptop labs lie in two ways: everything fits in RAM, and skew of 80% on 1e6 rows is still **seconds**. The skill is mapping **what you see** (one yellow task, spill 0, 20 tiny tasks) onto **what 2 TB would do** (one task 4 h, disk full, 20 000 files).
 
@@ -42,7 +42,7 @@ If you only watch wall-clock of `time.time()`, you will miss that. Watch **`:404
 
 ---
 
-## Intuition
+## Build the mental picture { #intuition }
 
 ```text
 Predict the stage graph → run → compare UI → change one knob → repeat
@@ -469,7 +469,7 @@ When you next change shuffle partitions in prod:
 
 ---
 
-## Exercise
+## Check your understanding { #exercise }
 
 You must demo to a new teammate **in 20 minutes** that `cust_0042` (here `customer_1`) is why last night’s job missed SLA.
 

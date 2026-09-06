@@ -13,7 +13,7 @@ D. The consumer group needs a rebalance to notice the new members.
 
 Pick one before reading on. `service-events` is one logical stream, and how partitions turn one topic into many parallel logs — without throwing away per-key order — is the entire answer.
 
-## Use case
+## Start with the situation { #use-case }
 
 `service-events` is one logical stream. At 50k records/s the warehouse loader is fine on one thread. At 500k records/s — SaaS analytics on a launch day, or observability in a busy region — one process cannot parse JSON, enrich, and write ClickHouse.
 
@@ -23,7 +23,7 @@ Partitions are how Kafka turns one topic into many parallel logs without throwin
 
 ---
 
-## Why this is hard at scale
+## Why the obvious approach breaks at scale { #why-this-is-hard-at-scale }
 
 A single partition is:
 
@@ -38,7 +38,7 @@ If you partition on the wrong key, one tenant (or one `region`, or one `device_i
 
 ---
 
-## Intuition
+## Build the mental picture { #intuition }
 
 Think of the topic as a set of independent logs. The producer picks a log. A consumer group assigns each log to exactly one group member.
 
@@ -283,7 +283,7 @@ For independent processors, **new group id**, same topic. Do not "share a group 
 
 ---
 
-## Gotchas
+## Where teams get caught { #gotchas }
 
 - **More consumers than partitions** → idle pods. Scale partitions (with a migration plan) or merge work.
 - **One group, two logical jobs** → they steal partitions from each other. Two groups.
@@ -293,7 +293,7 @@ For independent processors, **new group id**, same topic. Do not "share a group 
 
 ---
 
-## Failure modes
+## How it fails { #failure-modes }
 
 | Failure | Effect |
 |---------|--------|
@@ -306,7 +306,7 @@ For independent processors, **new group id**, same topic. Do not "share a group 
 
 ---
 
-## Debugging
+## How to investigate { #debugging }
 
 Always split lag **by partition**. Then split CPU **by consumer instance**. Then check which broker leads the hot partitions.
 
@@ -376,7 +376,15 @@ If (3) is > ~5–10% of traffic into one partition, you have a design problem, n
 
 ---
 
-## Exercise
+## Practice the idea
+
+Start with the [partition simulator](../simulations/kafka-partitions.html): make
+one customer own 70% of traffic and predict which consumers idle. Then run the
+[Kafka lab](../labs/index.md#kafka-labskafka) and verify the same imbalance from
+real per-partition counts. Finish with the
+[Kafka lag incident](../incidents/index.md#incident-1-kafka-lag-on-one-partition).
+
+## Check your understanding { #exercise }
 
 `login-events` has 24 partitions, keyed by `user_id`. Group `fraud-scorer` has 24 pods. p99 latency is 40ms except during deploys, when lag spikes to 8 minutes and fraud misses brute-force bursts. `max.poll.interval.ms=300000`. A second group, `audit-writer`, shares **the same `group_id`** "to save connections".
 

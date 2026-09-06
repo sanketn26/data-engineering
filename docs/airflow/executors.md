@@ -15,7 +15,7 @@ Predict before reading on. The executor is the layer that turns "runnable" into 
 
 ---
 
-## Use Case
+## Start with the situation { #use-case }
 
 **SaaS analytics.** Daily SparkSubmit plus a handful of Python checks. Tasks are bursty at 02:00. You need tens of concurrent TIs, not hundreds of long-lived workers.
 
@@ -27,7 +27,7 @@ The executor is a placement policy, not a data plane.
 
 ---
 
-## Why This Is Hard
+## Why the obvious approach breaks { #why-this-is-hard }
 
 The scheduler determines *which* tasks are ready to run and *when*. The executor determines *where* and *how* they run.
 
@@ -40,7 +40,7 @@ Hard parts:
 
 ---
 
-## Intuition
+## Build the mental picture { #intuition }
 
 Picture a dispatch window:
 
@@ -226,7 +226,7 @@ Worker resource configuration belongs **per task** for K8s (above) and **per que
 
 ---
 
-## Gotchas
+## Where teams get caught { #gotchas }
 
 **Executor is not Spark.** `KubernetesExecutor` ≠ Spark-on-K8s. You still need `SparkSubmitOperator`, Databricks, EMR, or a Spark Operator CRD.
 
@@ -257,7 +257,7 @@ Debugging starts by asking: *is the TI even assigned?* Then *is the worker alive
 
 ---
 
-## Debugging
+## How to investigate { #debugging }
 
 ```bash
 airflow jobs check          # scheduler alive
@@ -324,7 +324,7 @@ Do not replace Celery with Kubernetes to "go faster" if the bottleneck is a 1 TB
 
 ---
 
-## Exercise
+## Check your understanding { #exercise }
 
 SLA: metrics ready 90 minutes after midnight. Critical path: 3 SparkSubmit tasks (each Spark job 20 min) + 1 sensor waiting up to 40 min for Stripe. KubernetesExecutor, pod start 25 s, `parallelism=8`. A new engineer changes the Spark tasks to `PythonOperator` that starts `local[*]` Spark inside the pod with 1 TB shuffle.
 

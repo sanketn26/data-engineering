@@ -51,7 +51,7 @@ Keep configuration declarative and environment-specific values separate from cod
 
 Backups are inputs to a restore drill. Measure RPO and RTO for catalogs, Kafka metadata/data, table metadata, orchestrator state, and encryption keys. Restoring object files without the catalog or keys is not recovery.
 
-## Exercise
+## Check your understanding { #exercise }
 
 Plan a ClickHouse `ORDER BY` migration plus a Flink job upgrade that changes state schema. Write the artifact, dual-run, reconciliation, cutover, savepoint, and rollback sequence.
 

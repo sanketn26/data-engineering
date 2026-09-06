@@ -175,7 +175,7 @@ Trino over Iceberg + CH. Time travel when a model version is disputed. Do not gi
 
 ---
 
-## Failure modes
+## How it fails { #failure-modes }
 
 | Failure | Symptom | Absorb with |
 |---------|---------|-------------|

@@ -18,7 +18,7 @@ Those are not three flavours of Spark — they are three **latency classes**, wi
 
 ---
 
-## Use case
+## Start with the situation { #use-case }
 
 Map the academy systems onto that spectrum:
 
@@ -34,7 +34,7 @@ The same Kafka topic can feed a **nightly Spark job**, a **micro-batch**, and a 
 
 ---
 
-## Why this is hard at scale
+## Why the obvious approach breaks at scale { #why-this-is-hard-at-scale }
 
 Batch looks easy until the batch **does not finish in the batch window** ([scale](scale.md)). Stream looks easy until you admit:
 
@@ -48,7 +48,7 @@ Micro-batch (Spark Structured Streaming) sits in the middle: easier ops than Fli
 
 ---
 
-## Intuition
+## Build the mental picture { #intuition }
 
 **Batch**: a bounded pile. You know when it is complete (the hour closed, the file landed, the snapshot finished). Failure = rerun the pile. Throughput first.
 
@@ -81,7 +81,7 @@ If the slider is on “hours,” a streaming framework is an expensive batch eng
 
 ---
 
-## Internals
+## Under the hood { #internals }
 
 ### Batch
 
@@ -181,7 +181,7 @@ You get Spark SQL and AQE-ish behaviour. You also get **batch-shaped shuffles ev
 
 ---
 
-## How
+## Put it to work { #how }
 
 ### Decide with numbers, not adjectives
 
@@ -234,7 +234,7 @@ Stateless filter can be a Kafka consumer. **Graph features + rolling counts** ca
 
 ---
 
-## Failure modes
+## How it fails { #failure-modes }
 
 | Mode | Batch symptom | Stream symptom |
 |------|---------------|----------------|
@@ -249,7 +249,7 @@ CDC-specific: the stream is a **log of mutations**. Treating it as a batch of �
 
 ---
 
-## Debugging
+## How to investigate { #debugging }
 
 **Batch:** Spark UI as in [Distributed Execution](distributed-execution.md); Airflow duration vs data interval; row-count vs source; Iceberg snapshot diffs.
 
@@ -331,7 +331,7 @@ Many “real-time” requirements collapse to **five minutes**. Five minutes is 
 
 ---
 
-## Exercise
+## Check your understanding { #exercise }
 
 You own SaaS events plus a new **fraud check** on `POST /checkout`. Legal wants a **daily** attestation of API error rates. Product wants a **live** “customers currently erroring” wall. Payments wants a **score < 200 ms**.
 

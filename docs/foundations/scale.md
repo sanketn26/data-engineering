@@ -21,7 +21,7 @@ Nothing about the SQL changed. The **order of magnitude** did — scale is not �
 
 ---
 
-## Use case
+## Start with the situation { #use-case }
 
 You own daily p95 latency and error rate per `customer_id` × `service` × `region`. Stakeholders also want a 90-day trend and a “this customer is on fire *now*” page.
 
@@ -37,7 +37,7 @@ The academy’s other systems hit the same cliffs with different units: observab
 
 ---
 
-## Why this is hard at scale
+## Why the obvious approach breaks at scale { #why-this-is-hard-at-scale }
 
 On one box, “process the file” is a loop. At cluster scale the loop grows failure modes that do not exist locally:
 
@@ -52,7 +52,7 @@ On one box, “process the file” is a loop. At cluster scale the loop grows fa
 
 ---
 
-## Intuition
+## Build the mental picture { #intuition }
 
 Think in **orders of magnitude of *working set***, not in “rows.” Working set is the bytes you must touch to answer the query — after compression, after partition pruning, after column projection.
 
@@ -77,7 +77,7 @@ Decoupled storage (S3) + ephemeral compute (Spark on Kubernetes) is a common mod
 
 ---
 
-## Internals
+## Under the hood { #internals }
 
 ### 1 GB — in-memory analytics
 
@@ -142,7 +142,7 @@ You are no longer “running a job on a dataset.” You are operating a factory:
 
 ---
 
-## How
+## Put it to work { #how }
 
 You do not need a cluster to *measure* scale. You need arithmetic and a few Spark knobs when you *do* use one.
 
@@ -222,7 +222,7 @@ for batch in pf.iter_batches(batch_size=64_000, columns=["customer_id", "latency
 
 ---
 
-## Failure modes
+## How it fails { #failure-modes }
 
 | Mode | What you see | What actually happened |
 |------|----------------|------------------------|
@@ -236,7 +236,7 @@ Observability analogue: cardinality of labels turns a 2 TB TSDB into a 40 TB TSD
 
 ---
 
-## Debugging
+## How to investigate { #debugging }
 
 Start with **bytes and time**, not with “add executors.”
 
@@ -321,7 +321,7 @@ A job that “runs fine” at 1 GB/day can fail *silently* at 100 GB/day: timeou
 
 ---
 
-## Exercise
+## Check your understanding { #exercise }
 
 You process SaaS events on a **single** Spark executor (one machine). The job takes **2 hours for 50 GB**. Data grows **20% per month**. The output is p95 latency per customer per hour, written to S3. One customer is 5% of volume today; a deal in month 4 will make them **40%**.
 

@@ -15,7 +15,7 @@ Predict before reading on. This is not a Spark incident — it is Airflow using 
 
 ---
 
-## Use Case
+## Start with the situation { #use-case }
 
 **SaaS analytics.** A new daily DAG ships on Monday with `start_date=2023-01-01`. Catchup queues hundreds of Spark jobs. The 07:00 SLA DAG never gets slots.
 
@@ -35,7 +35,7 @@ You are debugging a **distributed queue with a shared relational database**, not
 
 ---
 
-## Intuition
+## Build the mental picture { #intuition }
 
 If Airflow is healthy, TIs move `queued → running → success` in seconds (submit) or in the duration of the *external* job. If TIs sit `queued` while workers are busy poking, or `running` while Spark UIs are empty, the DAG is lying.
 
@@ -333,7 +333,7 @@ Do not start with Spark UI if step 4 says `queued`.
 
 ---
 
-## Debugging
+## How to investigate { #debugging }
 
 ```bash
 airflow dags list-import-errors
@@ -398,7 +398,7 @@ If any answer is "we will monitor it," it is not fixed.
 
 ---
 
-## Exercise
+## Check your understanding { #exercise }
 
 After deploy, `queued` TIs grow, Spark cluster CPU is 0%, 12 Celery workers show Python processes sleeping in `time.sleep`. A new `HttpSensor` for Stripe was added in poke mode to 12 tenant DAGs. `catchup=False`.
 

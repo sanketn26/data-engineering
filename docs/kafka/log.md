@@ -8,7 +8,7 @@ description: Why Kafka models a topic as an append-only log instead of a databas
 
 Predict before you read on: if you built that store as a database table (insert, `SELECT ... FOR UPDATE`, delete), what breaks first at 2.5 million records a second — the write path, the fan-out to multiple readers, or the replay story? All three fail, for three different reasons; this page is the one abstraction that fixes all three at once.
 
-## Use case
+## Start with the situation { #use-case }
 
 The observability platform writes every request as an event:
 
@@ -22,7 +22,7 @@ You need a store that is cheap to append, cheap to read sequentially, and that d
 
 ---
 
-## Why this is hard at scale
+## Why the obvious approach breaks at scale { #why-this-is-hard-at-scale }
 
 Teams try a database table used as a queue: insert event, consumer `SELECT … FOR UPDATE`, delete.
 
@@ -38,7 +38,7 @@ Object storage (S3) is cheap and durable but has no notion of "consumer group of
 
 ---
 
-## Intuition
+## Build the mental picture { #intuition }
 
 Treat the stream as a file you only append to.
 
@@ -232,7 +232,7 @@ kafka-topics.sh --bootstrap-server localhost:9092 --create \
 
 ---
 
-## Gotchas
+## Where teams get caught { #gotchas }
 
 **Page cache is the real buffer.** A broker that looks like it has "free RAM" may be serving all consumers from cache. A second consumer group that scans a cold 7-day topic will hit disk and take the page cache away from the live tail. Observability clusters often isolate "live" topics from "replay" topics, or isolate brokers.
 
@@ -244,7 +244,7 @@ kafka-topics.sh --bootstrap-server localhost:9092 --create \
 
 ---
 
-## Failure modes
+## How it fails { #failure-modes }
 
 | Failure | What you see | What actually happened |
 |---------|----------------|------------------------|
@@ -258,7 +258,7 @@ A compacted topic with unique keys (raw `service-events` keyed by UUID) **never 
 
 ---
 
-## Debugging
+## How to investigate { #debugging }
 
 Start with disk and offsets, not with "is Kafka up".
 
@@ -340,7 +340,7 @@ If the answer to (2) is "forever" and the answer to (4) is "raw events", you wan
 
 ---
 
-## Exercise
+## Check your understanding { #exercise }
 
 A compacted topic `user-profile` (key = `user_id`) has 50 million unique users. Producers send a full profile snapshot on every change, ~2 updates/user/day. The topic is 1.2 TB and growing. Product wants "rebuild any service from Kafka in 20 minutes".
 

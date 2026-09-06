@@ -17,7 +17,7 @@ Pick one before reading on. The fraud graph is modelled; what's needed now is **
 
 ---
 
-## Use case
+## Start with the situation { #use-case }
 
 - Risk API: 2-hop shared device/IP for *this* `user_id`, < 50 ms, `LIMIT`.
 - Analyst: 3-hop neighbourhood of a bad IP, minutes OK, still bounded.
@@ -27,7 +27,7 @@ Recommendations use Cypher only to **read precomputed** `ALSO_BOUGHT` or to debu
 
 ---
 
-## Why this is hard
+## Why the obvious approach breaks { #why-this-is-hard }
 
 Cypher is easy to write and easy to make **cartesian**. Indexes are easy to forget (label scan of all `:Transaction`). Variable-length paths are easy to unbounded-star. The database will try. The cluster will pause.
 
@@ -35,7 +35,7 @@ You must treat Cypher like CQL: **every query has a start key, a type list, a de
 
 ---
 
-## Intuition
+## Build the mental picture { #intuition }
 
 ASCII art is the language:
 
@@ -47,7 +47,7 @@ ASCII art is the language:
 
 ---
 
-## Internals
+## Under the hood { #internals }
 
 ```mermaid
 graph TD
@@ -69,7 +69,7 @@ Storage: nodes, relationships, property store, label/type tokens. **Index-free a
 
 ---
 
-## How
+## Put it to work { #how }
 
 ### Run locally
 
@@ -229,7 +229,7 @@ Read **db hits** and **rows** on each Expand. If Expand rows jump 1 → 5,000,00
 
 ---
 
-## Gotchas
+## Where teams get caught { #gotchas }
 
 !!! warning "Unbounded traversal"
     `MATCH (u)-[*]-()` walks the world. Always `*1..N` and types.
@@ -248,7 +248,7 @@ Read **db hits** and **rows** on each Expand. If Expand rows jump 1 → 5,000,00
 
 ---
 
-## Failure modes
+## How it fails { #failure-modes }
 
 | Symptom | Cause |
 |---------|--------|
@@ -262,7 +262,7 @@ Availability: Neo4j Causal Cluster (or Aura) — read replicas for analysts, **w
 
 ---
 
-## Debugging
+## How to investigate { #debugging }
 
 1. `PROFILE` the exact parameterised query from production (same `$addr`).
 2. Degree of the start node and of the first expand type.
@@ -308,7 +308,7 @@ Every production Cypher review: start label + indexed property, typed relationsh
 
 ---
 
-## Exercise
+## Check your understanding { #exercise }
 
 ??? question "Write and critique the risk query"
     Payment for `user_id=u001`. Need other user_ids sharing a device or IP in ≤2 hops, exclude NAT IPs (`flag='supernode'`), 90-day `USES` only.

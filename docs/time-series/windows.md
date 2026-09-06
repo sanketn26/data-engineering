@@ -12,7 +12,7 @@ It's (C) — a stream of `{timestamp, device_id, sensor, value}` never ends, a c
 
 ---
 
-## Use case
+## Start with the situation { #use-case }
 
 IoT fleet + SaaS observability:
 
@@ -25,7 +25,7 @@ Hundreds of millions of points/day. If you compute sliding windows from raw at r
 
 ---
 
-## Why this is hard
+## Why the obvious approach breaks { #why-this-is-hard }
 
 Every window type has a different **fan-out** and a different **close** rule.
 
@@ -38,7 +38,7 @@ Late event time ([time semantics](time-semantics.md)) means a “closed” tumbl
 
 ---
 
-## Intuition
+## Build the mental picture { #intuition }
 
 Draw the time axis. Put ticks every minute. Tumbling windows are the cells between ticks. Sliding windows are a stencil you drag. Session windows are rubber bands that snap when there is a gap.
 
@@ -54,7 +54,7 @@ Rates need **two** times: the window in which deltas are taken, and the step at 
 
 ---
 
-## Internals
+## Under the hood { #internals }
 
 ### Tumbling (fixed, non-overlapping)
 
@@ -164,7 +164,7 @@ A Grafana panel with step=15s and `rate[5m]` draws ~20 overlapping windows per 5
 
 ---
 
-## How
+## Put it to work { #how }
 
 **Latest value per device** (not really a window — a group):
 
@@ -236,7 +236,7 @@ A 5-minute sliding chart reads 5 of these minute rows, not 10 raw samples × 30 
 
 ---
 
-## Gotchas
+## Where teams get caught { #gotchas }
 
 !!! production-gotcha "Sliding over raw at 90-day range"
     `RANGE BETWEEN INTERVAL '1 hour' PRECEDING` on 10 M devices of raw is a self-join in disguise. Roll up first.
@@ -255,7 +255,7 @@ A 5-minute sliding chart reads 5 of these minute rows, not 10 raw samples × 30 
 
 ---
 
-## Failure modes
+## How it fails { #failure-modes }
 
 | Symptom | Cause |
 |---------|--------|
@@ -267,7 +267,7 @@ A 5-minute sliding chart reads 5 of these minute rows, not 10 raw samples × 30 
 
 ---
 
-## Debugging
+## How to investigate { #debugging }
 
 - Compute **expected bucket count**: 6 h × 1-minute × 1 device = 360. If the query returns 360,000, you forgot `device_id` filter or grouped wrong.
 - ClickHouse `EXPLAIN` / `read_rows`: should be ~ raw in the time range, or ~ rollup rows. If you read 30 days for a 1-hour sliding chart, the window is in the wrong layer.
@@ -323,7 +323,7 @@ Related stream processing: [Flink windows](../flink/windows.md) if you must clos
 
 ---
 
-## Exercise
+## Check your understanding { #exercise }
 
 10 M devices, temperature every 30 s. Tile: “rolling 5-minute average, updated every 30 s” for **one** device (device page) vs **fleet p95 of those per-device averages** (ops wall).
 

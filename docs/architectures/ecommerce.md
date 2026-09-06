@@ -206,7 +206,7 @@ If your lake is append-only Parquet without a table format, GDPR is a rewrite of
 
 ---
 
-## Failure modes
+## How it fails { #failure-modes }
 
 | Failure | Symptom | Absorb with |
 |---------|---------|-------------|

@@ -13,7 +13,7 @@ D. A broadcast dimension table is too large and is duplicated on every TaskManag
 
 Predict which one before reading on — then work out how many bytes per key you would expect if the diagnosis is right.
 
-## Use case
+## Start with the situation { #use-case }
 
 Windows are state with an opinionated API. Plenty of jobs need memory of the past **without** a window:
 
@@ -26,7 +26,7 @@ A **stateless** map/filter cannot do this. A **stateful** operator stores bytes 
 
 ---
 
-## Why this is hard at scale
+## Why the obvious approach breaks at scale { #why-this-is-hard-at-scale }
 
 State is a database you accidentally wrote inside the pipeline.
 
@@ -36,7 +36,7 @@ Keyed state is sharded by key hash onto parallel subtasks — the same skew stor
 
 ---
 
-## Intuition
+## Build the mental picture { #intuition }
 
 After `key_by(user_id)`, each operator subtask owns a slice of keys. For each key you may keep:
 
@@ -172,7 +172,7 @@ This is exact "last 5 minutes" only if you also decrement on timer for **each** 
 
 ---
 
-## Gotchas
+## Where teams get caught { #gotchas }
 
 - **`ListState` of raw events** for a 1-hour window: you stored the stream twice. Use `AggregateFunction`.
 - **Changing state descriptor names** without a migration: restore finds empty state. Use `@type_info` / `StateMigration` / savepoint with schema evolution (POJOs/Avro, not untyped Python tuples if you care).
@@ -182,7 +182,7 @@ This is exact "last 5 minutes" only if you also decrement on timer for **each** 
 
 ---
 
-## Failure modes
+## How it fails { #failure-modes }
 
 | Failure | Symptom |
 |---------|---------|
@@ -204,7 +204,7 @@ Measure `ValueState` access time in the Flink metrics (RocksDB `actual-user-key`
 
 ---
 
-## Debugging
+## How to investigate { #debugging }
 
 | Metric | Meaning |
 |--------|---------|
@@ -315,7 +315,7 @@ Inventory every `get_state` / `ValueStateDescriptor` in the job. For each: key, 
 
 ---
 
-## Exercise
+## Check your understanding { #exercise }
 
 10 million unique users/day. Keyed `ValueState` of one float per user (~50 bytes/pair including overhead). RocksDB.
 

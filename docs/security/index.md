@@ -196,7 +196,7 @@ Controls: masked views only, no raw IAM, network policy deny egress, download di
 
 ---
 
-## Failure modes
+## How it fails { #failure-modes }
 
 | Failure | Symptom | Absorb |
 |---------|---------|--------|

@@ -2,7 +2,16 @@
 
 A synthetic Prometheus exporter and one official `prom/prometheus` container. You will scrape a bounded-label metric, measure its real series count via Prometheus's own API, then **break** it by adding a `user_id` label and watching `prometheus_tsdb_head_series` multiply.
 
-Docs: [Cardinality](../../docs/time-series/cardinality.md), [cardinality calculator](../../docs/simulations/cardinality-calculator.html), [labs index](../../docs/labs/index.md).
+## Before you run
+
+1. Read [Cardinality](../../docs/time-series/cardinality.md) through **Build the mental picture**.
+2. Add `user_id` in the [cardinality calculator](../../docs/simulations/cardinality-calculator.html).
+3. Predict both the application series count and Prometheus's total head-series count.
+
+The simulation gives the product-of-labels model; this lab includes the extra
+series Prometheus creates to monitor itself. The difference between those two
+numbers is part of the observation. See the [practice map](../../docs/practice-map.md)
+for the full sequence.
 
 ## Prerequisites
 

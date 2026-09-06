@@ -66,7 +66,7 @@ A metric definition includes grain, filters, time zone, late-event policy, and o
 
 Pull requests should compile models, resolve dependencies, lint SQL, run unit fixtures, detect destructive schema changes, and build only modified descendants in an isolated schema. Production promotion uses the same artifact tested in CI.
 
-## Failure modes
+## How it fails { #failure-modes }
 
 - Incremental filter skips late updates.
 - A retry appends rather than merges.
@@ -75,7 +75,7 @@ Pull requests should compile models, resolve dependencies, lint SQL, run unit fi
 - `warn` tests have no alert owner.
 - Backfill code differs from scheduled code.
 
-## Exercise
+## Check your understanding { #exercise }
 
 Design an incremental `fct_order_item` model with two-day late updates, refunds, and a daily publish deadline. Specify its unique key, watermark storage, merge behavior, tests, backfill interface, and rollback.
 

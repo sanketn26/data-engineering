@@ -2,7 +2,15 @@
 
 Single-broker **KRaft** Kafka on your laptop. You will produce System A events, watch a consumer group, then **break** partitioning with a hot key.
 
-Docs: [Kafka module](../../docs/kafka/index.md), [labs index](../../docs/labs/index.md), [incident: hot partition](../../docs/incidents/index.md), [partition sim](../../docs/simulations/kafka-partitions.html).
+## Before you run
+
+1. Read [Kafka partitions](../../docs/kafka/partitions.md) through **Build the mental picture**.
+2. Reproduce the hot key in the [partition simulator](../../docs/simulations/kafka-partitions.html).
+3. Write down which partition and consumer you expect this lab to overload.
+
+After the check passes, try the [hot-partition incident](../../docs/incidents/index.md)
+without opening its resolution. The full sequence is also in the
+[practice map](../../docs/practice-map.md).
 
 ## Prerequisites
 

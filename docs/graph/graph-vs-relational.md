@@ -17,7 +17,7 @@ Pick one before reading on. Graph databases are not "better at relationships" �
 
 ---
 
-## Use case
+## Start with the situation { #use-case }
 
 Same company, four questions:
 
@@ -30,7 +30,7 @@ Same company, four questions:
 
 ---
 
-## Why this is hard
+## Why the obvious approach breaks { #why-this-is-hard }
 
 Vendors sell “relationships.” Engineers hear “joins are slow.” Joins are fast when they are **indexed, shallow, and selective**. They are slow when they **unroll a graph**. Graph expand is slow when it is **a scan in disguise** (`MATCH (t:Transaction) RETURN sum(t.amount)`).
 
@@ -38,7 +38,7 @@ The comparison is **access pattern**, not ideology.
 
 ---
 
-## Intuition
+## Build the mental picture { #intuition }
 
 **Operational traversal:** start at one node, walk typed edges, depth 1–3, return a small set. Native graphs win as depth and fan-out grow.
 
@@ -56,7 +56,7 @@ flowchart TD
 
 ---
 
-## Internals
+## Under the hood { #internals }
 
 | | Postgres | Neo4j-style graph | ClickHouse |
 |--|----------|-------------------|------------|
@@ -191,7 +191,7 @@ Recommendations: Postgres/Iceberg events → **offline** similarity or two-tower
 
 ---
 
-## Gotchas
+## Where teams get caught { #gotchas }
 
 !!! warning "FK-rich schema ≠ graph problem"
     Orders–customers–products is relational until someone walks 4 hops for fraud.
@@ -210,7 +210,7 @@ Recommendations: Postgres/Iceberg events → **offline** similarity or two-tower
 
 ---
 
-## Failure modes
+## How it fails { #failure-modes }
 
 - Team migrates the **order API** to Cypher; lose constraints, reporting, and hire-ability.
 - Graph cluster sized for traversal is used for ETL dumps; GC/page cache death.
@@ -308,7 +308,7 @@ Operational traversal is the graph purchase. Analytic scan is not. Keep those se
 
 ---
 
-## Exercise
+## Check your understanding { #exercise }
 
 ??? question "Assign the engine"
     E-commerce + fraud + recs. Traffic 10× of today.

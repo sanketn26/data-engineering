@@ -17,7 +17,7 @@ Pick one before reading on. This cluster exists to **append ~400,000 spans per s
 
 ---
 
-## Use case
+## Start with the situation { #use-case }
 
 **Observability writes** in this academy: every span is `(service, ts, trace_id, payload)`. The ops UI reads **one service, last 15 minutes**. Multi-region: a local read should not wait for another continent.
 
@@ -25,7 +25,7 @@ Secondary academy uses: **IoT per-device time series** (not the device *registry
 
 ---
 
-## Why this is hard
+## Why the obvious approach breaks { #why-this-is-hard }
 
 A relational primary serialises writes through WAL and B-trees. At hundreds of thousands of writes per second you fight:
 
@@ -38,7 +38,7 @@ Cassandra’s answer — **log-structured merge, no leader for data, hash partit
 
 ---
 
-## Intuition
+## Build the mental picture { #intuition }
 
 ```mermaid
 flowchart LR
@@ -60,7 +60,7 @@ Think: a huge distributed sorted map. Key = partition. Value = sorted list of cl
 
 ---
 
-## Internals
+## Under the hood { #internals }
 
 ### Tokens, replicas, coordinators
 
@@ -143,7 +143,7 @@ Treat Scylla as a **drop-in runtime** for a Cassandra data model, not as a reaso
 
 ---
 
-## How
+## Put it to work { #how }
 
 ### Observability table (do this)
 
@@ -231,7 +231,7 @@ Measure latency. If this is on the 50k QPS path, you designed wrong.
 
 ---
 
-## Gotchas
+## Where teams get caught { #gotchas }
 
 !!! warning "CQL is not SQL"
     No joins, no `OR` across partitions, no unconstrained `ALLOW FILTERING` in production, no `COUNT(*)` of the table.
@@ -253,7 +253,7 @@ Measure latency. If this is on the 50k QPS path, you designed wrong.
 
 ---
 
-## Failure modes
+## How it fails { #failure-modes }
 
 | Failure | What you see | Cause |
 |---------|--------------|-------|
@@ -269,7 +269,7 @@ Multi-DC: using `QUORUM` instead of `LOCAL_QUORUM` makes a remote DC outage stal
 
 ---
 
-## Debugging
+## How to investigate { #debugging }
 
 1. **Nodestats / Scylla manager:** latency, pending compactions, SSTable count per table.
 2. **`nodetool tablehistograms` / tracing:** `TRACING ON` in cqlsh for a slow `SELECT` — count of tombstones and SSTables touched.
@@ -324,7 +324,15 @@ List queries. Bucket time. Measure partition size. Use `LOCAL_QUORUM`. Put analy
 
 ---
 
-## Exercise
+## Practice the idea
+
+Use the [consistent-hashing visualiser](../simulations/consistent-hashing-visualizer.html)
+to see how keys move when a node is added. Then run the
+[Cassandra lab](../labs/index.md#cassandra-labscassandra) to compare that even
+ring distribution with an application-level hot partition. They are different
+problems and require different fixes.
+
+## Check your understanding { #exercise }
 
 ??? question "Design spans_by_service for 400k writes/s"
     `api-gateway` is 40% of traffic. RF=3, two DCs. Reads: last 15 minutes per service, p99 50 ms. Retention 24 h.

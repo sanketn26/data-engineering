@@ -25,7 +25,7 @@ Pick one before reading on. That analyst's sentence is a **graph query**. Forcin
 
 ---
 
-## Use case
+## Start with the situation { #use-case }
 
 **Fraud rings:** User → Device → IP → Transaction → Merchant. Shared devices and IPs are the edges criminals reuse. The product is the **neighbourhood**, not the transaction row.
 
@@ -35,7 +35,7 @@ This page is the **when**, not Cypher syntax.
 
 ---
 
-## Why this is hard
+## Why the obvious approach breaks { #why-this-is-hard }
 
 Each hop in SQL is a join. Fan-out multiplies:
 
@@ -52,7 +52,7 @@ The hard part is not drawing circles. It is recognising **variable depth + high 
 
 ---
 
-## Intuition
+## Build the mental picture { #intuition }
 
 A JOIN: “find rows whose key matches.” Work is B-tree + heap.
 
@@ -209,7 +209,7 @@ Fraud wants **recall of a neighbourhood from a seed**. Recs want **top-k similar
 
 ---
 
-## Gotchas
+## Where teams get caught { #gotchas }
 
 !!! warning "Everything is connected, so we need a graph"
     Most schemas have FKs. Almost none need multi-hop at runtime.
@@ -225,7 +225,7 @@ Fraud wants **recall of a neighbourhood from a seed**. Recs want **top-k similar
 
 ---
 
-## Failure modes
+## How it fails { #failure-modes }
 
 - **Join explosion in prod BI** — an analyst writes 4-hop SQL against the warehouse replica; ETL SLO missed. Move that question to Neo4j or a precomputed table of pairs.
 - **Graph used as warehouse** — `MATCH (t:Transaction) RETURN sum(t.amount)` scans the OLTP graph. ClickHouse exists.
@@ -233,7 +233,7 @@ Fraud wants **recall of a neighbourhood from a seed**. Recs want **top-k similar
 
 ---
 
-## Debugging
+## How to investigate { #debugging }
 
 When a “graph-shaped” SQL is slow:
 
@@ -306,7 +306,7 @@ Graph thinking decides **which box** the question lands in. It does not require 
 
 ---
 
-## Exercise
+## Check your understanding { #exercise }
 
 ??? question "Is this a graph query?"
     Classify each as Postgres, graph traversal, GDS/OLAP, or recsys-offline. One sentence why.

@@ -2,7 +2,15 @@
 
 No Docker cluster. You will watch **shuffle**, **skew**, **join strategy**, and **partition count** on a laptop Spark, then break a join the same way [incident 2](../../docs/incidents/index.md) does.
 
-Docs: [Spark labs (longer scripts)](../../docs/spark/labs.md), [shuffle](../../docs/spark/shuffle.md), [shuffle sim](../../docs/simulations/spark-shuffle.html).
+## Before you run
+
+1. Read [The Shuffle](../../docs/spark/shuffle.md) through **Build the mental picture**.
+2. Compare uniform and skewed keys in the [shuffle visualiser](../../docs/simulations/spark-shuffle.html).
+3. Predict the max-versus-median task time you expect to see in the real UI.
+
+After the check passes, diagnose the [skewed-join incident](../../docs/incidents/index.md).
+The [longer Spark exercises](../../docs/spark/labs.md) are optional extensions;
+the full sequence is in the [practice map](../../docs/practice-map.md).
 
 ## Prerequisites
 

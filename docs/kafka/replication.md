@@ -13,7 +13,7 @@ D. This is a disk-full incident on the leader, not a replication incident.
 
 Pick one before reading on. A broker holding the leader for hundreds of partitions can lose its disk at any moment — replication is how Kafka survives that **without** turning producers into a backup system.
 
-## Use case
+## Start with the situation { #use-case }
 
 A broker holds the leader for 800 partitions of `service-events`. It loses its disk. Observability cannot drop 20 minutes of logs. E-commerce cannot lose `acks=1` checkout events that the API already treated as stored. Fraud cannot "mostly" have the login stream.
 
@@ -21,7 +21,7 @@ Replication is how Kafka survives a broker death **without** turning producers i
 
 ---
 
-## Why this is hard at scale
+## Why the obvious approach breaks at scale { #why-this-is-hard-at-scale }
 
 Copying bytes is easy. Copying bytes **in order**, **without silent loss**, **while producers keep writing**, is not.
 
@@ -31,7 +31,7 @@ At 2.5M records/s with replication factor 3, the cluster writes roughly **3×** 
 
 ---
 
-## Intuition
+## Build the mental picture { #intuition }
 
 Each partition is a log with several copies. One copy is the **leader**. All produces and (by default) fetches go to it. Followers **fetch** in offset order — they are consumers of the leader.
 
@@ -198,7 +198,7 @@ kafka-topics.sh --bootstrap-server localhost:9092 --create \
 
 ---
 
-## Gotchas
+## Where teams get caught { #gotchas }
 
 **RF=3 on 3 brokers** means every broker holds every partition. Losing one broker is fine; you have no spare *capacity*. Survivors take 50% more leadership and fetch load. Use at least 4–6 brokers in production so that leadership can be reassigned onto machines that were not already at the limit.
 
@@ -214,7 +214,7 @@ kafka-topics.sh --bootstrap-server localhost:9092 --create \
 
 ---
 
-## Failure modes
+## How it fails { #failure-modes }
 
 | Failure | User-visible | Risk |
 |---------|--------------|------|
@@ -227,7 +227,7 @@ kafka-topics.sh --bootstrap-server localhost:9092 --create \
 
 ---
 
-## Debugging
+## How to investigate { #debugging }
 
 **Under-replicated partitions should be 0** except during a known bounce.
 
@@ -318,7 +318,14 @@ If producers still use `acks=1` "for latency" on checkout or login-decision topi
 
 ---
 
-## Exercise
+## Practice the idea
+
+Use the [Kafka ISR failure simulator](../simulations/kafka-isr-simulator.html)
+to vary ISR size, `acks`, and `min.insync.replicas` one at a time. Then run the
+[Kafka lab's broker-stop exercise](../labs/index.md#kafka-labskafka), watching
+ISR membership rather than only consumer output.
+
+## Check your understanding { #exercise }
 
 Cluster of 3 brokers, `service-events` RF=3, `min.insync.replicas=2`, producers `acks=all`. Broker 1 (leader for 1/3 of partitions) dies. Ten minutes later broker 2's disk hits 100%.
 

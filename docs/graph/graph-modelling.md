@@ -17,7 +17,7 @@ Pick one before reading on. The hardest part of a fraud graph is not Cypher — 
 
 ---
 
-## Use case
+## Start with the situation { #use-case }
 
 Fraud queries you must serve:
 
@@ -34,7 +34,7 @@ If the model cannot answer (1)–(3) in a few expands without touching a superno
 
 ---
 
-## Why this is hard
+## Why the obvious approach breaks { #why-this-is-hard }
 
 There are **multiple valid graphs** for the same ledger. Each makes some MATCH cheap and others a scan of relationship types.
 
@@ -45,7 +45,7 @@ There are **multiple valid graphs** for the same ledger. Each makes some MATCH c
 
 ---
 
-## Intuition
+## Build the mental picture { #intuition }
 
 Model **nouns you start from** as nodes. Model **verbs you traverse** as relationship types. Put properties on the relationship when they belong to the **event of connection** (first_seen, weight). Promote to a node when the event **must be found from more than two ends**.
 
@@ -228,7 +228,7 @@ Idempotency: same `txn_id` replayed must not create a second `:Transaction`. Tha
 
 ---
 
-## Gotchas
+## Where teams get caught { #gotchas }
 
 !!! warning "Join table as node by default"
     `UserDevice` as a node adds a hop without adding a question.
@@ -247,7 +247,7 @@ Idempotency: same `txn_id` replayed must not create a second `:Transaction`. Tha
 
 ---
 
-## Failure modes
+## How it fails { #failure-modes }
 
 - Investigation query hits a VPN IP, instance CPU 100%, serving MATCH for payments stalls (same database).
 - CDC creates duplicate `:User` without constraints; rings fragment.
@@ -256,7 +256,7 @@ Idempotency: same `txn_id` replayed must not create a second `:Transaction`. Tha
 
 ---
 
-## Debugging
+## How to investigate { #debugging }
 
 1. Degree histogram:
 
@@ -311,7 +311,7 @@ In reviews, force two sketches: transaction-as-node vs transaction-as-edge. Walk
 
 ---
 
-## Exercise
+## Check your understanding { #exercise }
 
 ??? question "Pick the model"
     Queries: (a) 2-hop users sharing a device; (b) merchants in that neighbourhood; (c) nightly components; (d) co-purchased products for recs.

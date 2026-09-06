@@ -154,7 +154,9 @@ Write the failure story in V1, not as an appendix:
 | Schema change | Silent nulls downstream | Registry + quality gate |
 | Replay | Re-processing a day of Kafka | Idempotent tables, partition overwrite |
 
-The [incidents](../incidents/index.md) page is the exam for these rows. Architecture pages name **where** the failure lands; incidents teach you to **see** it in metrics.
+The [incidents](../incidents/index.md) page lets you practise these rows.
+Architecture pages name **where** the failure lands; incidents teach you to
+**see** it in metrics.
 
 ---
 

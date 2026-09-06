@@ -68,7 +68,7 @@ Because `LIST` at that scale is slow, rate-limited, and gives you no way to atom
 
 This is also why [manifests are also central to Delta's transaction log](../lakehouse/delta.md) and Hudi's timeline — every modern table format solves the same object-storage semantic gap with the same shape of answer: an authoritative, atomically-updated metadata layer that replaces `LIST` and `rename` as the source of truth.
 
-## Failure modes
+## How it fails { #failure-modes }
 
 - A job lists a prefix with millions of small files during planning and times out or hits request-rate throttling before scanning any data.
 - A crashed job during a copy-then-delete "overwrite" leaves a partition with a mix of old and new files, silently double-counting or dropping rows.
@@ -76,7 +76,7 @@ This is also why [manifests are also central to Delta's transaction log](../lake
 - Treating eventual consistency assumptions from an old blog post as still true — check your specific provider's current consistency model rather than folklore.
 - Millions of orphaned multipart upload parts from failed uploads that were never aborted, accruing storage cost invisibly.
 
-## Exercise
+## Check your understanding { #exercise }
 
 A nightly Spark job writes `s3://analytics/events/date=2024-01-15/` by writing 8,000 small files (one per task, unpartitioned further), then a separate step lists that prefix to hand the file list to a downstream Trino query.
 

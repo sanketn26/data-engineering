@@ -17,7 +17,7 @@ The honest answer is B or C, and which one you get is not decided by Airflow —
 
 ---
 
-## Use Case
+## Start with the situation { #use-case }
 
 **SaaS analytics.** Daily `metrics` table partitioned by `dt`. A Spark job fails at 90%. Retry must not double MRR.
 
@@ -46,7 +46,7 @@ Retries without idempotency are a data-corruption feature.
 
 ---
 
-## Intuition
+## Build the mental picture { #intuition }
 
 A function `f` is idempotent if `f(x) = f(f(x))`. For pipelines:
 
@@ -279,7 +279,7 @@ UPDATE stats SET count = count + 1 WHERE user_id = ?
 
 ---
 
-## Gotchas
+## Where teams get caught { #gotchas }
 
 - **`overwrite` of the whole table** when you meant one partition. Backfill of `ds=2024-01-01` wipes the year. Use dynamic partition overwrite or `DELETE WHERE dt=`.
 - **Late-arriving CDC + overwrite of the day** wipes updates that landed in an hourly job. Mixed schedules need merge, not daily replace, or a single owner per partition.
@@ -303,7 +303,7 @@ Debugging duplicates almost always starts with `COUNT(*) GROUP BY dt` and `MAX(i
 
 ---
 
-## Debugging
+## How to investigate { #debugging }
 
 ```sql
 SELECT dt, COUNT(*) AS n, COUNT(DISTINCT event_id) AS u
@@ -366,7 +366,7 @@ When reviewing a DAG:
 
 ---
 
-## Exercise
+## Check your understanding { #exercise }
 
 `load_orders` DELETE+INSERT for `dt={{ ds }}` in two statements, autocommit on. `retries=5`. Spark job (correctly outside Airflow) writes to `s3://stg/dt={{ ds }}/` with overwrite, then the PythonOperator copies files into the warehouse with `COPY`. A worker OOM hits during `COPY`.
 

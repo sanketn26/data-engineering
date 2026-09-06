@@ -12,7 +12,7 @@ The same events ClickHouse loves — hundreds of millions a day — now sit behi
 
 ---
 
-## Use case
+## Start with the situation { #use-case }
 
 SaaS product analytics, user-facing:
 
@@ -37,7 +37,7 @@ Internal “write me a novel SQL with arrays and JOINs” stays on [ClickHouse](
 
 ---
 
-## Why this is hard
+## Why the obvious approach breaks { #why-this-is-hard }
 
 Three constraints at once:
 
@@ -49,7 +49,7 @@ ClickHouse’s sparse index is perfect for a few heavy scans. It is the wrong da
 
 ---
 
-## Intuition
+## Build the mental picture { #intuition }
 
 A Pinot table is a pile of **segments**. Each segment is a columnar file plus optional inverted / range / sorted / star-tree indexes.
 
@@ -72,7 +72,7 @@ Realtime servers **consume Kafka**. When a consuming segment hits a row/time thr
 
 ---
 
-## Internals
+## Under the hood { #internals }
 
 ### Segments
 
@@ -151,7 +151,7 @@ Broker merge is the ClickHouse-coordinator analogue: a `GROUP BY user_id` over 2
 
 ---
 
-## How
+## Put it to work { #how }
 
 Schema sketch (names simplified):
 
@@ -222,7 +222,7 @@ Always include the tenant predicate. Multi-tenant isolation in Pinot is **query 
 
 ---
 
-## Gotchas
+## Where teams get caught { #gotchas }
 
 !!! production-gotcha "Star-tree for the query you wished you had"
     The tree is compiled at ingest. Adding a dimension means rebuild (or new table). Product adding “group by browser” next quarter is a data-model change, not a dashboard change.
@@ -241,7 +241,7 @@ Always include the tenant predicate. Multi-tenant isolation in Pinot is **query 
 
 ---
 
-## Failure modes
+## How it fails { #failure-modes }
 
 | Failure | Looks like | Cause |
 |---------|------------|-------|
@@ -254,7 +254,7 @@ Always include the tenant predicate. Multi-tenant isolation in Pinot is **query 
 
 ---
 
-## Debugging
+## How to investigate { #debugging }
 
 - **Broker query log**: scatter time vs merge time. Merge-dominated → result cardinality. Scatter-dominated → segment count or missing index.
 - **EXPLAIN / query options** (version-specific): confirm star-tree used. If the operator is a raw scan, the tree missed.
@@ -321,7 +321,7 @@ Capacity sketch: QPS × (segments hit / inverted selectivity) × merge cardinali
 
 ---
 
-## Exercise
+## Check your understanding { #exercise }
 
 You run ClickHouse for internal Grafana (`ORDER BY (service, endpoint, timestamp)`), 300 M events/day, 40 QPS, happy. Product wants in-app analytics: 8,000 QPS peak, `WHERE customer_id = $current_tenant`, 10 s freshness, breakdowns by `endpoint` and `status_code` only. A colleague says “add a projection on `customer_id` and 20 more replicas.”
 

@@ -81,7 +81,7 @@ CDC is incomplete without proof:
 
 Periodically repair from a bounded source snapshot. A replay procedure that has never been tested is not recovery.
 
-## Failure modes
+## How it fails { #failure-modes }
 
 - WAL retention fills source disk while the connector is down.
 - Snapshot row overwrites a newer streamed update.
@@ -90,7 +90,7 @@ Periodically repair from a bounded source snapshot. A replay procedure that has 
 - Repartitioning changes per-key order during migration.
 - A sink uses ingestion timestamp for last-write-wins.
 
-## Exercise
+## Check your understanding { #exercise }
 
 An `orders` snapshot runs for six hours. Order 42 changes from `PAID` to `SHIPPED` during hour two. The snapshot row reaches the sink after the live update. Specify the fields and merge predicate that keep `SHIPPED`, and the metrics that prove no key range was skipped.
 

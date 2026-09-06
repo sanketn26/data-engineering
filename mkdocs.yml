@@ -128,6 +128,7 @@ extra_css:
 extra_javascript:
   - javascripts/mathjax.js
   - javascripts/reading-time.js
+  - javascripts/lesson-guide.js
   - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
 
 nav:
@@ -136,7 +137,6 @@ nav:
       - Overview: start-here.md
       - How to Study: how-to-study.md
       - Learning paths: learning-paths.md
-      - Capstone & Rubric: capstone.md
   - Learn:
       - "Phase 0: Data Systems Foundations":
           - foundations/index.md
@@ -240,23 +240,12 @@ nav:
           - IoT Platform: architectures/iot.md
           - Fraud Detection: architectures/fraud.md
           - SaaS Analytics: architectures/analytics-platform.md
-          - Labs: labs/index.md
-          - Incidents: incidents/index.md
-          - Simulations: simulations/index.md
-          - Kafka Partition Simulator: simulations/kafka-partitions.html
-          - Spark Shuffle Visualiser: simulations/spark-shuffle.html
-          - ClickHouse ORDER BY Explorer: simulations/clickhouse-order-by.html
-          - Cardinality Calculator: simulations/cardinality-calculator.html
-          - Backpressure Calculator: simulations/backpressure-calculator.html
-          - Watermark Simulator: simulations/watermark-simulator.html
-          - Kafka ISR Failure Simulator: simulations/kafka-isr-simulator.html
-          - Iceberg Manifest Explorer: simulations/iceberg-manifest-explorer.html
-          - Parquet Row-Group Explorer: simulations/parquet-row-group-explorer.html
-          - Bloom Filter Playground: simulations/bloom-filter-playground.html
-          - Consistent Hashing Visualizer: simulations/consistent-hashing-visualizer.html
-          - DynamoDB Hot-Key Simulator: simulations/dynamodb-hot-key-simulator.html
-          - SCD Type-2 Timeline Explorer: simulations/scd2-timeline-explorer.html
-          - Capstone & Rubric: capstone.md
+  - Practice:
+      - Guided practice map: practice-map.md
+      - Runnable labs: labs/index.md
+      - Interactive simulations: simulations/index.md
+      - Incident drills: incidents/index.md
+      - Capstone & Rubric: capstone.md
   - Reference:
       - Overview: reference/index.md
       - Versions & Primary Sources: reference/version-matrix.md

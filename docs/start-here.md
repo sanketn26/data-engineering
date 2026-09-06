@@ -5,41 +5,55 @@ description: What this academy is, who it is for, and the five production system
 
 # Start Here
 
-Before you open the first lesson, understand what this academy is and is not.
+You do not need to understand the whole data stack before beginning. You only
+need one familiar workload and the willingness to ask, “what breaks next?” The
+course keeps returning to that question until the moving parts feel like
+consequences, rather than facts to memorise.
 
-## What this is
+!!! tip "If you have only one hour"
+    Read [Data at Scale](foundations/scale.md) through **Build the mental
+    picture**, try the short check at the end, and then explore the
+    [partitioning simulation](simulations/kafka-partitions.html). That is a
+    complete first session. You do not need to configure a cluster today.
 
-A serious engineering resource for people who want to understand how data systems work at scale — not memorise feature lists, not pass a certification, not build a weekend demo.
+## What you will learn
+
+This is a guided course in reasoning about data systems at scale. Product names
+appear only after the workload has created a reason for them to exist.
 
 The objective:
 
 > Given a data workload — its scale, latency requirements, access patterns, reliability requirements, and cost constraints — you can derive an appropriate architecture, choose sensible technologies, explain their trade-offs, predict how they will fail, debug them in production, and evolve the architecture as scale increases.
 
-That sentence is the exam. Every module exists to make it answerable.
+That is the eventual destination, not an expectation for day one. Each lesson
+teaches one piece of the reasoning and gives you a small way to check it.
 
-## What this is not
+## What you can safely skip at first
 
-- A tutorial for beginners
-- A documentation mirror of Spark / Kafka / ClickHouse
-- A “learn tool X in N days” course
-- A checklist to memorise for interviews
+- Exact configuration defaults and version-specific syntax
+- Optional labs that do not match your learning path
+- The **Under the hood** section while the mental picture is still new
+- Product comparisons until you understand the workload they are comparing
 
-If you want product docs, read the product docs. If you want to know **why the product looks like that**, stay here.
+Come back to those sections on a second pass. Skipping detail temporarily is
+sequencing, not a gap in understanding.
 
-## Who this is for
+## What you should know already
 
-Experienced data engineers, senior software / backend / platform engineers, ML engineers who own pipelines, SREs who get paged for lag, Staff-track engineers who must justify a stack.
+The examples assume you can read basic Python and SQL and have seen a database,
+a command line, and JSON. Docker is needed for some labs, but not for the first
+pass through any concept.
 
-**You should already know:** Python, SQL, Linux, Docker, Git, basic databases, basic cloud, and what a production incident feels like.
+If production terminology is new, keep the [glossary](reference/glossary.md)
+open and take the **Foundations first** route. If you already operate these
+systems, choose a shorter route around the gap you want to close.
 
-**You will not be taught:** what an API is, what JSON is, what `SELECT` means, what a container is.
+!!! note "A quick placement check"
+    If *offset*, *partition*, *join*, *index*, or *SLA* are unfamiliar, begin
+    with [Foundations first](learning-paths.md#foundations-first). The linked
+    lessons introduce the operational meaning as it becomes useful.
 
-**You will be taught:** partitioning, shuffle, logs, time, state, table formats, columnar layout, cardinality, and the operational consequences of each.
-
-!!! warning "Prerequisite check"
-    If the words *offset*, *partition*, *join*, *index*, and *SLA* are unfamiliar in an operational sense, this academy will feel like it starts in the middle — because it does. Build those foundations first.
-
-## The founding intuition
+## The idea that holds the course together
 
 Every major data technology was built because someone had a problem they could not solve with existing tools.
 
@@ -51,9 +65,11 @@ Flink was not invented because streaming is fashionable. It was invented because
 
 If you understand *why* these systems exist, you can reason about systems you have never used.
 
-## Five running production systems
+## Five stories you will keep revisiting
 
-The same datasets flow through different technologies so you can compare them directly. Do not treat them as flavour text — they are the workload you will be asked to design for.
+The same datasets flow through different technologies so each new idea has a
+familiar home. You are not expected to memorise all five now. Pick the one
+closest to your experience; the others will become useful comparisons later.
 
 ### System A — SaaS analytics platform
 
@@ -91,15 +107,15 @@ Millions of devices sending `{timestamp, device_id, sensor, value}` every 30 sec
 
 Users → Devices → IPs → Transactions → Merchants. Traversal, connected components, fraud-ring detection. Relational joins get embarrassing; graph modelling does not.
 
-## The teaching loop
+## What a lesson feels like
 
-Every substantial lesson uses five acts. Not every page needs fifteen repeated headings; orientation and reference pages use the shape that best serves their job.
+Every substantial lesson follows the same conversation:
 
-1. **PROBLEM** — workload, learner outcomes, and why the constraint matters.
-2. **MODEL** — the intuition and vocabulary needed to reason.
-3. **MECHANISM** — internals and a runnable or worked example.
-4. **PRODUCTION** — failure, debugging, scale, trade-offs, and alternatives where relevant.
-5. **ASSESSMENT** — an observable exit check or contribution to the capstone.
+1. **Meet the situation.** A concrete workload gives the topic a reason to matter.
+2. **See the mental picture.** An analogy, diagram, or small example makes the idea predictable.
+3. **Look under the hood.** The implementation explains where the behaviour comes from. This is optional on a first pass.
+4. **Use and operate it.** A worked example connects the model to code, failure, and debugging.
+5. **Check the idea.** A small question, simulation, or lab tells you whether the model has stuck.
 
 Three levels of understanding, same as the sister academies:
 
@@ -109,9 +125,9 @@ Three levels of understanding, same as the sister academies:
 | **2 — Engineering** | Design review | Algorithms, storage, execution |
 | **3 — Production** | On-call / Staff | Bottlenecks, cost, recovery, debugging |
 
-## Before you proceed
+## Choose your next step
 
-Ask yourself, without looking anything up:
+Use these questions only to choose a route; they are not an entrance exam:
 
 - Why is data partitioned in the first place?
 - What creates a shuffle in a distributed computation?
@@ -120,11 +136,13 @@ Ask yourself, without looking anything up:
 - Why does ClickHouse sort data on disk?
 - When would graph modelling outperform relational modelling?
 
-If most of these feel unclear, start with [Phase 0: Data Systems Foundations](foundations/index.md).
+If most feel unclear, that is exactly what
+[Phase 0: Data Systems Foundations](foundations/index.md) is for. If you already
+operate these systems, use [Learning paths](learning-paths.md) to jump to one
+specific gap.
 
-If you already operate these systems and have a specific gap, use [Learning paths](learning-paths.md).
-
-→ [How to Study](how-to-study.md)
-→ [Phase 0: Data Systems Foundations](foundations/index.md)
-→ [Capstone and rubric](capstone.md)
-→ [Versions and primary sources](reference/version-matrix.md)
+- **New to the internals:** [Begin with Data at Scale](foundations/scale.md)
+- **Here for a production problem:** [Choose an on-call path](learning-paths.md#on-call-streaming)
+- **Designing a platform:** [Follow the Staff path](learning-paths.md#staff-data-platform)
+- **Want the study rhythm first:** [How to study](how-to-study.md)
+- **Ready to make an idea visible:** [Use the practice map](practice-map.md)

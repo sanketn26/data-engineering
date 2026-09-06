@@ -12,7 +12,7 @@ There is no one right logo — the market is a pile of them — and the job is a
 
 ---
 
-## Use case
+## Start with the situation { #use-case }
 
 Three questions this academy actually asks:
 
@@ -24,7 +24,7 @@ One system that does all three well is a slide, not a deployment.
 
 ---
 
-## Why this is hard
+## Why the obvious approach breaks { #why-this-is-hard }
 
 TSDBs share append-heavy writes and time predicates. They disagree on:
 
@@ -39,7 +39,7 @@ ClickHouse is not a TSDB. Teams still use it as one when the access pattern is O
 
 ---
 
-## Intuition
+## Build the mental picture { #intuition }
 
 ```text
 Need PromQL + Alertmanager + Grafana scrape?
@@ -172,7 +172,7 @@ Deeper OLAP vs TS: [TSDB vs OLAP](../comparisons/tsdb-vs-olap.md).
 
 ---
 
-## How
+## Put it to work { #how }
 
 **Pattern 1 — services:**
 
@@ -221,7 +221,7 @@ Do not remote_write these events into Prom.
 
 ---
 
-## Gotchas
+## Where teams get caught { #gotchas }
 
 !!! production-gotcha "One cluster for metrics and events"
     Prom remote_write of unbounded-label events. Or CH used as scrape TSDB with one-row inserts from 2,000 exporters.
@@ -240,7 +240,7 @@ Do not remote_write these events into Prom.
 
 ---
 
-## Failure modes
+## How it fails { #failure-modes }
 
 | Engine | Classic death |
 |--------|----------------|
@@ -254,7 +254,7 @@ Debugging pointers: Prom `head_series`; Timescale `EXPLAIN` chunk exclusion; CH 
 
 ---
 
-## Debugging
+## How to investigate { #debugging }
 
 Ask four questions of any slow tile:
 
@@ -330,7 +330,7 @@ Related: [IoT](../architectures/iot.md), [observability](../architectures/observ
 
 ---
 
-## Exercise
+## Check your understanding { #exercise }
 
 Company today: Prometheus (15 d) for k8s; Postgres 2 TB of IoT rows (`readings` with indexes on `(device_id, ts)`), inserts 8k/s and climbing to 80k/s; product wants per-user API latency in Grafana **using the existing Prom**.
 

@@ -18,7 +18,7 @@ It's C, and it only makes sense once you know where Delta actually keeps "the ta
 
 ---
 
-## Use Case
+## Start with the situation { #use-case }
 
 **SaaS analytics on Databricks / Spark-centric stacks.** Batch ETL into `delta.` tables, SQL in notebooks, BI on Spark or a SQL warehouse that speaks Delta.
 
@@ -30,7 +30,7 @@ If Trino + Flink + Spark must share one open spec, read [Iceberg](iceberg.md) fi
 
 ---
 
-## Why This Is Hard
+## Why the obvious approach breaks { #why-this-is-hard }
 
 Object storage cannot atomically "replace a directory." Delta's trick is: **never replace the directory**. Only append a commit file `00000000000000000023.json` whose presence (create-if-not-exists) is the atomic operation. Readers reconstruct the table by replaying the log.
 
@@ -38,7 +38,7 @@ Hard parts: log length (hence checkpoints), concurrent commits (lost update on t
 
 ---
 
-## Intuition
+## Build the mental picture { #intuition }
 
 Delta is Git with a linear `main` and no branches in the original protocol: commit N+1 names files added and removed relative to N. Checkpoints are **squash**: a Parquet snapshot of the current file set so you do not replay 10,000 JSON files.
 
@@ -284,7 +284,7 @@ Not "which is best" — [choose by workload](comparison.md).
 
 ---
 
-## Gotchas
+## Where teams get caught { #gotchas }
 
 - **Readers that list Parquet and skip `_delta_log`** — they see orphans and OPTIMIZE debris.
 - **VACUUM vs long queries / streaming checkpoints.**
@@ -307,7 +307,7 @@ Not "which is best" — [choose by workload](comparison.md).
 
 ---
 
-## Debugging
+## How to investigate { #debugging }
 
 ```sql
 DESCRIBE HISTORY orders;
@@ -366,7 +366,7 @@ At 1000×, JSON replay without checkpoints would be unusable — same reason Ice
 
 ---
 
-## Exercise
+## Check your understanding { #exercise }
 
 Streaming job appends 1 MB files for 48 hours. OPTIMIZE runs once. An engineer sets `retentionHours=0` to "clean S3" while a 3-hour Trino-on-Spark query is reading `versionAsOf` 12 hours ago. CDF consumers cursor at version 4000.
 

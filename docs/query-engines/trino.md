@@ -18,7 +18,7 @@ It's B, almost always. Product events sit in Iceberg on S3. Customer plans sit i
 
 ---
 
-## Use case
+## Start with the situation { #use-case }
 
 SaaS analytics, hundreds of millions of events per day:
 
@@ -41,7 +41,7 @@ If this query is a Grafana tile at 200 QPS, stop. Put a serving copy in [ClickHo
 
 ---
 
-## Why this is hard
+## Why the obvious approach breaks { #why-this-is-hard }
 
 Three independent systems, three latency budgets, one SQL statement.
 
@@ -53,7 +53,7 @@ Federation does not cancel physics. You still pay network, you still pay the wor
 
 ---
 
-## Intuition
+## Build the mental picture { #intuition }
 
 Treat Trino as a **distributed iterator factory**.
 
@@ -81,7 +81,7 @@ The coordinator is **not** a worker with extra medals. It holds the plan, the sp
 
 ---
 
-## Internals
+## Under the hood { #internals }
 
 ### Coordinator, workers, connectors
 
@@ -213,7 +213,7 @@ CBO cannot save a query whose predicate is `WHERE json_extract(...) = ...` over 
 
 ---
 
-## How
+## Put it to work { #how }
 
 Catalogs are the unit of federation. A cluster with Iceberg + Postgres looks like this operationally (names vary):
 
@@ -278,7 +278,7 @@ You just **paid federation once** and stored the answer. Dashboards should hit t
 
 ---
 
-## Gotchas
+## Where teams get caught { #gotchas }
 
 !!! production-gotcha "SELECT * over a wide Iceberg table"
     Column pruning only helps if you do not ask for every column. Wide event tables (nested JSON, maps, debug blobs) turn a “simple count” into a multi-GB-per-split read. Project explicitly.
@@ -297,7 +297,7 @@ You just **paid federation once** and stored the answer. Dashboards should hit t
 
 ---
 
-## Failure modes
+## How it fails { #failure-modes }
 
 | Failure | What it looks like | Root |
 |---------|--------------------|------|
@@ -312,7 +312,7 @@ Federation **cost** is a failure mode of the budget, not the JVM: a “cheap” 
 
 ---
 
-## Debugging
+## How to investigate { #debugging }
 
 ### Why the coordinator OOMs
 
@@ -417,7 +417,7 @@ Related: [Iceberg](../lakehouse/iceberg.md), [columnar storage](../olap/columnar
 
 ---
 
-## Exercise
+## Check your understanding { #exercise }
 
 `events` is Iceberg, partitioned by `ds`, 400 TB, 80 columns. `customers` is Postgres, 120 million rows, ~40 GB on disk. Cluster: 1 coordinator (32 GB heap), 30 workers (64 GB heap each). Query:
 

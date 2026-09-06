@@ -4,7 +4,9 @@
 [![Validate PR](https://github.com/sanketn26/data-engineering/actions/workflows/validate.yml/badge.svg)](https://github.com/sanketn26/data-engineering/actions/workflows/validate.yml)
 [![Buy Me A Coffee](https://img.shields.io/badge/☕-Buy%20me%20a%20coffee-FFDD00?style=flat-square)](https://buymeacoffee.com/sanketn)
 
-An intuition-first, production-focused academy for experienced engineers who want to understand **how modern data systems actually work**.
+An intuition-first, production-focused academy for engineers who want to
+understand **how modern data systems actually work** without reading the course
+like a product manual.
 
 This is not a tool tutorial. The objective is:
 
@@ -18,13 +20,17 @@ Sister academies: [Learn ML](https://sanketn26.github.io/learn-ml/) · [AI Engin
 
 ## Who it is for
 
-Experienced data engineers, senior backend / platform engineers, ML engineers working with data infrastructure, SREs supporting data platforms, Staff-track engineers.
+Data engineers, backend / platform engineers, ML engineers working with data
+infrastructure, SREs supporting data platforms, and Staff-track engineers. The
+production sections go deep, but every core lesson has a lighter first pass.
 
-**Assumes you already have:** Python, SQL, Linux, Docker, Git, basic databases, basic cloud, and enough production exposure to know that pipelines fail silently.
+**Helpful background:** basic Python and SQL, a command line, JSON, and a
+database. Docker is only required for hands-on labs.
 
 **Does not assume:** Spark internals, Kafka ISR, Flink watermarks, Iceberg snapshots, ClickHouse `ORDER BY`, or on-call data-platform debugging — that is what this teaches.
 
-**Not for:** beginner SQL / Python courses, certification cram sheets, or “what is an API” material.
+This does not teach Python or SQL from scratch, but unfamiliar data-platform
+terms are introduced through the foundations route and linked glossary.
 
 ---
 
@@ -97,9 +103,10 @@ Pages source must be **GitHub Actions** (not a branch): **Settings → Pages →
 
 Read [How to Study](docs/how-to-study.md) and [Learning paths](docs/learning-paths.md). Short version:
 
-1. Open with the problem, not the product page.
-2. Predict before you read the resolution or run the lab.
-3. You have understood a concept when you can explain **why someone had to invent it**.
+1. First pass: read the situation and build the mental picture.
+2. Second pass: trace one event through the internals and worked example.
+3. Production pass: study failures and run the lab when it is relevant.
+4. Predict before each explanation, then compare without treating a wrong guess as failure.
 
 ---
 

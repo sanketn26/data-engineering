@@ -15,7 +15,7 @@ Pick one before reading on. A DAG is supposed to make dependencies explicit enou
 
 ---
 
-## Use Case
+## Start with the situation { #use-case }
 
 **SaaS analytics, daily tenant metrics.** By 07:00 the product dashboard must show yesterday. Sources: Postgres orders, Stripe API, Kafka events compacted to S3. Downstream: Iceberg metrics table, then Trino, then email reports.
 
@@ -27,7 +27,7 @@ The DAG is the control plane for those three. It is not the query engine.
 
 ---
 
-## Why This Is Hard
+## Why the obvious approach breaks { #why-this-is-hard }
 
 At one job, cron is enough. At 25 jobs the failure modes compound:
 
@@ -41,7 +41,7 @@ Airflow makes the graph visible. It does not make the writes safe. Safety is [id
 
 ---
 
-## Intuition
+## Build the mental picture { #intuition }
 
 Treat a DAG run as **one data interval, many tasks, one intended table state**.
 
@@ -352,7 +352,7 @@ Retries: 2–3 on extract and Spark, exponential backoff, `execution_timeout` on
 
 ---
 
-## Gotchas
+## Where teams get caught { #gotchas }
 
 **Avoid mutable global state in tasks.** Tasks may run on different workers. Don't write temporary files to local disk and expect the next task to find them.
 
@@ -390,7 +390,7 @@ transform = SparkSubmitOperator(
 
 ---
 
-## Debugging
+## How to investigate { #debugging }
 
 1. **Parse**: `airflow dags list-import-errors`. If the file imports Spark, you already lost.
 2. **Why hasn't it run?** Graph view: state, `logical_date`, next run. Logs: scheduler (`dagbag`, `slot`).
@@ -459,7 +459,7 @@ If the answer to (4) is no, stop and fix [idempotency](idempotency.md) before ad
 
 ---
 
-## Exercise
+## Check your understanding { #exercise }
 
 A team adds `expand` over every S3 object in `s3://events/dt={{ ds }}/` (≈ 40,000 part files). Each mapped task is a `PythonOperator` that reads one Parquet file with pandas and appends to a warehouse table. `catchup` was left default; `start_date` is 90 days ago.
 

@@ -184,7 +184,7 @@ The existing back-of-envelope (~$20–30k/month full stack at 1 TB/day) is plaus
 
 ---
 
-## Failure modes
+## How it fails { #failure-modes }
 
 | Failure | Symptom | Absorb with |
 |---------|---------|-------------|

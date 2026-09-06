@@ -12,7 +12,7 @@ It's usually (B): until those rows **meet**, the aggregation is a lie, and meeti
 
 ---
 
-## Use case
+## Start with the situation { #use-case }
 
 SaaS analytics events, one day, ~500 GB Parquet:
 
@@ -37,7 +37,7 @@ The other academy systems are the same physics:
 
 ---
 
-## Why this is hard at scale
+## Why the obvious approach breaks at scale { #why-this-is-hard-at-scale }
 
 A “25 Gbps network” sounds infinite. Arithmetic:
 
@@ -51,7 +51,7 @@ CPU is rarely the scarce resource on ETL boxes. **Bytes × serialisation × dist
 
 ---
 
-## Intuition
+## Build the mental picture { #intuition }
 
 Three slogans:
 
@@ -71,7 +71,7 @@ HDFS put compute on the datanode because (1) was policy. S3 + Kubernetes makes (
 
 ---
 
-## Internals
+## Under the hood { #internals }
 
 ### Serialisation
 
@@ -156,7 +156,7 @@ Default `spark.sql.shuffle.partitions = 200` is wrong at both 10 MB and 10 TB. A
 
 ---
 
-## How
+## Put it to work { #how }
 
 ### Measure before you “optimise”
 
@@ -223,7 +223,7 @@ A 500 GB/day JSON topic can be ~80–150 GB/day lz4. That is broker disk, replic
 
 ---
 
-## Failure modes
+## How it fails { #failure-modes }
 
 | Failure | Mechanism | Symptom |
 |---------|-----------|---------|
@@ -238,7 +238,7 @@ Fetch failures under **dynamic allocation** happen because executors with shuffl
 
 ---
 
-## Debugging
+## How to investigate { #debugging }
 
 Spark UI, in order:
 
@@ -305,7 +305,7 @@ If shuffle bytes ≫ output bytes, you are paying to **rearrange** data that you
 
 ---
 
-## Exercise
+## Check your understanding { #exercise }
 
 A daily Spark job reads **800 GB** Parquet (S3, same region, three AZs). It:
 

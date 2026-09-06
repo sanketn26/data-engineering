@@ -174,7 +174,7 @@ When you can answer “what is a series, which clock, which window, which layer,
 
 ---
 
-## Exercise
+## Check your understanding { #exercise }
 
 IoT: 10 M devices, 30 s temperature, plus a `firmware_crash` event with `{device_id, stack_hash}`. Product wants PromQL alerts on temperature **and** a “crashes per customer last 7 days” SQL report (customers have 1–50k devices). One engineer proposes one Prometheus with `device_id` and `customer_id` labels on both metrics.
 

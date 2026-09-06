@@ -192,7 +192,7 @@ If (1) is "list the prefix," you are not in production yet. Start at [why table 
 
 ---
 
-## Exercise
+## Check your understanding { #exercise }
 
 A Spark job writes `s3://events/dt=2024-01-15/part-{000-199}`. It dies after 80 files. A Trino query for that day returns partial counts. A retry appends `part-{000-199}` again.
 

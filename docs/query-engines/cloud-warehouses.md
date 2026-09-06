@@ -23,7 +23,7 @@ None of that is a vendor defect. It is the architecture showing through the SQL.
 
 ---
 
-## Use case
+## Start with the situation { #use-case }
 
 Same workload as the rest of this module: SaaS analytics, hundreds of millions of events per day, an analyst who wants `p95 latency by plan tier` this afternoon — except now the company decided it does not want to operate Iceberg compaction, a catalog, and a Trino cluster. It wants to `COPY INTO` or stream the events into a managed warehouse and let the vendor own storage layout, scaling, and the 2 a.m. pages.
 
@@ -38,7 +38,7 @@ The SQL is nearly identical across BigQuery, Snowflake, and Redshift. What happe
 
 ---
 
-## Why this is hard
+## Why the obvious approach breaks { #why-this-is-hard }
 
 Three vendors sell "just write SQL," and each one hides a different failure mode behind that promise.
 
@@ -50,7 +50,7 @@ The trap is treating "managed" as "the physics went away." It didn't. It moved i
 
 ---
 
-## Intuition
+## Build the mental picture { #intuition }
 
 Think of each warehouse as **the same three ingredients — columnar storage, a cost-based optimizer, distributed execution — assembled around a different scarce resource**:
 
@@ -64,7 +64,7 @@ Every gotcha in this page is a symptom of forgetting which resource you are actu
 
 ---
 
-## Internals
+## Under the hood { #internals }
 
 ### BigQuery: Dremel over Colossus
 
@@ -104,7 +104,7 @@ Storage (**Colossus**, Google's distributed file system) and compute (**Dremel**
 
 ---
 
-## How
+## Put it to work { #how }
 
 ### BigQuery: dry-run before you run
 
@@ -167,7 +167,7 @@ WHERE query = pg_last_query_id();
 
 ---
 
-## Gotchas
+## Where teams get caught { #gotchas }
 
 !!! production-gotcha "BigQuery: SELECT * on a partitioned table"
     Partitioning only saves you if the query also prunes columns. `SELECT *` on a 40-column, 5-year table with a one-day `WHERE` still scans every column for that day — bytes billed scale with columns × days, not just days.
@@ -186,7 +186,7 @@ WHERE query = pg_last_query_id();
 
 ---
 
-## Failure modes
+## How it fails { #failure-modes }
 
 | Failure | What it looks like | Root |
 |---|---|---|
@@ -199,7 +199,7 @@ WHERE query = pg_last_query_id();
 
 ---
 
-## Debugging
+## How to investigate { #debugging }
 
 The three vendors expose the same three questions through different system views — learn the question, not just the syntax.
 
@@ -264,7 +264,7 @@ Related: [Trino](trino.md), [columnar storage](../olap/columnar-storage.md), [co
 
 ---
 
-## Exercise
+## Check your understanding { #exercise }
 
 A 12-person company has two data engineers, 20 TB in the warehouse, spiky weekday BI traffic (idle nights/weekends), and no ML engine requirement. Compare a managed warehouse with Trino + Iceberg. Then decide **which** managed warehouse fits best and name the first metric you'd watch to know you chose wrong.
 

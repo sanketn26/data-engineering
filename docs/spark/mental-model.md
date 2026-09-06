@@ -20,7 +20,7 @@ That “something” is Spark. This page is the map of who does what so [The Shu
 
 ---
 
-## Use case
+## Start with the situation { #use-case }
 
 ```python
 events = spark.read.parquet("s3://analytics/events/date=2024-01-15/")
@@ -44,7 +44,7 @@ Same model for observability rollups, CDC MERGE jobs, IoT downsampling, and frau
 
 ---
 
-## Why this is hard at scale
+## Why the obvious approach breaks at scale { #why-this-is-hard-at-scale }
 
 Without a model, teams cargo-cult config:
 
@@ -57,7 +57,7 @@ At 5 TB these are not style issues. They are [scale](../foundations/scale.md) fa
 
 ---
 
-## Intuition
+## Build the mental picture { #intuition }
 
 Spark is a **lazy query planner plus a task scheduler**.
 
@@ -92,7 +92,7 @@ If the driver dies, the application dies. If an executor dies, **tasks** retry; 
 
 ---
 
-## Internals
+## Under the hood { #internals }
 
 ### Driver, executors, cluster manager
 
@@ -169,7 +169,7 @@ Cache is **executor-local blocks**, keyed by partition. It is not a lakehouse. E
 
 ---
 
-## How
+## Put it to work { #how }
 
 ### A production-shaped session
 
@@ -233,7 +233,7 @@ Three actions, **three jobs** (more if AQE or `count` on a computed frame). In a
 
 ---
 
-## Failure modes
+## How it fails { #failure-modes }
 
 | Failure | Mental-model translation |
 |---------|--------------------------|
@@ -245,7 +245,7 @@ Three actions, **three jobs** (more if AQE or `count` on a computed frame). In a
 
 ---
 
-## Debugging
+## How to investigate { #debugging }
 
 Spark UI:
 
@@ -314,7 +314,7 @@ If the author cannot mark those on the code, they do not have a mental model. Th
 
 ---
 
-## Exercise
+## Check your understanding { #exercise }
 
 ```python
 df1 = spark.read.parquet("s3://orders/")          # 200 partitions

@@ -13,7 +13,7 @@ D. Allowed lateness dropped the events.
 
 Predict before reading on: which window shape would have caught this burst, and which one missed it?
 
-## Use case
+## Start with the situation { #use-case }
 
 A stream never ends. "Average `latency_ms` for `service=api`" is undefined unless you say **over which slice of time**.
 
@@ -23,7 +23,7 @@ Windows are how you turn an unbounded stream into finite aggregates without pret
 
 ---
 
-## Why this is hard at scale
+## Why the obvious approach breaks at scale { #why-this-is-hard-at-scale }
 
 Every open window holds **state**. A 1-hour sliding window with a 1-second slide is not "the same as a 1-hour tumbling window". Each event is assigned to many windows; memory and CPU scale with `size / slide`.
 
@@ -33,7 +33,7 @@ At 2M events/s, a mistaken sliding window is a cluster-sized bill.
 
 ---
 
-## Intuition
+## Build the mental picture { #intuition }
 
 Bound the stream. Compute. Emit. Forget (unless sliding/session needs overlap).
 
@@ -218,7 +218,7 @@ Pre-aggregate in Flink, sink to ClickHouse/Pinot. Do not slide by 1s at 2M event
 
 ---
 
-## Gotchas
+## Where teams get caught { #gotchas }
 
 **Unkeyed windows.** `stream.window(...)` without `key_by` → parallelism 1.
 
@@ -232,7 +232,7 @@ Pre-aggregate in Flink, sink to ClickHouse/Pinot. Do not slide by 1s at 2M event
 
 ---
 
-## Failure modes
+## How it fails { #failure-modes }
 
 | Failure | What you see |
 |---------|----------------|
@@ -244,7 +244,7 @@ Pre-aggregate in Flink, sink to ClickHouse/Pinot. Do not slide by 1s at 2M event
 
 ---
 
-## Debugging
+## How to investigate { #debugging }
 
 | Metric / UI | Meaning |
 |-------------|---------|
@@ -339,7 +339,7 @@ If you cannot fill `accumulator`, you are buffering whole windows and you will d
 
 ---
 
-## Exercise
+## Check your understanding { #exercise }
 
 You compute a **1-hour** sliding window with a **5-minute** slide on event time. Watermark bound = 2 minutes. Events can be 5 minutes late (p99). 10 million events/hour, keyed by `customer_id` (50k keys).
 

@@ -12,7 +12,7 @@ It's (C). 10 million devices × 1 sample / 30 s ≈ 3.3×10⁵ points/s ≈ **2.
 
 ---
 
-## Use case
+## Start with the situation { #use-case }
 
 IoT `{timestamp, device_id, sensor, value}` plus observability events at hundreds of millions/day.
 
@@ -29,7 +29,7 @@ Retention money: keep raw hot for 7 days, not 7 years.
 
 ---
 
-## Why this is hard
+## Why the obvious approach breaks { #why-this-is-hard }
 
 Downsampling **destroys information**. Average of a minute hides a 5 s 100% CPU. p95 of a day cannot be recovered from 24 hourly p95s by averaging them. Late event time means a rollup you already closed is wrong unless you recompute.
 
@@ -37,7 +37,7 @@ If you downsample in the UI (Grafana “min interval”), 10 M devices still sen
 
 ---
 
-## Intuition
+## Build the mental picture { #intuition }
 
 A pyramid. Each layer is tumbling windows ([windows](windows.md)) with fewer rows.
 
@@ -54,7 +54,7 @@ Storage is dominated by the **finest** layer you keep × retention. Dropping raw
 
 ---
 
-## Internals
+## Under the hood { #internals }
 
 ### Storage math (order of magnitude)
 
@@ -110,7 +110,7 @@ TTL **deletes**. Downsampling **copies a summary then deletes**. TTL without a l
 
 ---
 
-## How
+## Put it to work { #how }
 
 **Timescale continuous aggregate:**
 
@@ -190,7 +190,7 @@ ORDER BY m;
 
 ---
 
-## Gotchas
+## Where teams get caught { #gotchas }
 
 !!! production-gotcha "Only avg in the rollup"
     You cannot answer “did we spike?” a month later. Add max/min/count.
@@ -212,7 +212,7 @@ ORDER BY m;
 
 ---
 
-## Failure modes
+## How it fails { #failure-modes }
 
 | Failure | Cause |
 |---------|--------|
@@ -225,7 +225,7 @@ ORDER BY m;
 
 ---
 
-## Debugging
+## How to investigate { #debugging }
 
 Storage:
 
@@ -313,7 +313,7 @@ At work the smell is a 14-day dashboard that scans 30 s raw for 10 M series, or 
 
 ---
 
-## Exercise
+## Check your understanding { #exercise }
 
 10 M devices, 30 s temperature, 3× replication, 24 bytes/point on disk after compression (all-in). Budget: 40 TB usable for this pipeline.
 

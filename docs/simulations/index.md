@@ -8,9 +8,13 @@ Browser tools for failure modes that are hard to **feel** from prose: hot Kafka 
 
 Related: [how to study](../how-to-study.md), [labs](../labs/index.md), [incidents](../incidents/index.md).
 
+For a single ordered route through all four kinds of practice, use the
+[practice map](../practice-map.md). Each concept page also links directly to its
+matching simulation before the final understanding check.
+
 ---
 
-## How to use (non-negotiable)
+## A useful way to explore
 
 1. **Read the concept page first** (linked below). If you open the sim cold, you will slide sliders.
 2. **Predict** what the default settings show. One sentence, out loud or on paper.

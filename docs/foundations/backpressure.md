@@ -78,7 +78,7 @@ Kafka is the middle case: it does not backpressure the producer in the classic s
 4. **Admission control / rate limiting.** Cap arrival at the edge so the system never enters the growing-backlog regime — appropriate when late data is worse than dropped data (an API, not a ledger).
 5. **Load shedding.** Explicit, policy-driven dropping (sample, drop low-priority, drop oldest) when 1–4 aren't enough and *some* answer beats a fully stalled pipeline. Silent drops (buffer overflow with no metric) are the failure mode, not the fix.
 
-## Debugging
+## How to investigate { #debugging }
 
 Backpressure symptoms look similar across systems, but the metric that separates the hypotheses differs:
 
@@ -92,7 +92,7 @@ Backpressure symptoms look similar across systems, but the metric that separates
 !!! production-gotcha "Backpressure in Flink points at the wrong operator if you read it forward"
     A Flink UI showing every operator "backpressured" does not mean every operator is slow. It means everything **upstream of the actual bottleneck** is blocked waiting for it. Start at the sink and walk backward to find the first operator that is *busy*, not backpressured — that is the real ceiling.
 
-## Failure modes
+## How it fails { #failure-modes }
 
 - Scaling consumers when the sink, not the consumer, is the bottleneck — lag moves from "Kafka" to "processor's internal queue," which is harder to see.
 - An unbounded in-memory queue "to avoid dropping data" that turns a slow sink into an OOM instead of a controlled lag metric.
@@ -100,7 +100,14 @@ Backpressure symptoms look similar across systems, but the metric that separates
 - Autoscaling with no maximum, so a downstream outage causes the consumer fleet to scale to a size the sink then cannot survive when it recovers (the "thundering herd on recovery" failure).
 - Treating Kafka retention as backpressure — it is a deadline, not a signal; the producer never learns to slow down.
 
-## Exercise
+## Practice the idea
+
+Open the [backpressure calculator](../simulations/backpressure-calculator.html).
+Predict the backlog after 20 minutes with arrival at 100k/s and service at
+70k/s, then test two recovery rates. The useful observation is the difference
+between **stopping backlog growth** and **draining the backlog**.
+
+## Check your understanding { #exercise }
 
 An ingestion API accepts events at a sustained 100k/s during business hours. It writes to Kafka, which a Flink job consumes at 100k/s in steady state — the pipeline is healthy. A downstream ClickHouse sink hiccups and drops to 40k/s for 20 minutes before recovering.
 

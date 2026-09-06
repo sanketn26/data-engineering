@@ -17,7 +17,7 @@ Pick one before reading on. The e-commerce session API needs to put and get a **
 
 ---
 
-## Use case
+## Start with the situation { #use-case }
 
 **Session store:** `session_id` → JSON, TTL, 200k QPS, no analytics.
 
@@ -27,7 +27,7 @@ Pick one before reading on. The e-commerce session API needs to put and get a **
 
 ---
 
-## Why this is hard
+## Why the obvious approach breaks { #why-this-is-hard }
 
 Managed does not mean unconstrained:
 
@@ -40,7 +40,7 @@ Teams fail by treating Dynamo as Postgres (ad-hoc query) or as Cassandra (cheap 
 
 ---
 
-## Intuition
+## Build the mental picture { #intuition }
 
 A table is a set of items. Each item is identified by:
 
@@ -61,7 +61,7 @@ PartiQL is a SQL-shaped skin over the same rules. `SELECT * FROM sessions WHERE 
 
 ---
 
-## Internals
+## Under the hood { #internals }
 
 ```mermaid
 graph TD
@@ -101,7 +101,7 @@ graph TD
 
 ---
 
-## How
+## Put it to work { #how }
 
 ### Session store (one table, one key)
 
@@ -222,7 +222,7 @@ Single-table design exists because **Query is per PK** and **joins do not exist*
 
 ---
 
-## Gotchas
+## Where teams get caught { #gotchas }
 
 !!! warning "Hot keys"
     `PK = STATUS#OPEN` for all open orders. One partition, all the WCU. Shard: `STATUS#OPEN#{0..N}` and fan-out reads.
@@ -247,7 +247,7 @@ Single-table design exists because **Query is per PK** and **joins do not exist*
 
 ---
 
-## Failure modes
+## How it fails { #failure-modes }
 
 - **Throttling (`ProvisionedThroughputExceeded`)** on one key while the table-level metric looks fine. CloudWatch **per-partition** (or contributor insights) tells the truth.
 - **GSI backlog.** Base table accepts writes; GSI lags; “query the GSI” returns stale or throttles independently if provisioned separately.
@@ -258,7 +258,7 @@ Single-table design exists because **Query is per PK** and **joins do not exist*
 
 ---
 
-## Debugging
+## How to investigate { #debugging }
 
 | Signal | Tool |
 |--------|------|
@@ -312,7 +312,13 @@ Write the access patterns on a wiki page. If they do not fit Query/GetItem, Dyna
 
 ---
 
-## Exercise
+## Practice the idea
+
+Open the [DynamoDB hot-key simulator](../simulations/dynamodb-hot-key-simulator.html).
+Keep total table capacity fixed, increase the hot-key share, and predict when a
+single partition throttles even though spare capacity exists elsewhere.
+
+## Check your understanding { #exercise }
 
 ??? question "Sessions, devices, and a dangerous GSI"
     200k QPS session get/put, 2 KB items, TTL 24 h. 20M devices, 50k QPS point read, 1 QPS “devices in region with firmware < X.” Product then asks for “all sessions that contain SKU X.”

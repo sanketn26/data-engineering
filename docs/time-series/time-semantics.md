@@ -12,7 +12,7 @@ It's (B) — and which clock you stored, event time, ingestion time, or scrape t
 
 ---
 
-## Use case
+## Start with the situation { #use-case }
 
 IoT: `{timestamp, device_id, sensor, value}` every 30 s, plus bursts after reconnects.
 
@@ -27,7 +27,7 @@ You need:
 
 ---
 
-## Why this is hard
+## Why the obvious approach breaks { #why-this-is-hard }
 
 Clocks disagree. Devices sleep. NTP steps. Mobile buffers. Scrapes fail. Counters reset on deploy. Regular sampling pretends the world is a grid; the world is not.
 
@@ -37,7 +37,7 @@ Flink makes this explicit with watermarks ([Flink time](../flink/time.md)). TSDB
 
 ---
 
-## Intuition
+## Build the mental picture { #intuition }
 
 Name three clocks, never mix them in one column.
 
@@ -62,7 +62,7 @@ Chart by event time: the point sits at 10:02. Chart by ingest: a 95° spike at 1
 
 ---
 
-## Internals
+## Under the hood { #internals }
 
 ### Metric, labels, sample, series
 
@@ -155,7 +155,7 @@ These are not the same chart. Aligning Grafana “min interval” with scrape in
 
 ---
 
-## How
+## Put it to work { #how }
 
 **IoT ClickHouse** — event time as the column you filter; ingest time as debug:
 
@@ -212,7 +212,7 @@ WITH FILL STEP 3600;   -- ClickHouse: show gaps as defaults
 
 ---
 
-## Gotchas
+## Where teams get caught { #gotchas }
 
 !!! production-gotcha "now() as event time"
     Every batch job, every Kafka consumer retry, every backfill will rewrite history as “today.” Pass the producer timestamp.
@@ -234,7 +234,7 @@ WITH FILL STEP 3600;   -- ClickHouse: show gaps as defaults
 
 ---
 
-## Failure modes
+## How it fails { #failure-modes }
 
 | Symptom | Cause |
 |---------|--------|
@@ -247,7 +247,7 @@ WITH FILL STEP 3600;   -- ClickHouse: show gaps as defaults
 
 ---
 
-## Debugging
+## How to investigate { #debugging }
 
 1. **Print three timestamps** for one sample: payload, Kafka, insert. If they differ by minutes, pick one for the product and log the others.
 2. **Raw samples around the incident**, not the 5-minute avg. Anomalies live in raw.
@@ -318,7 +318,7 @@ This is the same discipline as [Flink time](../flink/time.md), applied to storag
 
 ---
 
-## Exercise
+## Check your understanding { #exercise }
 
 Gateway sends:
 

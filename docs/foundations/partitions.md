@@ -12,7 +12,7 @@ That's the whole question this page answers: how you assign work so twenty machi
 
 ---
 
-## Use case
+## Start with the situation { #use-case }
 
 Events:
 
@@ -36,7 +36,7 @@ The same tension appears elsewhere:
 
 ---
 
-## Why this is hard at scale
+## Why the obvious approach breaks at scale { #why-this-is-hard-at-scale }
 
 On one machine, “split the file into 8 chunks” is enough. On a cluster:
 
@@ -50,7 +50,7 @@ On one machine, “split the file into 8 chunks” is enough. On a cluster:
 
 ---
 
-## Intuition
+## Build the mental picture { #intuition }
 
 A partition is a **slice that a worker can own**.
 
@@ -97,7 +97,7 @@ Mental test: *If I delete one partition, did I delete a coherent business slice 
 
 ---
 
-## Internals
+## Under the hood { #internals }
 
 ### Hash partitioning
 
@@ -163,7 +163,7 @@ Kafka: throughput ≈ `min(partitions, consumer threads)` for a group; ordering 
 
 ---
 
-## How
+## Put it to work { #how }
 
 ### Storage layout for the SaaS lake
 
@@ -269,7 +269,7 @@ Two-phase aggregation: first shuffle is balanced; second shuffle is tiny. Percen
 
 ---
 
-## Failure modes
+## How it fails { #failure-modes }
 
 ```mermaid
 graph LR
@@ -300,7 +300,7 @@ Fixes, in order: **measure the histogram** → **change storage key** if pruning
 
 ---
 
-## Debugging
+## How to investigate { #debugging }
 
 | System | What to open | Healthy vs sick |
 |--------|--------------|-----------------|
@@ -371,7 +371,7 @@ If nobody can paste a histogram, you do not have a partitioning strategy. You ha
 
 ---
 
-## Exercise
+## Check your understanding { #exercise }
 
 You are designing a **Kafka topic** for e-commerce **order events**. Orders come from 50 countries. Volume is roughly proportional to GDP (US + EU + India dominate). Primary consumer *today* is “orders per country per hour.” A second consumer in Q3 wants **per-customer order history in event order**.
 

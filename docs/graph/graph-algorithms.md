@@ -15,7 +15,7 @@ Pick one before reading on. Storing User → Device → IP → Transaction → M
 
 ---
 
-## Use case
+## Start with the situation { #use-case }
 
 Nightly fraud job:
 
@@ -27,7 +27,7 @@ Dashboards still use ClickHouse. The risk API still uses bounded MATCH. Algorith
 
 ---
 
-## Why this is hard
+## Why the obvious approach breaks { #why-this-is-hard }
 
 - Algorithms are **O(edges)** or worse and need a **projected** graph in RAM (GDS) or a distributed Pregel (Spark).
 - They **do not belong** in a Bolt query that holds the serving page cache.
@@ -39,7 +39,7 @@ The hard part is **pipeline design**: what edges go into the projection, when it
 
 ---
 
-## Intuition
+## Build the mental picture { #intuition }
 
 | Algorithm | Picture | Fraud question |
 |-----------|---------|----------------|
@@ -74,7 +74,7 @@ flowchart LR
 
 ---
 
-## Internals
+## Under the hood { #internals }
 
 **Neo4j GDS:** `gds.graph.project` copies a subset of nodes/edges into an in-memory **compressed** graph. Algorithms run on that. Mutating algorithms write properties back (`componentId`, `score`). The projection is the real schema: if you include `[:FROM]` to NAT IPs, WCC is one blob.
 
@@ -84,7 +84,7 @@ flowchart LR
 
 ---
 
-## How
+## Put it to work { #how }
 
 ### Project the fraud graph (90-day, no supernodes)
 
@@ -234,7 +234,7 @@ When WCC blobs are huge (marketplace), Louvain splits **dense** communities. Run
 
 ---
 
-## Gotchas
+## Where teams get caught { #gotchas }
 
 !!! warning "WCC + supernode = one ring"
     Filter NAT IPs and mega-merchants **before** project.
@@ -253,7 +253,7 @@ When WCC blobs are huge (marketplace), Louvain splits **dense** communities. Run
 
 ---
 
-## Failure modes
+## How it fails { #failure-modes }
 
 - Job runs 14 hours, overlaps the next nightly, cluster out of RAM.
 - Analysts treat a 2-million-user component as a ring (it is the US NAT blob).
@@ -263,7 +263,7 @@ When WCC blobs are huge (marketplace), Louvain splits **dense** communities. Run
 
 ---
 
-## Debugging
+## How to investigate { #debugging }
 
 1. Size the projection: node/edge counts, max degree. If max degree is 10^6, stop.
 2. WCC size histogram: if the largest component is 40% of users, the projection is wrong.
@@ -308,7 +308,7 @@ If someone wants “real-time connected components” on each payment, say **no*
 
 ---
 
-## Exercise
+## Check your understanding { #exercise }
 
 ??? question "Place the jobs on a clock"
     Payment p99 80 ms. 40M users, 200M USES edges / 90 days. Analysts want rings, top accounts per ring, similar merchants for recs, and a dashboard of fraud rate by ring.

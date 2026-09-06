@@ -17,7 +17,7 @@ Pick one before reading on: the same task — score 40 million SaaS accounts bef
 
 ---
 
-## Use case
+## Start with the situation { #use-case }
 
 **SaaS analytics — feature compute.** For each `user_id`, sessionise last 14 days of events, compute 40 features (rolling rates, embedding lookup, a small model score), write a feature row. 40 ms of Python per user, independent across users, model loaded once per process.
 
@@ -27,7 +27,7 @@ Both are **Python-native graphs of work**. They are not `SELECT … GROUP BY` ov
 
 ---
 
-## Why this is hard
+## Why the obvious approach breaks { #why-this-is-hard }
 
 1. **The GIL** makes threads useless for CPU-bound Python. You need processes, then machines.
 2. **`multiprocessing`** stops at one box: no cluster scheduler, no shared object store, no GPU packing.
@@ -39,7 +39,7 @@ The hard part is not “run a function.” It is **schedule, move bytes once, ke
 
 ---
 
-## Intuition
+## Build the mental picture { #intuition }
 
 ```python
 # Local Python — one process, blocks
@@ -71,7 +71,7 @@ Ray builds a **dynamic task graph** as your program runs. Spark builds a **lazy 
 
 ---
 
-## Internals
+## Under the hood { #internals }
 
 ```mermaid
 graph LR
@@ -117,7 +117,7 @@ Actors that request `num_cpus=1` consume that CPU even while idle. A cluster of 
 
 ---
 
-## How
+## Put it to work { #how }
 
 ### Tasks — per-user features
 
@@ -286,7 +286,7 @@ A production ML platform often uses **both**: Spark (or Flink) writes the featur
 
 ---
 
-## Gotchas
+## Where teams get caught { #gotchas }
 
 !!! warning "Actors are not a database"
     Killing a worker deletes actor memory. `max_restarts=3` gives you a new empty object after `__init__`. Persist snapshots yourself.
@@ -311,7 +311,7 @@ A production ML platform often uses **both**: Spark (or Flink) writes the featur
 
 ---
 
-## Failure modes
+## How it fails { #failure-modes }
 
 **Worker SIGKILL / OOM.** Tasks on that worker fail. Pure tasks retry elsewhere (if retries configured). Actors on that worker are dead; queued `.remote()` calls error. Object-store contents on that node are gone; surviving copies depend on ownership and reconstruction.
 
@@ -325,7 +325,7 @@ A production ML platform often uses **both**: Spark (or Flink) writes the featur
 
 ---
 
-## Debugging
+## How to investigate { #debugging }
 
 | Symptom | Where to look | Likely cause |
 |---------|---------------|--------------|
@@ -395,7 +395,7 @@ Ask: **is the bottleneck a relational shuffle or a Python call graph?** Only the
 
 ---
 
-## Exercise
+## Check your understanding { #exercise }
 
 ??? question "Design the feature job"
     40 million users. Feature function is 40 ms of pandas plus a 200 MB sklearn model. Inputs are Iceberg Parquet partitioned by `dt`, already shuffled to `user_id` files (~8k files). SLO is 30 minutes on a 200-core cluster.

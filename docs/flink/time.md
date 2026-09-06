@@ -13,7 +13,7 @@ D. Someone disabled checkpointing and the job is stuck.
 
 Predict which one before reading on, then check it against how a watermark is actually computed across partitions.
 
-## Use case
+## Start with the situation { #use-case }
 
 Fraud asks: **failed logins per user in the last 5 minutes.**
 
@@ -39,7 +39,7 @@ Observability p95 latency has the same bug if agents batch. IoT "device offline 
 
 ---
 
-## Why this is hard at scale
+## Why the obvious approach breaks at scale { #why-this-is-hard-at-scale }
 
 Events are not a single increasing timestamp:
 
@@ -52,7 +52,7 @@ At 50k events/s you can eyeball a few late records. At 2M/s, late data is a dist
 
 ---
 
-## Intuition
+## Build the mental picture { #intuition }
 
 Three clocks:
 
@@ -218,7 +218,7 @@ Parse JSON in a `map` and, if you need payload timestamps rather than Kafka time
 
 ---
 
-## Gotchas
+## Where teams get caught { #gotchas }
 
 - **ISO strings without timezone** parse as local on one TaskManager and UTC on another. Store epoch millis at the producer.
 - **`timestamp` = produce time in the API gateway** is ingestion time with extra steps; name it honestly.
@@ -227,7 +227,7 @@ Parse JSON in a `map` and, if you need payload timestamps rather than Kafka time
 
 ---
 
-## Failure modes
+## How it fails { #failure-modes }
 
 | Failure | Symptom | Cause |
 |---------|---------|-------|
@@ -239,7 +239,7 @@ Parse JSON in a `map` and, if you need payload timestamps rather than Kafka time
 
 ---
 
-## Debugging
+## How to investigate { #debugging }
 
 Flink UI → Task → **watermarks**. Also emit watermark lag as a metric.
 
@@ -323,7 +323,15 @@ Then measure **producer delay** = Flink ingest wall clock − payload timestamp.
 
 ---
 
-## Exercise
+## Practice the idea
+
+In the [watermark simulator](../simulations/watermark-simulator.html), freeze one
+source split and predict the downstream minimum before enabling idleness. Then
+run the [Flink lab](../labs/index.md#flink-labsflink) and use
+`stalled_watermark.py` to assert the same rule. Finish with the
+[stalled-watermark incident](../incidents/index.md#incident-3-flink-watermark-stalled-no-output).
+
+## Check your understanding { #exercise }
 
 `login-events` has 8 Kafka partitions. Seven receive a steady stream. Partition 7 is used only by a partner integration that sends traffic at 09:00 and 17:00. Watermark = bounded out-of-orderness 15s, **no** idleness. Fraud windows are 5 minutes.
 

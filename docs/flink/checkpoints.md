@@ -13,7 +13,7 @@ D. The checkpoint interval was misconfigured to something absurd.
 
 Predict which one before reading on — the fraud job downstream has been counting failed logins for six hours, and whichever answer is right determines how much of that six hours you can actually lose.
 
-## Use case
+## Start with the situation { #use-case }
 
 The fraud job has been counting failed logins for 10 million `user_id`s for six hours. A TaskManager loses its disk. Without a recovery story, those six hours of [state](state.md) are gone and you reprocess from Kafka `earliest` — if [retention](../kafka/log.md) still has the data.
 
@@ -21,7 +21,7 @@ With checkpoints, you restore state and Kafka offsets from a consistent snapshot
 
 ---
 
-## Why this is hard at scale
+## Why the obvious approach breaks at scale { #why-this-is-hard-at-scale }
 
 A checkpoint is not `pickle.dump(the_job)`. It must be a **consistent cut** of:
 
@@ -35,7 +35,7 @@ Backpressure makes it worse: if the sink is slow, barriers do not move, checkpoi
 
 ---
 
-## Intuition
+## Build the mental picture { #intuition }
 
 Periodically, the JobManager injects **checkpoint barriers** into each source stream. Barriers flow like records. When an operator has received barrier *n* from all its inputs, it snapshots its state, then forwards the barrier.
 
@@ -176,7 +176,7 @@ RTO ≈ restart + state download + catch-up of the rewind. Incremental checkpoin
 
 ---
 
-## Gotchas
+## Where teams get caught { #gotchas }
 
 - **No `uid`:** a code change shuffles operator ids; state is dropped or mis-assigned.
 - **Checkpointing disabled** in a "temporary" debug session that became production.
@@ -187,7 +187,7 @@ RTO ≈ restart + state download + catch-up of the rewind. Incremental checkpoin
 
 ---
 
-## Failure modes
+## How it fails { #failure-modes }
 
 | Failure | Effect |
 |---------|--------|
@@ -200,7 +200,7 @@ RTO ≈ restart + state download + catch-up of the rewind. Incremental checkpoin
 
 ---
 
-## Debugging
+## How to investigate { #debugging }
 
 | Metric | Meaning |
 |--------|---------|
@@ -317,7 +317,7 @@ Alert: no successful checkpoint in 3× interval. Practise a TM kill in staging (
 
 ---
 
-## Exercise
+## Check your understanding { #exercise }
 
 Job checkpoints every 60s to S3. RocksDB state 40 GB, incremental. Sink is Kafka `EXACTLY_ONCE`. A downstream warehouse consumer uses default isolation. You kill a TM. Then you notice duplicate rows in the warehouse for a 2-minute window.
 

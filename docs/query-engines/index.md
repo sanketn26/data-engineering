@@ -187,7 +187,7 @@ Trino is the **SQL front door** to the lake and to systems you do not want to co
 
 ---
 
-## Exercise
+## Check your understanding { #exercise }
 
 An on-call dashboard joins 90 days of Iceberg events to Postgres `customers` on every page load (p95 8 s, 40 QPS at 09:00). A PM asks to “just point Grafana at Trino — we already have the data.”
 

@@ -374,7 +374,7 @@ If any cell is fuzzy, re-read the matching deep-dive rather than adding more pro
 
 ---
 
-## Exercise
+## Check your understanding { #exercise }
 
 You ran lab 3's fragile consumer with `enable_auto_commit=True` and `max.poll.interval.ms=5000`, processing with a 10s sleep after each record (including the poison). Describe the cluster's behaviour for 2 minutes.
 

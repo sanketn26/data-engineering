@@ -5,10 +5,30 @@ description: Role-based routes through the academy — foundations, Staff data p
 
 # Learning paths
 
-Do not try to read every page in order. Pick a route with a finish line. A session is 60–90 minutes: required reading, one prediction or lab, and one exit check. Optional depth never blocks progress.
+Do not try to read every page in order. Pick a route with a finish line. A
+reading session can be 25–40 minutes; a lab can be a separate session. Optional
+depth never blocks progress.
 
 !!! note "How to use a path"
-    For each listed page: predict, read, run the required lab or simulation, then explain the idea in one paragraph without looking. If the exit check fails, use the [recovery loop](how-to-study.md#when-an-exit-check-does-not-pass) and revisit it after the adjacent lesson.
+    On the first visit, read the opening and **Build the mental picture**, then
+    attempt the exit criterion. Return for internals and operations when the
+    route calls for them. Use the [three-pass rhythm](how-to-study.md#the-three-pass-rhythm)
+    instead of forcing every page into one sitting.
+
+## A gentle first hour
+
+If every route still looks large, begin here:
+
+1. Read the story and mental picture in [Data at Scale](foundations/scale.md).
+2. Open the [Kafka partition simulator](simulations/kafka-partitions.html). Keep
+   the defaults, then make one key receive 80% of events.
+3. Read only the opening and mental picture in
+   [Partitioning](foundations/partitions.md).
+4. Finish this sentence in your own words: “We partition data because …, but a
+   poor key causes …”.
+
+That is a complete session. The next session starts with distributed execution;
+no Docker or product-specific knowledge is required yet.
 
 ## Core path — six weeks
 

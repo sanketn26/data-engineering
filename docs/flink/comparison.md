@@ -13,7 +13,7 @@ B. No — micro-batch triggers put realistic latency at seconds to minutes, not 
 C. Only if you enable continuous processing mode, which is production-ready.
 D. It depends only on how the DataFrame is partitioned.
 
-## Use case
+## Start with the situation { #use-case }
 
 You already have `{timestamp, customer_id, user_id, service, endpoint, region, latency_ms, status_code, bytes}` in Kafka. A team asks "should this be Flink?" The staff-engineer answer is never the vendor matrix first. It is: **what is the workload, the state, the latency, and who will be paged?**
 
@@ -21,7 +21,7 @@ This page compares three engines that all *can* window a Kafka topic. It does no
 
 ---
 
-## Why this is hard at scale
+## Why the obvious approach breaks at scale { #why-this-is-hard-at-scale }
 
 All three products advertise event time, exactly-once, and Kafka. The differences show up when:
 
@@ -319,7 +319,7 @@ Write the workload in one paragraph (latency, state size, sink, team). Map it to
 
 ---
 
-## Exercise
+## Check your understanding { #exercise }
 
 A company has Spark for the lake, Kafka for ingest, and a Java order service. They want (a) Iceberg tables from `service-events` within 1 minute, (b) sessionisation of shoppers for a recommendation service with 200 ms reads of "current session", (c) the fraud login rule at < 1s.
 

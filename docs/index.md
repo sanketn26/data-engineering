@@ -14,7 +14,7 @@ hide:
       <a class="course-button course-button--secondary" href="how-to-study/">How to study</a>
       <a class="course-button course-button--coffee" href="https://buymeacoffee.com/sanketn">☕ Support this academy</a>
     </div>
-    <p class="course-hero__note">Not beginner-friendly — assumes Python, SQL, Docker, and production scars</p>
+    <p class="course-hero__note">Best with basic Python and SQL · Docker is only needed for hands-on labs</p>
   </div>
   <div class="course-terminal" aria-label="Academy roadmap">
     <div class="course-terminal__bar"><i></i><i></i><i></i><span>data-engineering / roadmap</span></div>
@@ -124,8 +124,8 @@ The phases are named after systems because that is how teams talk. The lessons a
   </div>
   <div>
     <span>03</span>
-    <h3>Failure is the exam</h3>
-    <p>Gotchas, scale ladders, and incident drills. You have understood it when you can debug it.</p>
+    <h3>Failure makes it concrete</h3>
+    <p>Gotchas, scale ladders, and incident drills connect the mental model to signals you can observe.</p>
   </div>
 </div>
 

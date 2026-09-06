@@ -17,7 +17,7 @@ This page is the on-call list. For each item: what the SaaS (or CDC / IoT) job l
 
 ---
 
-## Use case
+## Start with the situation { #use-case }
 
 A typical production submit that looks grown-up in Git:
 
@@ -35,7 +35,7 @@ Every line is a known incident class. We will walk them in the order they usuall
 
 ---
 
-## Why this is hard at scale
+## Why the obvious approach breaks at scale { #why-this-is-hard-at-scale }
 
 On a sample, `collect` is 200 rows, `partitionBy` is 3 files, the UDF is 0.4 s, cache “makes the second count fast.” At 2 TB:
 
@@ -50,7 +50,7 @@ The failure is often **retries until SLA miss**, not a clean stack trace.
 
 ---
 
-## Intuition
+## Build the mental picture { #intuition }
 
 | Symptom | First suspect |
 |---------|----------------|
@@ -284,7 +284,7 @@ Casting `latency_ms` from string on 10 billion rows is a job you will pay daily 
 
 ---
 
-## Failure modes
+## How it fails { #failure-modes }
 
 | Class | Log / UI | Outcome |
 |-------|----------|---------|
@@ -299,7 +299,7 @@ Casting `latency_ms` from string on 10 billion rows is a job you will pay daily 
 
 ---
 
-## Debugging
+## How to investigate { #debugging }
 
 | Gotcha | Where to look |
 |--------|----------------|
@@ -371,7 +371,7 @@ Code-search the repo for `.collect(`, `.toPandas(`, `@udf`, `repartition(`, `cac
 
 ---
 
-## Exercise
+## Check your understanding { #exercise }
 
 The SaaS job below runs 12 minutes on 5 GB and 6 hours (then dies) on 2 TB. `cust_0042` is 38% of 2 TB. 80 executors, DA on, no shuffle service, `speculation=true`, default shuffle partitions 200, default broadcast 10 MB. `customers` is 400 MB.
 

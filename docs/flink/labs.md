@@ -298,7 +298,7 @@ Implement both in the lab 1 harness with synthetic timestamps. This is the [wind
 
 ---
 
-## Exercise
+## Check your understanding { #exercise }
 
 You run lab 3 with idleness 10s. Partition 1 and 2 are idle. At 12:00 a producer starts sending **buffered** events for partition 1 with timestamps 11:00–11:05.
 

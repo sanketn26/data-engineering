@@ -166,7 +166,7 @@ They do not belong on the [fraud 200 ms path](../architectures/fraud.md), as the
 
 ---
 
-## Failure modes
+## How it fails { #failure-modes }
 
 | Failure | Symptom | Absorb |
 |---------|---------|--------|

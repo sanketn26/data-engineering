@@ -10,6 +10,12 @@ Predict before you read on: if you skip the README's hypothesis section and go s
 
 It's the lesson. Hands-on work here lives in **`labs/` at the repository root**, not under `docs/`, and each subdirectory is a small Compose (or a laptop PySpark) environment built around a README that follows **predict → run → break**, not run → shrug.
 
+!!! tip "New: enter from the concept"
+    The [practice map](../practice-map.md) pairs each core idea with a short
+    simulation, this real-system lab, and an incident. If you are learning rather
+    than looking up commands, start there. Each lab README now repeats its exact
+    read → simulate → run → diagnose sequence.
+
 You do not need a cloud account. You need Docker for Kafka, ClickHouse, and the optional Flink UI. Kafka/Spark scripts support Python 3.9+; the pinned PyFlink 1.18 wheel should use a supported Python 3.9–3.11 environment. About 8 GB RAM is enough; 16 GB if you run Kafka + ClickHouse at once.
 
 Module pages still have extra exercises ([Spark labs](../spark/labs.md), [Kafka labs](../kafka/labs.md), [Flink labs](../flink/labs.md)). Start from **root `labs/`** so the Compose files stay in one place.
@@ -204,7 +210,8 @@ Do not wait for those to run Kafka/Spark/Flink/CH/Cassandra/Prometheus. Those si
 
 - Write one sentence: *the metric that would have paged me*.
 - Open the matching [incident](../incidents/index.md) and do the hypothesis pause **without** looking at your lab notes first.
-- If you cannot connect the lab to an architecture page, the lab was tourism.
+- Connect the observation to one architecture page; that step turns a useful
+  experiment into a reusable design insight.
 
 Root map next to Compose: `labs/README.md`.
 

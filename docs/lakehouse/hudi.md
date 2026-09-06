@@ -16,7 +16,7 @@ It's C. `PENDING → PAID → SHIPPED → RETURNED` — the row in Postgres chan
 
 ---
 
-## Use Case
+## Start with the situation { #use-case }
 
 **E-commerce CDC.** Debezium → Kafka → Spark/Flink Hudi upsert. Record key `order_id`. Downstream jobs **incrementally pull** only the last 15 minutes of changes into a search index or warehouse, instead of scanning 20 TB.
 
@@ -28,7 +28,7 @@ Hudi's complexity is justified when **the primary key is real and updates are fr
 
 ---
 
-## Why This Is Hard
+## Why the obvious approach breaks { #why-this-is-hard }
 
 Updating 1 row in a 128 MB Parquet file means rewriting 128 MB (Copy-on-Write) or writing a small log and paying merge on read (Merge-on-Read). Do that 50,000 times a minute and you either melt write I/O or melt read CPU.
 
@@ -43,7 +43,7 @@ Without those, CDC-into-Parquet is "rewrite the day, pray."
 
 ---
 
-## Intuition
+## Build the mental picture { #intuition }
 
 Hudi slices a partition into **file groups**. Each group has a base Parquet file and, in MoR, a tail of log files. A record key hashes to a group. Upserting order 8831 only touches **that group**.
 
@@ -231,7 +231,7 @@ Hudi's operational complexity is higher than Iceberg or Delta for simple append 
 
 ---
 
-## Gotchas
+## Where teams get caught { #gotchas }
 
 - **CoW on a hot CDC table** — write amplification explodes; switch MoR or you will page on Spark duration.
 - **MoR without compaction** — snapshot reads become merge storms; RO views lie.
@@ -259,7 +259,7 @@ Hudi's operational complexity is higher than Iceberg or Delta for simple append 
 
 ---
 
-## Debugging
+## How to investigate { #debugging }
 
 - Inspect `.hoodie/` timeline files: which instant is inflight?
 - `hoodie_metadata` / CLI `show commits`, `show filesize`.
@@ -316,7 +316,7 @@ See [comparison](comparison.md) for workload, not winners.
 
 ---
 
-## Exercise
+## Check your understanding { #exercise }
 
 CoW table `orders`, record key `order_id`, precombine `ingested_at` (time the Spark job ran). Airflow retries a failed hour. Kafka dump for that hour is replayed. Meanwhile a later hour already wrote `SHIPPED`.
 

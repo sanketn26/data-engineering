@@ -184,7 +184,7 @@ ClickHouse: `EXPLAIN indexes = 1`, `system.parts`, `system.query_log`. Pinot: br
 
 ---
 
-## Exercise
+## Check your understanding { #exercise }
 
 Grafana for an observability product: 400 million events/day, 2,000 customers, p95 dashboard 300 ms, peak 80 QPS internal. PM wants the same charts **in the customer app** at 5,000 QPS, each tenant seeing only their rows, data < 15 s old.
 

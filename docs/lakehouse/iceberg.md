@@ -21,7 +21,7 @@ It's C. Raw Parquet on S3 has concurrent readers (Trino), writers (Spark nightly
 
 ---
 
-## Use Case
+## Start with the situation { #use-case }
 
 **SaaS analytics, multi-engine.** Spark writes events. Trino serves dashboards. Flink may append. No vendor lock to one engine's log format. Hidden partitioning on `ts` so analysts write `WHERE ts BETWEEN ...` and still prune files.
 
@@ -33,7 +33,7 @@ If the workload is high-frequency upserts with incremental pull as a first-class
 
 ---
 
-## Why This Is Hard
+## Why the obvious approach breaks { #why-this-is-hard }
 
 A table is millions of Parquet files, several schemas, two partition specs, and writers that crash. You need:
 
@@ -47,7 +47,7 @@ Iceberg's bet: **immutable metadata tree + atomic pointer swap.**
 
 ---
 
-## Intuition
+## Build the mental picture { #intuition }
 
 Think of Git. Data files are blobs. Manifests are trees. A snapshot is a commit. The metadata file is `HEAD`. Compaction is rewriting blobs and making a new commit that drops the old blob names. Time travel is `checkout`. Optimistic concurrency is "rebase and retry if `HEAD` moved."
 
@@ -292,7 +292,7 @@ Airflow: `SparkSubmitOperator` + validate count. Idempotency is the MERGE (or `I
 
 ---
 
-## Gotchas
+## Where teams get caught { #gotchas }
 
 - **Forgetting snapshot expiration.** Storage and commit times grow without bound.
 - **Orphan files.** Crashed jobs leak objects. `remove_orphan_files` with a *conservative* older_than so you do not delete a writer's in-flight files.
@@ -319,7 +319,7 @@ Airflow: `SparkSubmitOperator` + validate count. Idempotency is the MERGE (or `I
 
 ---
 
-## Debugging
+## How to investigate { #debugging }
 
 ```sql
 SELECT * FROM lake.events.snapshots ORDER BY committed_at DESC LIMIT 20;
@@ -383,7 +383,14 @@ When adopting Iceberg:
 
 ---
 
-## Exercise
+## Practice the idea
+
+Open the [Iceberg manifest explorer](../simulations/iceberg-manifest-explorer.html).
+Commit a second write, select the older snapshot, and then apply a narrow date
+filter. Explain separately how Iceberg chooses a snapshot and how it prunes
+files inside that snapshot.
+
+## Check your understanding { #exercise }
 
 Table `events` partitioned by `day(ts)`. Flink appends 2 MB files every minute. A daily Spark MERGE for late data rewrites the last three days. Trino p95 jumps from 2s to 40s. Snapshot count is 20,000.
 

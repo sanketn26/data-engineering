@@ -109,7 +109,7 @@ Do not confuse an immutable event log with a correct analytical fact. A cancella
 
 Record event time, ingestion time, source transaction position, and stable event ID. “Latest Kafka arrival wins” is unsafe when replays interleave with live traffic.
 
-## Failure modes
+## How it fails { #failure-modes }
 
 - A fact has no declared grain, so every consumer invents one.
 - Many-to-many joins multiply money.
@@ -118,7 +118,13 @@ Record event time, ingestion time, source transaction position, and stable event
 - Late dimensions disappear through an inner join.
 - Daily snapshots are summed across days as though they were transactions.
 
-## Exercise
+## Practice the idea
+
+Open the [SCD Type-2 timeline explorer](../simulations/scd2-timeline-explorer.html).
+Choose an event time first, predict which customer version should join, and only
+then move a validity boundary. This makes the half-open interval rule visible.
+
+## Check your understanding { #exercise }
 
 Design orders, payments, refunds, and customer plan history. State the grain and key of every table. Then write how you calculate net GMV by the customer’s plan at purchase time.
 

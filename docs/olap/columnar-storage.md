@@ -12,7 +12,7 @@ The claim about which columns matter is right and the assumption about what the 
 
 ---
 
-## Use case
+## Start with the situation { #use-case }
 
 Observability / SaaS analytics table:
 
@@ -33,7 +33,7 @@ Two grouping/measure columns, a time filter. `trace_id` and `user_agent` are dea
 
 ---
 
-## Why this is hard
+## Why the obvious approach breaks { #why-this-is-hard }
 
 Disk and memory buses move **bytes**, not “logical rows.” If a row is 800 bytes and you need 16, you still move 800 unless the engine can avoid touching the other 784.
 
@@ -43,7 +43,7 @@ Compression does not rescue a row layout. Adjacent bytes in a row are a timestam
 
 ---
 
-## Intuition
+## Build the mental picture { #intuition }
 
 Imagine a spreadsheet. A row-store page is **several full rows** stacked. A column-store file is **one column**, many rows deep.
 
@@ -66,7 +66,7 @@ Vectorised engines then feed those columns to the CPU as arrays. One SIMD instru
 
 ---
 
-## Internals
+## Under the hood { #internals }
 
 ### Row vs column IO for `GROUP BY` two columns
 
@@ -166,7 +166,7 @@ For the specific byte-level anatomy of a Parquet file — row groups, column chu
 
 ---
 
-## How
+## Put it to work { #how }
 
 You choose layout when you **write**, not when you query.
 
@@ -251,7 +251,7 @@ The disaster is `SELECT *` over **billions** of rows. Reconstructing 10 rows fro
 
 ---
 
-## Gotchas
+## Where teams get caught { #gotchas }
 
 !!! production-gotcha "JSON dumped into a String column"
     You kept columnar files and then stored an unstructured blob. Compression on `payload String` is mediocre; every query that mentions it reads the blob. Extract the dashboard dimensions at write time.
@@ -267,7 +267,7 @@ The disaster is `SELECT *` over **billions** of rows. Reconstructing 10 rows fro
 
 ---
 
-## Failure modes
+## How it fails { #failure-modes }
 
 | Symptom | Likely layout cause |
 |---------|---------------------|
@@ -279,7 +279,7 @@ The disaster is `SELECT *` over **billions** of rows. Reconstructing 10 rows fro
 
 ---
 
-## Debugging
+## How to investigate { #debugging }
 
 **Postgres** (prove the row-store tax):
 
@@ -372,7 +372,14 @@ Then implement the copy. Do not “turn Postgres into a column store” with a d
 
 ---
 
-## Exercise
+## Practice the idea
+
+Use the [Bloom-filter playground](../simulations/bloom-filter-playground.html).
+Predict whether a missing value can be reported as “possibly present,” then
+increase the inserted-item count without increasing the bit array. Connect the
+rising false-positive rate to extra reads, not incorrect query results.
+
+## Check your understanding { #exercise }
 
 Table `events` 80 columns, 2 billion rows. Query A: `SELECT customer_id, sum(bytes) FROM events WHERE ds = '2024-06-12' GROUP BY customer_id`. Query B: `SELECT * FROM events WHERE request_id = 'abc'`. Query C: `UPDATE events SET bytes = 0 WHERE customer_id = 'free-tier'`.
 

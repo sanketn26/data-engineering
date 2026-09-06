@@ -17,7 +17,7 @@ Pick one before reading on. The e-commerce API actually has three storage proble
 
 ---
 
-## Use case
+## Start with the situation { #use-case }
 
 You are Staff on the e-commerce platform. Checkout cannot join `sessions ⨯ carts ⨯ coupons` on the request path. The observability pipeline cannot `INSERT` 400k rows/s into an InnoDB primary. The IoT fleet cannot `SELECT * FROM devices WHERE firmware < …` on the same table that serves 50k point reads/s from the control plane.
 
@@ -25,7 +25,7 @@ Each path needs a store whose **on-disk layout matches the lookup**. That is the
 
 ---
 
-## Why this is hard
+## Why the obvious approach breaks { #why-this-is-hard }
 
 Relational training says: normalise, add indexes, the optimiser will find a plan.
 
@@ -40,7 +40,7 @@ The difficulty is psychological: you must **refuse queries**. A store that can a
 
 ---
 
-## Intuition
+## Build the mental picture { #intuition }
 
 Imagine three filing cabinets:
 
@@ -212,7 +212,7 @@ NoSQL for sessions **in front of** Postgres for orders is a normal hybrid. Repla
 
 ---
 
-## Gotchas
+## Where teams get caught { #gotchas }
 
 !!! warning "Schema-less is a lie"
     JSON values still have a key, size limits, and indexes you must declare. Evolving the JSON without versioning is just unenforced schema.
@@ -231,7 +231,7 @@ NoSQL for sessions **in front of** Postgres for orders is a normal hybrid. Repla
 
 ---
 
-## Failure modes
+## How it fails { #failure-modes }
 
 - **Hidden query** from a new product manager: “filter sessions by coupon.” Engineering adds a GSI/index on a 200k QPS table. Write latency and cost double. Mitigate: query review as a change-managed interface.
 - **Hot key** after a celebrity sale or a single IoT gateway id reused for a fleet.
@@ -241,7 +241,7 @@ NoSQL for sessions **in front of** Postgres for orders is a normal hybrid. Repla
 
 ---
 
-## Debugging
+## How to investigate { #debugging }
 
 Ask, in order:
 
@@ -331,7 +331,7 @@ Do not “retry until both caches look right” without idempotency keys. Query-
 
 ---
 
-## Exercise
+## Check your understanding { #exercise }
 
 ??? question "Query-bind the three stores"
     For each workload (sessions, observability spans, device registry):

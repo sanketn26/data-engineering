@@ -12,7 +12,7 @@ Spark does not run your function on 8 TB directly — it builds a graph, cuts th
 
 ---
 
-## Use case
+## Start with the situation { #use-case }
 
 8 TB of events, 40 executor cores, this code:
 
@@ -37,7 +37,7 @@ Observability pipelines ask the same questions with Flink **subtasks**. Ad-hoc S
 
 ---
 
-## Why this is hard at scale
+## Why the obvious approach breaks at scale { #why-this-is-hard-at-scale }
 
 On one process, call stacks are enough. On a cluster:
 
@@ -49,7 +49,7 @@ On one process, call stacks are enough. On a cluster:
 
 ---
 
-## Intuition
+## Build the mental picture { #intuition }
 
 ```text
 Action  →  Job  →  Stages  →  Tasks  →  (one partition each) on workers
@@ -69,7 +69,7 @@ graph LR
 
 ---
 
-## Internals
+## Under the hood { #internals }
 
 ### Jobs
 
@@ -150,7 +150,7 @@ When you open a UI you have never seen, find those four rows first.
 
 ---
 
-## How
+## Put it to work { #how }
 
 ### Read the plan before you buy cores
 
@@ -204,7 +204,7 @@ In execution terms, a 40% tenant is **one task** after a hash shuffle. Execution
 
 ---
 
-## Failure modes
+## How it fails { #failure-modes }
 
 | Failure | Where it shows | Cause |
 |---------|----------------|-------|
@@ -219,7 +219,7 @@ Retries: Spark retries tasks, then stages (`spark.stage.maxConsecutiveAttempts`)
 
 ---
 
-## Debugging
+## How to investigate { #debugging }
 
 **Spark UI** (`:4040` locally, History Server in prod):
 
@@ -302,7 +302,7 @@ Cross-link when the card is filled: straggler + fat shuffle read → [Shuffle](.
 
 ---
 
-## Exercise
+## Check your understanding { #exercise }
 
 A Spark job:
 

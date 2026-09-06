@@ -2,7 +2,15 @@
 
 Two tracks: **PyFlink on the laptop** (enough for time + state) and an **optional Compose** UI. You will predict event-time vs processing-time windows, then **break** watermarks so a windowed job produces **no output** — [incident 3](../../docs/incidents/index.md).
 
-Docs: [Flink labs](../../docs/flink/labs.md), [time](../../docs/flink/time.md), [windows](../../docs/flink/windows.md), [IoT architecture](../../docs/architectures/iot.md).
+## Before you run
+
+1. Read [Flink time](../../docs/flink/time.md) through **Build the mental picture**.
+2. Freeze one source in the [watermark simulator](../../docs/simulations/watermark-simulator.html).
+3. Predict the downstream watermark before and after idleness is enabled.
+
+After the check passes, diagnose the [stalled-watermark incident](../../docs/incidents/index.md).
+The [longer Flink exercises](../../docs/flink/labs.md) and
+[practice map](../../docs/practice-map.md) provide the next steps.
 
 ## Prerequisites
 

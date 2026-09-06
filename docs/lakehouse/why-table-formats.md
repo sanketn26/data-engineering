@@ -18,7 +18,7 @@ It's C, and it is the same root cause behind every failure mode on this page: co
 
 ---
 
-## Use Case
+## Start with the situation { #use-case }
 
 **SaaS analytics.** Five-minute micro-batches of events. Product analytics on Trino. Nightly Spark jobs. Partial hours must never appear in dashboards.
 
@@ -30,7 +30,7 @@ Hive-style "every file in the partition directory" fails all three at once.
 
 ---
 
-## Why This Is Hard
+## Why the obvious approach breaks { #why-this-is-hard }
 
 Imagine your data lake looks like this:
 
@@ -56,7 +56,7 @@ Object storage makes it harder: no `rename` of directories that is atomic across
 
 ---
 
-## Intuition
+## Build the mental picture { #intuition }
 
 A table is a **named snapshot of files**, not a folder.
 
@@ -194,7 +194,7 @@ Writers still **conflict** if they rewrite the same files (CoW upserts) or the s
 
 ---
 
-## Gotchas
+## Where teams get caught { #gotchas }
 
 - **Listing S3 in jobs** "to find new files" fights the format. Use snapshots or CDC feeds.
 - **Two writers, append mode, no retry** — lost updates on the pointer.
@@ -222,7 +222,7 @@ Debugging starts at **current snapshot id**, not at S3 console.
 
 ---
 
-## Debugging
+## How to investigate { #debugging }
 
 1. Print current snapshot/version (`SHOW SNAPSHOTS` / `DESCRIBE HISTORY`).
 2. Diff file lists between N and N+1: adds/removes.
@@ -322,7 +322,7 @@ If (1) is blank, you are on raw Parquet. Do not add a second writer until a form
 
 ---
 
-## Exercise
+## Check your understanding { #exercise }
 
 Two Spark jobs write to `s3://orders/`. Job A overwrites `dt=2024-01-15` (full day recompute). Job B streams CDC upserts into the same prefix as extra Parquet files. Trino lists the directory.
 

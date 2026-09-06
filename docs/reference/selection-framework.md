@@ -28,7 +28,8 @@ There is no answer. Every system in this academy is optimal for some SLAs and ex
 
 ## Step 0 — write the consumer
 
-If you cannot name **who waits on the result** and **what they do if it is late or wrong**, you are selecting tools for a museum.
+Start by naming **who waits on the result** and **what they do if it is late or
+wrong**. Without that consumer, there is no stable basis for choosing a tool.
 
 | Consumer | Example SLO |
 |----------|-------------|
@@ -147,7 +148,8 @@ For the **chosen** tool, answer:
 4. How do you replay a bad hour?
 5. What is the 10× cliff (state size, parts, partitions, coordinator RAM)?
 
-If you cannot answer, you are not ready to run it. Read the matching [incident](../incidents/index.md).
+If the answer is unclear, read the matching [incident](../incidents/index.md)
+before treating the choice as production-ready.
 
 ---
 

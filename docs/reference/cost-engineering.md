@@ -99,7 +99,7 @@ Once these are named per system, "$ / TB processed," "$ / million events," and "
 - Shared infrastructure hides tenant unit cost.
 - “Open source” is counted as zero while two engineers operate it.
 
-## Exercise
+## Check your understanding { #exercise }
 
 Compare ClickHouse serving with Trino repeatedly scanning Iceberg for a 200 QPS dashboard. State rows/day, compressed bytes, bytes read/query, cache assumption, replicas, and operator time. Find the break-even variable rather than inventing a universal winner.
 

@@ -15,7 +15,7 @@ Hundreds of millions of events land every day, Grafana wants p95 latency by endp
 
 ---
 
-## Use case
+## Start with the situation { #use-case }
 
 Observability / SaaS analytics:
 
@@ -51,7 +51,7 @@ If the product is **customer-facing 5k QPS** of Q2, read [Pinot](pinot.md) too. 
 
 ---
 
-## Why this is hard
+## Why the obvious approach breaks { #why-this-is-hard }
 
 The engine must:
 
@@ -64,7 +64,7 @@ Row stores give you B-trees per query. ClickHouse gives you **one physical order
 
 ---
 
-## Intuition
+## Build the mental picture { #intuition }
 
 Writes do not update pages. They create **immutable parts**. Background merges compact parts into larger parts. Reads walk a **sparse primary index** built on the sort key, jump to **granules** (~8,192 rows), and decode **only the columns the query named**.
 
@@ -85,7 +85,7 @@ Simulate this: [ORDER BY explorer](../simulations/clickhouse-order-by.html).
 
 ---
 
-## Internals
+## Under the hood { #internals }
 
 ### MergeTree parts
 
@@ -279,7 +279,7 @@ Production alternatives: Vector/Redpanda Connect/NiFi inserting batches; Flink s
 
 ---
 
-## How
+## Put it to work { #how }
 
 Full serving table for SRE dashboards:
 
@@ -340,7 +340,7 @@ Query the rollup for “last 30 days” charts; raw for last few hours.
 
 ---
 
-## Gotchas
+## Where teams get caught { #gotchas }
 
 !!! production-gotcha "Too many parts"
     `Code: 252. Too many parts`. Causes: row-by-row insert, too many partitions, stalled merges (CPU/disk), `max_partitions_per_insert_block` exploding. Watch `system.parts` (`active = 1`). Batch. Reduce partition cardinality. Check `system.merges`.
@@ -362,7 +362,7 @@ Query the rollup for “last 30 days” charts; raw for last few hours.
 
 ---
 
-## Failure modes
+## How it fails { #failure-modes }
 
 | Failure | Appearance | Cause |
 |---------|------------|-------|
@@ -375,7 +375,7 @@ Query the rollup for “last 30 days” charts; raw for last few hours.
 
 ---
 
-## Debugging
+## How to investigate { #debugging }
 
 Parts and merges:
 
@@ -482,7 +482,16 @@ At work you will recognise this problem when Grafana is slow **and** `read_bytes
 
 ---
 
-## Exercise
+## Practice the idea
+
+Compare two sort keys in the
+[ClickHouse ORDER BY explorer](../simulations/clickhouse-order-by.html), then run
+the [ClickHouse lab](../labs/index.md#clickhouse-labsclickhouse) against two real
+tables. Use rows or marks read—not elapsed time alone—to explain the result.
+The [slow-query incident](../incidents/index.md#incident-4-clickhouse-query-10-slower)
+is the final diagnostic pass.
+
+## Check your understanding { #exercise }
 
 Observability cluster, 500 million events/day, queries:
 

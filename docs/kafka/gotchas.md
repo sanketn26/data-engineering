@@ -15,19 +15,19 @@ All four are real Kafka incidents you will see this year, and lag alone will not
 
 ---
 
-## Use case
+## Start with the situation { #use-case }
 
 The same five systems share Kafka and then fail in different ways. This page is the incident catalogue: lag, rebalances, poison pills, schemas, hot partitions, disks, EOS misconfig, retention skips. Read it after [partitions](partitions.md) and [replication](replication.md); use it as the runbook during [labs](labs.md).
 
 ---
 
-## Why this is hard at scale
+## Why the obvious approach breaks at scale { #why-this-is-hard-at-scale }
 
 Kafka's happy path (append, fetch, commit) hides a pile of independent clocks: producer retries, ISR, consumer poll, retention, schema, sink latency. At 10×, one of them is red and you can see it. At 100×, three are red and the first metric you open (lag) is a *symptom*. The rest of this page is the differential diagnosis.
 
 ---
 
-## Intuition
+## Build the mental picture { #intuition }
 
 Treat every incident as one of: **the log is wrong** (acks, ISR, unclean, retention), **the cursor is wrong** (commits, reset, rebalance), **the work is skewed** (hot key, poison, slow sink), **the contract is wrong** (schema, EOS isolation). Metrics below map onto those four.
 
@@ -372,7 +372,7 @@ You debug fraud, then notice `BytesInPerSec` on `device-state` is 40× normal on
 
 ---
 
-## Exercise
+## Check your understanding { #exercise }
 
 SaaS analytics, 48 partitions, key `customer_id`. Group `warehouse-loader` lag is 2 hours on partitions 0–47 **except** partition 12, which is 18 hours. Retention is 24 hours. A new field `bytes` was added to JSON yesterday. The Java warehouse job is fine; a Python side consumer in the **same group** `warehouse-loader` started this morning "to debug".
 

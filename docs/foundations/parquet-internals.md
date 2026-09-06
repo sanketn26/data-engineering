@@ -52,14 +52,20 @@ Parquet's footer, schema, and per-row-group stats are fixed overhead **per file*
 
 The fix is the same one Iceberg/Delta/Hudi compaction jobs exist to automate: periodically rewrite many small files into fewer files sized to a target row-group size (commonly 128 MB–1 GB), not writing at that size to begin with — see [partitioning](partitions.md#how-many-partitions) for the write-side sizing rules that prevent the problem in the first place.
 
-## Failure modes
+## How it fails { #failure-modes }
 
 - A query's `EXPLAIN` shows full-file scans despite a `WHERE` clause — the filtered column isn't in the footer stats' useful range because the data isn't sorted on it (see the tip above).
 - Millions of tiny files from an unbatched streaming writer — planning time dominates before any row is read.
 - A wide `SELECT *` over billions of rows reconstructing 80 column chunks per row group when only 2 columns were needed — someone dropped column projection somewhere in the pipeline (a `.select(*)` before a `.filter`, or a BI tool that always requests every column).
 - Dictionary encoding silently disabled because a column exceeds the dictionary size threshold (e.g. near-unique strings) — check the page's actual encoding, don't assume.
 
-## Exercise
+## Practice the idea
+
+Use the [Parquet row-group explorer](../simulations/parquet-row-group-explorer.html).
+Run the same customer filter on sorted and unsorted data. Before toggling, write
+down how many row groups you expect the footer statistics to eliminate.
+
+## Check your understanding { #exercise }
 
 A Spark job runs `spark.read.parquet("s3://lake/events/").filter("customer_id = 'cust_0042'").select("customer_id", "latency_ms")`. The table is partitioned by `date` only (not by `customer_id`), and files are written by a nightly job with **no explicit sort** before write, at ~256 MB each.
 
