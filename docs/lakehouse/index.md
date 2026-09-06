@@ -19,6 +19,9 @@ Pick one before reading on.
 
 It's B. Concurrent readers, writers, updates, a schema change, a job that dies after writing half the files — none of it matters until you can answer **where is the table?** with a pointer, not a directory listing. Until then you do not have a table. You have a pile of files. That question is the lakehouse. Not "warehouse vs lake marketing." A **table format** — Iceberg, Hudi, Delta — is the metadata layer that names which files are the table *right now*, after a crash, during a write, and as of last Tuesday.
 
+!!! note "This is SaaSCo at Stage 6"
+    [SaaSCo: The Evolving Company](../architectures/saasco-evolution.md#stage-6-multiple-writers-collide-iceberg-appears-phase-6) hits exactly this wall once Airflow, Spark, and Flink are all writing to the same lake location: raw Parquet has no atomic commit, and "where is the table?" stops having a good answer.
+
 ---
 
 ## Running Systems

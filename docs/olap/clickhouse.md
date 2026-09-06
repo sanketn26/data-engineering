@@ -10,8 +10,8 @@ Predict before you read on: (A) `ORDER BY` doesn't include `service` at all, (B)
 
 Hundreds of millions of events land every day, Grafana wants p95 latency by endpoint in a few hundred milliseconds, and Postgres cannot answer that chart as a lifestyle — ClickHouse can, but only because `ORDER BY` **is** the index, and the design decision you cannot postpone is which column goes first.
 
-!!! note "This is SaaSCo at Stage 5"
-    [SaaSCo: The Evolving Company](../architectures/saasco-evolution.md#stage-5-customer-dashboards-need-sub-second-clickhouse-appears-phase-8) adds ClickHouse once a customer-facing dashboard needs sub-second answers — a latency class Iceberg and Trino were never built to hit.
+!!! note "This is SaaSCo at Stage 7"
+    [SaaSCo: The Evolving Company](../architectures/saasco-evolution.md#stage-7-customer-dashboards-need-sub-second-clickhouse-appears-phase-8) adds ClickHouse once a customer-facing dashboard needs sub-second answers — a latency class Iceberg and Trino were never built to hit.
 
 ---
 

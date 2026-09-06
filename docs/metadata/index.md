@@ -15,8 +15,8 @@ D. No PII review — a compliance gap, not a discovery one.
 
 Pick one before reading on. A platform with 10,000 tables and no operating model for metadata is a swamp with a search box — tools like DataHub, OpenLineage, or a schema registry are **how you implement** a model, not a substitute for having one, and the answer above is (C).
 
-!!! note "This is SaaSCo at Stage 6"
-    [SaaSCo: The Evolving Company](../architectures/saasco-evolution.md#stage-6-400-engineers-contracts-and-lineage-become-load-bearing-phase-10) reaches this exact wall at 400 engineers: the bottleneck stops being volume and becomes "nobody can tell you if the number is right."
+!!! note "This is SaaSCo at Stage 8"
+    [SaaSCo: The Evolving Company](../architectures/saasco-evolution.md#stage-8-400-engineers-contracts-and-lineage-become-load-bearing-phase-10) reaches this exact wall at 400 engineers: the bottleneck stops being volume and becomes "nobody can tell you if the number is right."
 
 Metadata answers operational questions on-call and in design review:
 

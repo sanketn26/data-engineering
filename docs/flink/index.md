@@ -18,6 +18,9 @@ Predict which one before reading on. The rule behind that alert — **more than 
 
 Kafka stores the log ([Kafka module](../kafka/index.md)). Flink is the engine that keeps **state** across events and closes **windows** when it believes time has moved — which is exactly the mechanism that failed above.
 
+!!! note "This is SaaSCo at Stage 4"
+    [SaaSCo: The Evolving Company](../architectures/saasco-evolution.md#stage-4-freshness-under-10-seconds-flink-appears-phase-4) reaches for Flink once a requirement shows up that "read the Kafka topic nightly, just more often" cannot satisfy: sub-10-second, event-time-correct, stateful reaction to a stream that Spark's batch model was never built to hit.
+
 ---
 
 ## What this module covers

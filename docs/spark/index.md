@@ -26,6 +26,9 @@ Spark is a coordination layer for that problem: **partition the scan, pipeline n
 
 This module is the first *implementation* of the mechanics from [Phase 0](../foundations/index.md) and [Phase 1](../foundations/parquet-internals.md). If shuffle still feels like a metaphor, stay in foundations.
 
+!!! note "This is SaaSCo at Stage 2"
+    [SaaSCo: The Evolving Company](../architectures/saasco-evolution.md#stage-2-400-gbday-spark-appears-phase-0-phase-3) hits this wall going from 40 GB/day to 400 GB/day: one enterprise signing pushes a laptop pandas script past a single machine's disk and NIC, and Spark is the answer to "read this fast enough," not a fashion choice.
+
 ---
 
 ## Map of this module

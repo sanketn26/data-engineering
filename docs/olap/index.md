@@ -13,6 +13,9 @@ Predict before you read on: does this get fixed by (A) a covering index, (B) ano
 
 Hundreds of millions of product and observability events land every day, and the access pattern behind that dashboard — **scan a lot of rows, touch a few columns, aggregate, repeat** — is exactly what OLAP engines exist for, not what a row store like Postgres was built to survive.
 
+!!! note "This is SaaSCo at Stage 7"
+    [SaaSCo: The Evolving Company](../architectures/saasco-evolution.md#stage-7-customer-dashboards-need-sub-second-clickhouse-appears-phase-8) adds ClickHouse once a customer-facing dashboard needs sub-second answers — a latency class Iceberg and Trino were never built to hit, and the lakehouse from Stage 6 keeps serving the cold, historical path.
+
 ---
 
 ## Workload
