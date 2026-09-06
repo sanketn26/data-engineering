@@ -21,8 +21,8 @@ def check_python():
 
 def check_compose():
     files = sorted((ROOT / "labs").glob("*/docker-compose.yml"))
-    if len(files) != 3:
-        raise AssertionError(f"expected 3 Compose files, found {len(files)}")
+    if len(files) != 5:
+        raise AssertionError(f"expected 5 Compose files, found {len(files)}")
     for path in files:
         subprocess.run(
             ["docker", "compose", "-f", str(path), "config", "--quiet"],
