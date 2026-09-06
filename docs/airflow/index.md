@@ -206,7 +206,7 @@ airflow dags backfill daily_analytics \
 
 ---
 
-## Sensors, Pools, Mapping, SLAs, Datasets
+## Sensors, Pools, Mapping, SLAs, Assets
 
 **Sensors wait.** In `poke` mode they occupy a worker slot for the entire wait. At tens of DAGs they become deadlock machines: every worker is poking, nothing that could *produce* the file can start. Use `reschedule`, timeouts, and [pools](dags.md) so waiting cannot starve work.
 
@@ -216,7 +216,7 @@ airflow dags backfill daily_analytics \
 
 **SLAs** are "this TI should have succeeded by T." They are not substitutes for monitoring. An SLA miss without a pager is a log line.
 
-**Data-aware scheduling** (Datasets / Assets) is the conceptual replacement for "DAG B cron is 30 minutes after DAG A." A downstream DAG starts when an upstream dataset is updated, not when a clock fires. Treat it as an event, still with idempotent writers.
+**Data-aware scheduling** (**Assets** in Airflow 3.x — the same idea was called **Datasets** in Airflow 2.x) is the conceptual replacement for "DAG B cron is 30 minutes after DAG A." A downstream DAG starts when an upstream asset is updated, not when a clock fires. Treat it as an event, still with idempotent writers. Orchestration triggers generally fall into four flavors: **clock-driven** (cron), **dependency-driven** (DAG B waits on DAG A's task), **data-state-driven** (Assets — DAG B waits on data actually landing), and **event-driven** (a message or webhook fires the run). Most production orchestration is a mix, and it is worth naming which one you are actually using before debugging "why did this run early/late."
 
 ```text
 OLD MODEL (schedule-driven)          NEW MODEL (asset/dependency-driven)
@@ -231,7 +231,7 @@ When A runs long, B starts on        not 30 minutes after a guess. Late
 stale data anyway.                   or early A still triggers B correctly.
 ```
 
-This is a genuine architectural shift, not Airflow trivia: orchestration around **data state** rather than only clock time. A downstream Airflow 3.x `@asset`/`Dataset` consumer, a dbt model with a fresh-data check, and a Kafka consumer are all instances of the same idea — react to state changing, not to a clock you hope matches reality. It composes with the mechanisms above: dynamic task mapping still expands per-tenant work, deferrable operators still free a worker slot while waiting, and idempotent writers are still required because an asset can update twice.
+This is a genuine architectural shift, not Airflow trivia: orchestration around **data state** rather than only clock time. A downstream Airflow 3.x `@asset` consumer, a dbt model with a fresh-data check, and a Kafka consumer are all instances of the same idea — react to state changing, not to a clock you hope matches reality. It composes with the mechanisms above: dynamic task mapping still expands per-tenant work, deferrable operators still free a worker slot while waiting, and idempotent writers are still required because an asset can update twice.
 
 ---
 

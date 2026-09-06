@@ -151,7 +151,7 @@ wait = S3KeySensor(
 )
 ```
 
-Sensors are deadlock machines when they wait on work that needs the same slots. Prefer Datasets so DAG B starts when DAG A updates a dataset, not a 24-hour poke.
+Sensors are deadlock machines when they wait on work that needs the same slots. Prefer Assets (Datasets in Airflow 2.x) so DAG B starts when DAG A updates an asset, not a 24-hour poke.
 
 ---
 
@@ -242,7 +242,7 @@ Keep the count query a *control* query (warehouse/Trino), not a pandas scan of t
 
 **What happens**: DAG B must run after DAG A. Engineers solve this with an arbitrary sleep or a time-based schedule offset. DAG A occasionally runs late and DAG B reads stale data.
 
-**Fix**: use `ExternalTaskSensor` (reschedule + timeout) or Datasets:
+**Fix**: use `ExternalTaskSensor` (reschedule + timeout) or Assets (Datasets in Airflow 2.x):
 
 ```python
 from airflow.sensors.external_task import ExternalTaskSensor
@@ -371,7 +371,7 @@ At 1000× DAGs, every gotcha is a platform outage. Invest in DAG lint (no poke, 
 
 ## Trade-offs
 
-Strict CI (ban PythonOperator) slows legitimate control tasks. Allow Python for counts and API calls with a RAM lint. Datasets add coupling via URIs; still better than cron offset. Retries=5 on a non-idempotent load is not "more reliable."
+Strict CI (ban PythonOperator) slows legitimate control tasks. Allow Python for counts and API calls with a RAM lint. Assets add coupling via URIs; still better than cron offset. Retries=5 on a non-idempotent load is not "more reliable."
 
 ---
 
@@ -406,4 +406,4 @@ After deploy, `queued` TIs grow, Spark cluster CPU is 0%, 12 Celery workers show
     Worker CPU and Spark CPU are clues.
 
     ??? success "Answer"
-        Unbounded poke sensors (gotcha 3), possibly plus pool starvation. Not catchup (disabled), not Spark, not the executor type. Fix: `mode="reschedule"` (or deferrable), `pool="sensors"` with slots ≪ 12, timeout so Stripe outages fail the wait; keep SparkSubmit on the critical path from a queue that sensors cannot consume. Optional: Dataset when Stripe dump lands, instead of a sensor mesh.
+        Unbounded poke sensors (gotcha 3), possibly plus pool starvation. Not catchup (disabled), not Spark, not the executor type. Fix: `mode="reschedule"` (or deferrable), `pool="sensors"` with slots ≪ 12, timeout so Stripe outages fail the wait; keep SparkSubmit on the critical path from a queue that sensors cannot consume. Optional: an Asset when the Stripe dump lands, instead of a sensor mesh.

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Backpressure & Little's Law Calculator</title>
+<title>Backpressure & Queue Accumulation Calculator</title>
 <style>
   body { font-family: system-ui, sans-serif; background: #0d1117; color: #e6edf3; margin: 0; padding: 20px; }
   h1 { color: #58a6ff; font-size: 22px; }
@@ -33,7 +33,7 @@
 </style>
 </head>
 <body>
-<h1>Backpressure & Little's Law Calculator</h1>
+<h1>Backpressure & Queue Accumulation Calculator</h1>
 <p>A producer, queue, and consumer with mismatched throughput. Predict the backlog and recovery time before you move a slider.</p>
 
 <div class="card">
@@ -76,9 +76,10 @@
 </div>
 
 <div class="explanation">
-  <h3 style="color:#58a6ff">Little's Law: L = λW</h3>
+  <h3 style="color:#58a6ff">Queue accumulation: dQ/dt = λ_in − λ_out (not Little's Law)</h3>
   <p>Backlog growth during a mismatch is simply <code>arrival − service</code>, sustained over the mismatch duration. Recovery time after scaling is <code>backlog ÷ (new service rate − arrival rate)</code> — and if the new service rate barely exceeds arrival, recovery takes far longer than intuition suggests.</p>
   <ul>
+    <li>This is <strong>not</strong> Little's Law. Little's Law (<code>L = λW</code>) describes a <em>stable</em> queue's average in-flight items; this arithmetic describes how fast an <em>unstable</em> queue (arrival &gt; service) grows. See the "Little's Law vs queue accumulation" section on the backpressure page for the distinction.</li>
     <li>If service rate after scaling is <strong>less than or equal to</strong> arrival rate, the backlog never drains — it just stops growing (or keeps growing).</li>
     <li>This is a planning estimate, not a live measurement: real consumers rarely sustain a perfectly constant rate, and recovery competes with ongoing arrivals.</li>
     <li>The same arithmetic applies to Kafka consumer lag, a Flink operator's backpressured buffer, an API queue, or a thread pool — see <a href="../foundations/backpressure.md" style="color:#58a6ff">Backpressure & Queueing</a>.</li>

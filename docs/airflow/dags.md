@@ -259,7 +259,7 @@ Deadlock pattern:
 2. DAG B: `wait_for_A` (poke) then `produce_B`.
 3. Worker pool size 8, 8 sensors running, zero producers.
 
-Same shape with `ExternalTaskSensor` loops across teams. Always: timeout, reschedule, a **pool** for sensors smaller than total worker slots, and prefer **data-aware scheduling** (downstream DAG triggered by a Dataset update) over eternal sensors.
+Same shape with `ExternalTaskSensor` loops across teams. Always: timeout, reschedule, a **pool** for sensors smaller than total worker slots, and prefer **data-aware scheduling** (downstream DAG triggered by an Asset update — Dataset in Airflow 2.x) over eternal sensors.
 
 Deferring sensors (Triggerer + `asyncio`) are the modern form of reschedule: they wait off-worker. Still set timeouts.
 
@@ -317,10 +317,10 @@ Put every rate-limited API and every "only one writer" warehouse load in a pool.
 
 **SLAs.** `sla=timedelta(hours=3)` on a task emits an SLA miss if the TI has not succeeded by `logical_date + schedule + sla` (check the version you run; the definition has moved). Wire `sla_miss_callback` to paging. An SLA is not a timeout: `execution_timeout` *kills* the task; SLA only *notifies*.
 
-**Data-aware scheduling.** Conceptually:
+**Data-aware scheduling.** Conceptually (Airflow 3.x calls this an **Asset**; Airflow 2.x called the same idea a **Dataset** — same mechanism, renamed):
 
 ```python
-events = Dataset("s3://lake/events")
+events = Asset("s3://lake/events")
 
 # upstream
 SparkSubmitOperator(..., outlets=[events])
@@ -329,7 +329,7 @@ SparkSubmitOperator(..., outlets=[events])
 schedule=[events]
 ```
 
-DAG B runs because the events dataset updated, not because cron guessed 02:30. You still need idempotent writers: a dataset update can fire twice.
+DAG B runs because the events asset updated, not because cron guessed 02:30. You still need idempotent writers: an asset update can fire twice.
 
 ---
 
@@ -427,7 +427,7 @@ Airflow 2+ HA schedulers help CPU, not a 20-second import. At 1000× the win is 
 | Few fat Spark tasks | Scheduler cheap, one log | Slow inner steps less visible |
 | Many small tasks | Retry granularity | Parse + DB + sensor risk |
 | Cron schedule | Simple | Coupled DAGs drift |
-| Datasets | Event-driven | Harder mental model, still need idempotency |
+| Assets (Datasets in 2.x) | Data-state-driven | Harder mental model, still need idempotency |
 | `depends_on_past` | Serial correctness | One old failure blocks the future |
 | Mapping | Fan-out without code gen | Metadata and slot storms |
 

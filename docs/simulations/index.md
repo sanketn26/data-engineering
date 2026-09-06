@@ -129,11 +129,11 @@ These are single HTML files. They work offline. In MkDocs they are linked pages.
 
 ---
 
-## Backpressure & Little's Law calculator
+## Backpressure & queue accumulation calculator
 
 **Open:** [backpressure-calculator.html](backpressure-calculator.html)
 
-**Teaches:** a throughput mismatch does not vanish — it becomes a growing backlog. Little's Law turns "how long until we catch up" from a guess into arithmetic, and shows why a service rate that barely exceeds arrival still means a very slow recovery.
+**Teaches:** a throughput mismatch does not vanish — it becomes a growing backlog. This is queue accumulation (`dQ/dt = λ_in − λ_out`), not Little's Law — the calculator turns "how long until we catch up" from a guess into arithmetic, and shows why a service rate that barely exceeds arrival still means a very slow recovery.
 
 **Read first:** [Backpressure & Queueing](../foundations/backpressure.md).
 

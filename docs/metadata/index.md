@@ -141,7 +141,7 @@ Kafka lag, Flink checkpoint age, CH `max(ts)`, Iceberg snapshot time — differe
 | **Hive/Glue/Nessie** | Metastore for files | Business glossary |
 | **Great Expectations / dbt** | Quality facets that should **attach** to catalogue | Replacement for owners |
 
-Pick **one** catalogue. Instrument **OpenLineage** first on gold paths. A schema registry is mandatory if Kafka is in the path — it is metadata for **events**, not optional.
+Pick **one** catalogue. Instrument **OpenLineage** first on gold paths. For production Kafka carrying governed data, treat a schema registry (or an equivalent contract-enforcement mechanism) as a platform requirement, not an optional add-on — it is metadata for **events**.
 
 ---
 
@@ -189,11 +189,27 @@ The catalogue **must not** be in the ingest critical path. It consumes events ab
 
 ---
 
-## Contracts vs catalogues
+## Contracts vs catalogues: declared truth vs observed truth
 
 A **data contract** (schema + SLO + owner + semantics) is the object you version in git. The catalogue **displays** current contracts and runtime facts. If the contract lives only in DataHub UI, it will drift.
 
-Put contracts next to the producer (schema + tests). OpenLineage run events prove the contract at runtime.
+Put contracts next to the producer (schema + tests). Runtime lineage does not *prove* a contract is being honored — it observes execution relationships (this job ran, read that input, wrote that output). It provides **evidence** that actual executions align with what was declared:
+
+```text
+DESIGN TIME                          RUNTIME
+Data Contract                        Pipeline Execution
+  ├─ schema                            ├─ lineage
+  ├─ semantics                         ├─ freshness
+  ├─ owner                             ├─ row count
+  ├─ SLA/SLO                          ├─ quality result
+  └─ compatibility rules               ├─ schema observed
+        │                             └─ execution status
+        ▼                                   │
+        └──────────────► CATALOG ◄──────────┘
+                 declared state + observed state
+```
+
+Contracts describe what *should* happen. Runtime metadata records what *actually* happened. A catalogue's job is to hold both and make the gap between them visible — a job can emit perfect lineage while still violating its contract's semantics (e.g. a silently changed metric definition that lineage cannot see, only a quality check on the *values* can).
 
 ---
 

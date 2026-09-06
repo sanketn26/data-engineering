@@ -9,13 +9,13 @@ description: Reason about producer/consumer throughput mismatch with Little's La
 **Prerequisites:** [Data at Scale](scale.md), [Partitioning](partitions.md)<br>
 **Outcomes:** compute backlog growth from a throughput mismatch; choose between admission control, load shedding, and autoscaling; read Little's Law off any queue in the academy.
 
-A producer writes 100k events/s. Kafka accepts all of it — a topic does not push back on the writer. A processor downstream can only handle 70k/s. A sink after that can only accept 40k/s.
+A producer writes 100k events/s. Kafka decouples producer and consumer rates — a topic keeps accepting writes up to its disk/retention limits rather than reacting live to a slow reader, so it does not propagate downstream slowness back to the writer the way a bounded in-process queue would. A processor downstream can only handle 70k/s. A sink after that can only accept 40k/s.
 
 ```text
 Producer  100k/s
    |
    v
- Kafka    (accepts everything — a topic buffers, it does not refuse)
+ Kafka    (keeps accepting up to disk/retention limits; does not react live to consumer speed)
    |  100k/s
    v
 Processor 70k/s
@@ -26,19 +26,21 @@ Sink      40k/s
 
 Where does the missing 60k/s go? It does not vanish. It becomes **lag** — a growing backlog sitting in Kafka, in the processor's internal buffers, or in retry queues — until something either slows the producer down (backpressure) or starts dropping work (shedding). This is the same mechanism whether the "queue" is a Kafka topic, a Flink operator's input buffer, a thread pool's work queue, or an API's request queue. Learn it once here; every product-specific page (Kafka lag, Flink checkpoints, Airflow pools) is this same shape wearing a different label.
 
-## Little's Law
+"Kafka doesn't push back on the producer" is not the same as "producers can never feel pressure." A producer can still stall or fail from:
 
-For any stable queue:
+- **Local buffer exhaustion** — the client-side send buffer fills and `max.block.ms` trips, blocking or timing out the caller.
+- **Broker throttling** — quotas (`producer_byte_rate`, request quotas) deliberately slow a client down.
+- **Request failures/timeouts** — an overloaded broker or under-replicated partition causes produce requests to fail or time out, which the client surfaces as errors, not silent success.
 
-\[
-L = \lambda W
-\]
+None of these are Kafka *propagating consumer lag upstream* — they are independent producer-side or broker-side limits. The distinction matters: a slow consumer, on its own, does not throttle the producer; a full producer buffer or a broker quota does.
 
-- \(L\) — average number of items in the system (queue depth / backlog).
-- \(\lambda\) — arrival rate.
-- \(W\) — average time an item spends in the system.
+## Queue accumulation (not Little's Law)
 
-The useful direction for on-call is usually solving for backlog growth when arrival exceeds service rate:
+When arrival exceeds service rate, the backlog grows linearly. This is just conservation of flow — nothing is being averaged or held constant:
+
+```text
+dQ/dt = λ_arrival - μ_service
+```
 
 ```text
 Arrival (λ_in)  = 100,000 events/s
@@ -59,6 +61,36 @@ Recovery time ≈ 500,000,000 / 50,000 = 10,000 s ≈ 2.8 hours
 ```
 
 This is the arithmetic behind "how long until the dashboard catches up" — a question every on-call engineer gets asked and too often answers with a guess.
+
+## Little's Law (a different question)
+
+Queue accumulation answers "how big is the backlog when the system is unstable (arrival > service)?" Little's Law answers a different question: "for a *stable* system (arrival ≈ service, queue not growing without bound), how many items sit in the system on average, given how long each one takes?"
+
+For any stable queue:
+
+\[
+L = \lambda W
+\]
+
+- \(L\) — average number of items in the system (queue depth / backlog).
+- \(\lambda\) — throughput / arrival rate.
+- \(W\) — average time an item spends in the system.
+
+```text
+Example: a Flink job processes 100,000 events/s in steady state.
+Each event spends 50ms in the job on average (arrival to output).
+
+L = λW = 100,000 × 0.05 = 5,000 events in flight at any instant.
+```
+
+Don't reach for \(L = \lambda W\) to explain why an *unstable* queue (arrival > service) is growing — that's the accumulation formula above. Reach for it to size how much in-flight state (buffers, connections, in-progress records) a *healthy, stable* system needs to hold.
+
+| | Queue accumulation | Little's Law |
+|---|---|---|
+| Question | How fast is an unstable backlog growing? | How much is in flight in a stable system? |
+| Requires | arrival > service | system is stable (not growing unboundedly) |
+| Formula | `dQ/dt = λ_in - λ_out` | `L = λW` |
+| Used for | incident sizing, recovery-time estimates | capacity/buffer sizing, "how many connections do I need" |
 
 ## The three responses to a mismatch
 
@@ -111,7 +143,7 @@ between **stopping backlog growth** and **draining the backlog**.
 
 An ingestion API accepts events at a sustained 100k/s during business hours. It writes to Kafka, which a Flink job consumes at 100k/s in steady state — the pipeline is healthy. A downstream ClickHouse sink hiccups and drops to 40k/s for 20 minutes before recovering.
 
-1. Using Little's Law, how much backlog (events) accumulates during the 20-minute hiccup?
+1. Using the queue accumulation formula (not Little's Law), how much backlog (events) accumulates during the 20-minute hiccup?
 2. If ClickHouse recovers to exactly 100k/s (not higher), how long does it take to drain the backlog? What does the on-call dashboard show during that time?
 3. Would scaling the Flink job's parallelism help during the hiccup? Why or why not?
 4. Propose one change that would have capped the backlog instead of letting it grow for the full 20 minutes.
