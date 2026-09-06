@@ -1,5 +1,5 @@
 ---
-description: Treating JupyterHub as production infrastructure: pod identity, data access, and the exfiltration risks of shared notebooks.
+description: "Treating JupyterHub as production infrastructure: pod identity, data access, and the exfiltration risks of shared notebooks."
 ---
 
 # JupyterHub & Shared Compute

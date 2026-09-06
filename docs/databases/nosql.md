@@ -1,5 +1,5 @@
 ---
-description: Access-pattern-first NoSQL modeling: picking a partition key so each hot query hits exactly one partition instead of a schemaless Postgres copy.
+description: "Access-pattern-first NoSQL modeling: picking a partition key so each hot query hits exactly one partition instead of a schemaless Postgres copy."
 ---
 
 # NoSQL Thinking

@@ -1,5 +1,5 @@
 ---
-description: A field guide to Airflow incidents where the UI says running but nothing is happening: poke-mode sensors, catchup floods, and XCom bloat.
+description: "A field guide to Airflow incidents where the UI says running but nothing is happening: poke-mode sensors, catchup floods, and XCom bloat."
 ---
 
 # Airflow Production Gotchas
