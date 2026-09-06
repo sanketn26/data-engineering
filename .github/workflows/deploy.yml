@@ -30,6 +30,14 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      - name: Cache social plugin fonts
+        uses: actions/cache@v4
+        with:
+          path: .cache/plugin/social
+          key: social-cards-${{ runner.os }}-${{ hashFiles('mkdocs.yml', 'requirements.txt') }}
+          restore-keys: |
+            social-cards-${{ runner.os }}-
+
       - name: Build MkDocs site
         run: mkdocs build --strict
 
