@@ -187,6 +187,27 @@ Trino is the **SQL front door** to the lake and to systems you do not want to co
 
 ---
 
+## What happened next { #what-happened-next }
+
+The two-week pipeline was the wrong call for today and the right call for next
+quarter, which is why both answers kept getting defended. The analyst needs one
+join, once, to answer a question by end of day — and copying 40 TB into a
+warehouse to answer it is stale on arrival, expensive to keep, and somebody's
+on-call.
+
+A query engine runs the join where the data already lives: Iceberg on object
+storage, the customer table in Postgres, billing in another team's MySQL. No
+new copy, no new pipeline, an answer this afternoon.
+
+What changes the calculus is repetition. A question asked once wants
+federation; the same question asked hourly by fifty people wants a modelled
+table, because federated joins re-pay their cost on every execution and pull
+load onto operational databases that did not volunteer for it. The honest
+answer to the analyst was "yes, today" and the honest follow-up was "tell us if
+you ask this again next week."
+
+---
+
 ## Check your understanding { #exercise }
 
 An on-call dashboard joins 90 days of Iceberg events to Postgres `customers` on every page load (p95 8 s, 40 QPS at 09:00). A PM asks to “just point Grafana at Trino — we already have the data.”

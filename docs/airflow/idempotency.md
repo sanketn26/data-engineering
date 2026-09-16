@@ -303,6 +303,23 @@ Debugging duplicates almost always starts with `COUNT(*) GROUP BY dt` and `MAX(i
 
 ---
 
+## What happened next { #what-happened-next }
+
+**C**, 140%. The first attempt wrote 40% of the day and died; the retry
+appended a full day beside it. Airflow did nothing wrong — it called the same
+function with the same `ds`, which is the entire contract it offers.
+
+Which answer you get was decided in the task body, long before the failure:
+`INSERT` gives you C, `INSERT OVERWRITE` for the partition gives you B. That is
+the whole difference, and it does not appear anywhere in the DAG file, the
+retry settings, or the UI.
+
+The number nobody noticed is that the run was **green**. A retry that succeeds
+reports success, so the only trace of a 140% day is in the row counts — which
+is why the check after the publish matters more than the alert on the failure.
+
+---
+
 ## Check your understanding { #exercise }
 
 `load_orders` DELETE+INSERT for `dt={{ ds }}` in two statements, autocommit on. `retries=5`. Spark job (correctly outside Airflow) writes to `s3://stg/dt={{ ds }}/` with overwrite, then the PythonOperator copies files into the warehouse with `COPY`. A worker OOM hits during `COPY`.

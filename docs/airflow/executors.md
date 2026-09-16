@@ -257,6 +257,24 @@ Debugging starts by asking: *is the TI even assigned?* Then *is the worker alive
 
 ---
 
+## What happened next { #what-happened-next }
+
+It was **B**. `parallelism=32` is a ceiling the scheduler will not exceed; it
+is not a promise that 32 slots exist. Two Celery workers at
+`worker_concurrency=2` is four slots, and four was exactly what was running.
+The other six workers had been gone long enough that nothing remembered them.
+
+Raising `parallelism` would have changed nothing, because the constraint was
+never the number Airflow was being asked about. Three limits stack —
+`parallelism`, per-DAG concurrency, and the pool — and the real ceiling is the
+smallest of them and the number of workers actually alive.
+
+The missing alert is the part worth keeping: a worker that disappears does not
+fail anything. Tasks simply queue, the UI stays green, and the first symptom is
+a dashboard that is late at 07:00.
+
+---
+
 ## Check your understanding { #exercise }
 
 SLA: metrics ready 90 minutes after midnight. Critical path: 3 SparkSubmit tasks (each Spark job 20 min) + 1 sensor waiting up to 40 min for Stripe. KubernetesExecutor, pod start 25 s, `parallelism=8`. A new engineer changes the Spark tasks to `PythonOperator` that starts `local[*]` Spark inside the pod with 1 TB shuffle.

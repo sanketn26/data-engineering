@@ -11,6 +11,10 @@ question:
 
 > **Read the picture → predict → simulate → run the real system → diagnose**
 
+Every simulation and lab below uses SaaSCo's events and Acme (`cust_0042`) as
+the hot key, so a hot partition you cause in the browser is the same one Maya
+is paged for in the lessons.
+
 You do not need every column on every visit. A simulation is enough for a first
 pass. Add the runnable lab when you want to inspect real metrics, and the
 incident when you want to practise deciding what those metrics mean.

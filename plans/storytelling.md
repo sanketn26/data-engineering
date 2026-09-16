@@ -22,10 +22,9 @@ Landed across 47 lessons:
 - The divider and the closes state what happened and stop there. They do not
   tell the reader what the lesson was ("the real lesson is…", "everything above
   is the lesson", "come back when you need it"). Readers draw their own.
-- `## What happened next { #what-happened-next }` written on **9** pages:
-  scale, partitions, log, shuffle, clickhouse, data-movement,
-  distributed-execution, batch-vs-stream, trino. Each answers its own page's
-  predict question.
+- `## What happened next { #what-happened-next }` on **all 47** restructured
+  lessons. Each answers its own page's predict question from facts already on
+  that page.
 - `lesson-guide.js` routes the first pass to the close, numbering computed at
   render time instead of hardcoded.
 
@@ -46,13 +45,25 @@ Landed since, covering PR 1 and most of PR 2:
 - All eight SaaSCo stages open on a named person. `₹` is gone repo-wide (USD).
 - All 9 closes now name a person; the cast appears on 11 files, up from 3.
 
-Still open: 38 pages have the reference tail but no close. A close must be
+Also landed: the naming locks (`cust_1842`, `BigCorp`, `acme`, `₹` all gone;
+`log.md` moved onto SaaSCo; `foundations/index.md` reconciled to the volume
+ladder), named people on the PR 7 and PR 8 surfaces, and Elena's first lesson
+scenes. The cast now appears on 40 files.
+
+`scripts/validate_course.py` enforces the contract from here on: two new checks
+fail CI if a lesson's close is missing or misplaced, if reference sections
+drift back above the exercise, or if a banned name (`cust_1842`, `BigCorp`, `₹`)
+reappears. `reading-time.js` reports the lesson estimate and the reference
+estimate separately.
+
+Still open: the seven PR 4 foundations lessons (backpressure, parquet-internals,
+object-storage, data-modelling, data-contracts, transformation-engineering,
+cdc), six module index pages, two reference pages, the five architecture case
+studies, and the comparisons — none of which has a close yet. A close must be
 built from facts already on its own page, so these stay hand-written, not
-generated. Elena exists only on the SaaSCo timeline so far — her lesson scenes
-(quality, correctness, cost) are PR 7. `cust_1842` is still on 6 files,
-`log.md` still opens on observability rather than SaaSCo, `shuffle.md` still
-has the lowercase `acme` key, `foundations/index.md` still contradicts the
-volume ladder, and PRs 4–8 below are otherwise untouched.
+generated. Elena is on quality and IoT now but still the thinnest of the four
+(4 files vs Maya's 21). The remaining editorial debt is listed above; the
+per-page rosters in PRs 4–8 below are the source for it.
 
 ## Problem
 

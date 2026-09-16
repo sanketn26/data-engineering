@@ -4,7 +4,7 @@ description: Reference index for version pins and the glossary — for the techn
 
 # Reference
 
-A design review: someone asks "why not Databricks for everything?" A teammate opens this page, searches for "selection framework," and starts reading glossary definitions instead of answering the question.
+A design review: Priya asks "why not Databricks for everything?" Jordan opens this page, searches for "selection framework," and starts reading glossary definitions instead of answering the question.
 
 Predict before you read on: is that the right reflex, or is reference the wrong place to start when you are still building intuition?
 

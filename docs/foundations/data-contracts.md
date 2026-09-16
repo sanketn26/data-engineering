@@ -103,6 +103,26 @@ This is the same deploy-order discipline as [CDC schema evolution](cdc.md#schema
 - A currency, unit, or timezone change ships as a "just a rename" PR with no semantic review.
 - Two teams both claim to own the same field's contract; neither one is accountable when it breaks.
 
+## What happened next { #what-happened-next }
+
+Two of the three failures are loud and one is not, and the quiet one is the
+expensive one. The Spark crash on a new column stops a pipeline and pages
+somebody. The new `status` enum changes what a dashboard means, keeps running,
+and reaches Elena as a number that is wrong by an amount nobody can bound.
+
+That is the syntactic/semantic split doing real work. Schema registries and
+compatibility modes catch the first kind, because the wire format is checkable.
+No registry catches a new enum value, a unit change from cents to dollars, or a
+field that quietly starts arriving null — the JSON parses perfectly in every
+case.
+
+So the contract has to state the things the schema cannot: the allowed values,
+the units, the nullability anyone relies on, and who is allowed to change them.
+Jordan's version of this is a CI test that fails the producer's build; Elena's
+version is knowing which number moved and why.
+
+---
+
 ## Check your understanding { #exercise }
 
 `orders-value` (Avro, `BACKWARD` compatibility) is read by three consumers: a Flink job with a strict reader schema, a Spark batch job that projects only `order_id, status, amount`, and an analyst's Trino query that does `CASE status WHEN 'PAID' THEN ... WHEN 'SHIPPED' THEN ... ELSE 'unknown' END`. The checkout team wants to add `status = REFUNDED_PARTIAL` and change `amount` from integer cents to decimal with explicit currency.

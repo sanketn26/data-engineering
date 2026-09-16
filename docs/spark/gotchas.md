@@ -299,6 +299,24 @@ Casting `latency_ms` from string on 10 billion rows is a job you will pay daily 
 
 ---
 
+## What happened next { #what-happened-next }
+
+All four, which is what makes it a differential diagnosis rather than a quiz.
+The driver OOM at 03:00 was **A** — `toPandas()` on 50 million distinct
+`customer_id` rows, pulling the whole result into one JVM heap.
+
+The other three were in the same diff, waiting for their turn: a broadcast that
+grew from 8 MB to 900 MB, a `.cache()` holding 2 TB of execution memory
+hostage, and a Python UDF whose `memoryOverhead` was never budgeted. Nothing in
+the diff touched memory settings, and all four are memory incidents.
+
+They share a cause. Each one worked at 20 GB and stopped working at 2 TB
+without changing behaviour — the driver collected a result that used to fit,
+the broadcast crossed a threshold, the cache exceeded the fraction. Scale did
+not introduce new bugs; it removed the headroom that was hiding them.
+
+---
+
 ## Check your understanding { #exercise }
 
 The SaaS job below runs 12 minutes on 5 GB and 6 hours (then dies) on 2 TB. `cust_0042` is 38% of 2 TB. 80 executors, DA on, no shuffle service, `speculation=true`, default shuffle partitions 200, default broadcast 10 MB. `customers` is 400 MB.

@@ -268,6 +268,24 @@ Do not “retry until both caches look right” without idempotency keys. Query-
 
 ---
 
+## What happened next { #what-happened-next }
+
+It was **C**. Jordan's question was not rhetorical: each of the three tables
+has a different hot query, and the key has to make that query touch exactly one
+partition. `session_id` for the session store, `(service, time bucket)` for
+spans, `device_id` for devices.
+
+The one-pager proposed keeping the Postgres primary keys and changing the
+vendor, which is the move that produces a slower Postgres with fewer features.
+Nothing in a NoSQL store recovers a query whose access pattern the key does not
+match — there is no planner coming to rescue it.
+
+Three problems that looked identical in a slide deck ended up on three
+different engines, for reasons that came entirely from the access pattern and
+not at all from the logo.
+
+---
+
 ## Check your understanding { #exercise }
 
 ??? question "Query-bind the three stores"

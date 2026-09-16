@@ -4,7 +4,7 @@ description: Graph databases versus Postgres for multi-hop traversal, when a rec
 
 # Graph vs Relational
 
-Design review, 10 AM. A recursive CTE that finds "users within 3 hops of this IP" ran in 40 ms last quarter, back when the table had 2 million rows. Same query, same indexes, now times out at 30 seconds — the table has grown to 40 million rows. Someone proposes migrating the whole fraud ledger to Neo4j. Someone else says "just tune Postgres."
+Design review, 10 AM. A recursive CTE that finds "users within 3 hops of this IP" ran in 40 ms last quarter, back when the table had 2 million rows. Same query, same indexes, now times out at 30 seconds — the table has grown to 40 million rows. One engineer proposes migrating the whole fraud ledger to Neo4j. Jordan says "just tune Postgres."
 
 What's the right call?
 
@@ -257,6 +257,22 @@ Fraud **serving** cares about a **specific seed** and a **small ball**. Relation
 Fraud **rings** care about a **global partition** of vertices. Relational `GROUP BY device_id` is not WCC. You need an algorithm engine.
 
 Recs care about **top-k** under a latency budget. Relational co-occurrence tables (item–item) are the industry default. A live graph walk is a demo. Do not let a fraud Neo4j purchase pull recs onto the same cluster “because both are graphs.”
+
+---
+
+## What happened next { #what-happened-next }
+
+It was **C**. Move the traversal; leave the ledger. The recursive CTE did not
+get slower because the plan went stale — it got slower because 20× the rows
+means 20× the fan-out at every hop, and that is arithmetic, not statistics.
+
+A and B buy a quarter at most. D moves transactions, balances, and every
+reporting query onto an engine chosen for pointer chasing, to fix one query.
+
+So the fraud ledger stays in Postgres, where the writes and the joins belong,
+and the User → Device → IP subgraph is projected into a graph store for the
+traversal that was never a relational access pattern. Two systems, one
+deliberate copy, and a synchronisation cost accepted on purpose.
 
 ---
 

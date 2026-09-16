@@ -4,7 +4,7 @@ description: Why columnar storage lets a dashboard query skip the row bytes it n
 
 # Why Columnar Storage
 
-**Code review, 11:14 AM.** A teammate submits a query — two columns, one time filter, one `GROUP BY` — and argues it should be near-instant: "it only touches two columns out of eighty." In prod it takes 8 seconds and reads 17 GB.
+**Code review, 11:14.** Maya is reviewing a query — two columns, one time filter, one `GROUP BY` — and argues it should be near-instant: "it only touches two columns out of eighty." In prod it takes 8 seconds and reads 17 GB.
 
 Predict before you read on: is the two-column claim wrong, or is the disk layout the actual problem — even though the query itself is fine?
 
@@ -285,6 +285,23 @@ Use the [Bloom-filter playground](../simulations/bloom-filter-playground.html).
 Predict whether a missing value can be reported as “possibly present,” then
 increase the inserted-item count without increasing the bit array. Connect the
 rising false-positive rate to extra reads, not incorrect query results.
+
+## What happened next { #what-happened-next }
+
+The teammate was right about the columns and wrong about the bytes. Two columns
+out of eighty is the query; 17 GB is what came off disk, because the rows were
+stored as tuples and reading any column meant reading the whole row.
+
+Columnar layout is what makes the claim true: store each column contiguously
+and a two-column query reads two columns, compresses them far better because
+neighbouring values are similar, and skips whole blocks whose min/max cannot
+match the filter. The query never changed.
+
+Which is the physics under the next three pages — ClickHouse and Pinot
+operationalize it, and Trino is only fast when the files beneath it are
+columnar too. Eight seconds was never a query-planning problem.
+
+---
 
 ## Check your understanding { #exercise }
 

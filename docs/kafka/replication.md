@@ -170,7 +170,7 @@ producer = KafkaProducer(
 
 event = {
     "timestamp": "2024-01-15T10:03:45.123Z",
-    "customer_id": "cust_1842",
+    "customer_id": "cust_0042",
     "user_id": "u_99102",
     "service": "checkout",
     "endpoint": "/pay",
@@ -243,6 +243,23 @@ Use the [Kafka ISR failure simulator](../simulations/kafka-isr-simulator.html)
 to vary ISR size, `acks`, and `min.insync.replicas` one at a time. Then run the
 [Kafka lab's broker-stop exercise](../labs/index.md#kafka-labskafka), watching
 ISR membership rather than only consumer output.
+
+## What happened next { #what-happened-next }
+
+It was **B**. `min.insync.replicas=2` with two of three replicas out of the ISR
+means Kafka cannot honour `acks=all`, so it refuses the write. Durability was
+not broken; it was being enforced, loudly, at the worst possible moment.
+
+The failure worth fixing happened eight minutes earlier, when two replicas fell
+out of the ISR and nobody paged. Under-replicated partitions is the metric that
+had been true and unwatched for eight minutes before checkout noticed.
+
+The alternative is worse than the outage. `acks=1` would have accepted every
+one of those writes and lost them with the leader's disk — which is the
+configuration that turns producers into the backup system, and the reason this
+page argues the refusal is the feature.
+
+---
 
 ## Check your understanding { #exercise }
 

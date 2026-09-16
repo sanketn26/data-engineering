@@ -75,6 +75,25 @@ Pull requests should compile models, resolve dependencies, lint SQL, run unit fi
 - `warn` tests have no alert owner.
 - Backfill code differs from scheduled code.
 
+## What happened next { #what-happened-next }
+
+It was **(A)**. The model ends in `INSERT`, the retry ran the same hour again,
+and the 02:00 revenue rows exist twice. Airflow reported green because the
+retry succeeded — which it did, at exactly the job it was asked to do.
+
+Maya's rerun is the cheapest test there is, and it is the one nobody runs: a
+model that is safe to re-execute produces the same table the second time. A
+`MERGE` on the model's key, or an `INSERT OVERWRITE` bounded to the incremental
+window, both pass it. A plain `INSERT` passes only when nothing ever retries.
+
+The other two options are real failures with different fingerprints — a missing
+watermark overlap *loses* rows rather than duplicating them, and concurrent
+DAG runs on one partition produce a number that changes between queries. All
+three arrive as "the number is wrong" and separate on whether the count is
+high, low, or unstable.
+
+---
+
 ## Check your understanding { #exercise }
 
 Design an incremental `fct_order_item` model with two-day late updates, refunds, and a daily publish deadline. Specify its unique key, watermark storage, merge behavior, tests, backfill interface, and rollback.

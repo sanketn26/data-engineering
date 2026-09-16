@@ -261,6 +261,25 @@ Local RocksDB directories belong on NVMe, not on a shared network volume. NFS-ba
 
 ---
 
+## What happened next { #what-happened-next }
+
+It was **B**. No TTL. The job counts failed logins per `user_id`, and every
+user who failed a login once, months ago, still had an entry — including the
+overwhelming majority who succeeded immediately afterwards and never returned
+to the keyspace.
+
+The arithmetic is what makes it obvious in hindsight: 10 million users at ~100
+bytes is about 1 GB. Reaching 380 GB means the state is not one entry per user;
+it is history nobody deletes, accumulating at the rate logins happen rather
+than at the rate users exist.
+
+Skew (A) would have loaded one subtask, not filled every TaskManager's disk
+evenly. And state size is not only a disk problem — it is checkpoint duration,
+and it is how long a rescale takes, which is the same 380 GB moving across the
+network while the job is down.
+
+---
+
 ## Check your understanding { #exercise }
 
 10 million unique users/day. Keyed `ValueState` of one float per user (~50 bytes/pair including overhead). RocksDB.

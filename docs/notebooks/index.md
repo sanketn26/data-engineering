@@ -4,7 +4,7 @@ description: "Treating JupyterHub as production infrastructure: pod identity, da
 
 # JupyterHub & Shared Compute
 
-Friday, 4:50 PM. A security ticket lands: 200,000 rows of customer emails found in a personal Google Drive folder. The trail leads to a JupyterHub notebook: `spark.read.parquet("s3://lake/raw/...")`, then `.toPandas().to_csv("~/export.csv")`, then a browser download.
+Friday, 16:50. A security ticket lands on Jordan's queue: 200,000 rows of customer emails found in a personal Google Drive folder. The trail leads to a JupyterHub notebook: `spark.read.parquet("s3://lake/raw/...")`, then `.toPandas().to_csv("~/export.csv")`, then a browser download.
 
 Which single control would have stopped this fastest?
 
@@ -326,3 +326,22 @@ A VP number lived in a notebook on a user PVC. The user left. The PVC expired. T
 **Can we SSH?** No. That bypasses proxy audit.
 
 **Can we mount the lake?** No. Connectors with grants.
+
+---
+
+## What happened next { #what-happened-next }
+
+It was **B**. Disabling downloads (A) and blocking egress (C) both stop this
+specific path and leave the notebook holding 200,000 real emails — a
+screenshot, a copy-paste, or a write to any reachable bucket still works. Audit
+logging (D) tells Jordan about it on Monday.
+
+Giving the notebook masked, curated data instead of raw IAM removes the thing
+being exfiltrated. The analyst's actual work — distributions, joins, model
+features — is unaffected by `email` arriving hashed, because none of it needed
+the address.
+
+Which is the platform question rather than the security one: the notebook had
+`s3://lake/raw/**` because that was the easiest credential to hand out, not
+because anyone decided analysts should read raw PII. The other three controls
+are still worth having, in depth, behind this one.

@@ -1,10 +1,14 @@
 ---
-description: "Phase 0 of the data engineering academy: partitioning, shuffle, and scale problems that turn a working pandas script into a 3 AM OOM."
+description: "Phase 0 of the data engineering academy: the partitioning, shuffle, and scale physics behind the morning SaaSCo's pandas script stopped working."
 ---
 
 # Phase 0: Data Systems Foundations
 
-09:02 Monday. Product wants p95 latency by customer, service, and region for last week. Friday this was 40 GB of Parquet and a pandas script on a laptop, on events shaped like this:
+Maya's p95 job dies at `read_parquet` on the next page. This phase is the
+vocabulary for why — the physics that was always there and only became visible
+when Acme signed.
+
+SaaSCo's events, the shape every lesson in this academy reuses:
 
 ```json
 {
@@ -20,11 +24,19 @@ description: "Phase 0 of the data engineering academy: partitioning, shuffle, an
 }
 ```
 
-This morning it's 8 TB, one enterprise tenant (`cust_0042`) is 38% of volume, and the identical script OOMs before the dashboard loads. Nobody touched the SQL.
+Last quarter the pipeline moved ~40 GB/day of them through a laptop. This
+quarter one enterprise tenant — Acme, `cust_0042` — is **38% of volume** on
+their own and the total is 400 GB/day. The script is unchanged. The company is
+not.
 
-Before you read on, pick one: does the job die first from (A) RAM, (B) the network between machines, or (C) one customer's rows all landing on the same reducer? And would handing this to a 40-node Spark cluster fix the real problem, or just relocate the OOM to a different process?
+Before you read on, pick one: when that job dies, is it (A) RAM, (B) the
+network between machines, or (C) one customer's rows all landing on the same
+reducer? And would handing it to a 40-node Spark cluster fix the real problem,
+or relocate the OOM to a different process? Hold your answer — [Data at
+Scale](scale.md) opens on exactly this morning, and the four pages after it
+name each of the three mechanisms in turn.
 
-The SQL didn't change; the *physics* did — and this phase is the shared vocabulary for naming that physics before Spark, Kafka, Flink, Iceberg, and ClickHouse each fail at it in a different costume: **divide the work, move the data, survive a crash, combine the answers**. Two adjacent phases build directly on it: [Phase 1: Data Representation](parquet-internals.md) (Parquet internals, object storage, data modelling, data contracts, transformation engineering) covers how data is *shaped* once it's moving; [Phase 2: Data Movement](../kafka/index.md) (Kafka, plus [Change Data Capture](cdc.md)) covers how it gets from a source to everywhere it's needed. Read this phase first — Phase 1 and 2 both assume it.
+The SQL didn't change; the *physics* did. This phase is the shared vocabulary for naming that physics before Spark, Kafka, Flink, Iceberg, and ClickHouse each fail at it in a different costume: **divide the work, move the data, survive a crash, combine the answers**. Two adjacent phases build directly on it: [Phase 1: Data Representation](parquet-internals.md) (Parquet internals, object storage, data modelling, data contracts, transformation engineering) covers how data is *shaped* once it's moving; [Phase 2: Data Movement](../kafka/index.md) (Kafka, plus [Change Data Capture](cdc.md)) covers how it gets from a source to everywhere it's needed. Read this phase first — Phase 1 and 2 both assume it.
 
 Engineers who skip this learn tools in isolation and freeze in front of systems they have not seen. Engineers who have these models can open an unfamiliar UI and already know which metric is lying.
 
@@ -86,7 +98,7 @@ You need `avg(latency_ms)` per `customer_id` per hour for last week.
 
 | If you do this | What actually happens |
 |----------------|------------------------|
-| pandas `read_parquet` into RAM | 8 TB does not fit. Process dies. |
+| pandas `read_parquet` into RAM | 400 GB/day does not fit a 32 GB notebook. Process dies. |
 | Chunked Python on one box | Disk and one NIC cap throughput. Overnight is optimistic. |
 | 40 Spark executors, hash-partition by `hour` | Hours are even; customers inside an hour are not. `cust_0042` still sits on one reducer. |
 | Hash-partition by `customer_id` | Good for per-customer state. Terrible if one customer is 38% of bytes. |

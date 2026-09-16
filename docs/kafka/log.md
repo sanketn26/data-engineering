@@ -10,13 +10,13 @@ Predict before you read on: if you built that store as a database table (insert,
 
 ## Start with the situation { #use-case }
 
-The observability platform writes every request as an event:
+Every request SaaSCo serves is written as an event:
 
 ```json
-{"timestamp":"2024-01-15T10:03:45.123Z","customer_id":"cust_1842","user_id":"u_99102","service":"api","endpoint":"/orders","region":"eu-west-1","latency_ms":87,"status_code":200,"bytes":4096}
+{"timestamp":"2024-01-15T10:03:45.123Z","customer_id":"cust_0042","user_id":"u_99102","service":"api","endpoint":"/orders","region":"eu-west-1","latency_ms":87,"status_code":200,"bytes":4096}
 ```
 
-Alerting wants them in seconds. The warehouse wants them tonight. Fraud wants a second copy with a different processor. Last Tuesday a parser bug dropped 40 minutes of logs; you need to *replay* those 40 minutes without asking 400 services to re-emit.
+Five teams want the same events at five different speeds. Alerting wants them in seconds. The warehouse wants them tonight. The new fraud service wants its own copy with a different processor. Last Tuesday a parser bug dropped 40 minutes of them, and Maya has to *replay* those 40 minutes without asking 400 services to re-emit.
 
 You need a store that is cheap to append, cheap to read sequentially, and that does not delete a record just because one consumer finished it.
 
@@ -125,7 +125,7 @@ producer = KafkaProducer(
 
 event = {
     "timestamp": "2024-01-15T10:03:45.123Z",
-    "customer_id": "cust_1842",
+    "customer_id": "cust_0042",
     "user_id": "u_99102",
     "service": "auth",
     "endpoint": "/login",

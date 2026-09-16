@@ -276,6 +276,24 @@ Session windows still need merge: two in-progress sessions become one when a lat
 
 ---
 
+## What happened next { #what-happened-next }
+
+It was **B**. Thirteen failed logins inside six minutes, split by a tumbling
+boundary at 11:55 into six and seven. No single window ever saw more than
+seven, so nothing crossed ten, so nothing fired. The watermark was fine; the
+count was fine; the *shape* was wrong.
+
+A sliding window of 5 minutes evaluated every 30 seconds would have caught it,
+at the cost of every event belonging to ten windows instead of one. That is the
+trade being made — tumbling is cheap and has edges, sliding has no edges and
+multiplies state.
+
+Fraud thresholds phrased as "N in M minutes" almost always mean a sliding
+window, and almost always get built as a tumbling one, because tumbling is what
+`window(...)` does by default.
+
+---
+
 ## Check your understanding { #exercise }
 
 You compute a **1-hour** sliding window with a **5-minute** slide on event time. Watermark bound = 2 minutes. Events can be 5 minutes late (p99). 10 million events/hour, keyed by `customer_id` (50k keys).

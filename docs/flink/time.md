@@ -22,7 +22,7 @@ The event already carries the truth:
 ```json
 {
   "timestamp": "2024-01-15T10:03:45.123Z",
-  "customer_id": "cust_1842",
+  "customer_id": "cust_0042",
   "user_id": "u_99102",
   "service": "auth",
   "endpoint": "/login",
@@ -275,6 +275,24 @@ source split and predict the downstream minimum before enabling idleness. Then
 run the [Flink lab](../labs/index.md#flink-labsflink) and use
 `stalled_watermark.py` to assert the same rule. Finish with the
 [stalled-watermark incident](../incidents/index.md#incident-3-flink-watermark-stalled-no-output).
+
+## What happened next { #what-happened-next }
+
+It was **B**. Overnight, EU traffic thinned until some of the 12 partitions
+stopped producing entirely. A watermark is the minimum across all partitions,
+so the idle ones held it frozen at their last event — and a window only closes
+when the watermark passes its end.
+
+Lag was zero and stayed zero, honestly: there was nothing waiting to be
+consumed. Every symptom pointed at a healthy pipeline, because by Kafka's
+definition of health it was one.
+
+`withIdleness` is the setting that releases an idle partition from the
+minimum. Until it is configured, the quietest partition in the topic decides
+how fast the fraud dashboard moves — which is a property of event time, not a
+bug.
+
+---
 
 ## Check your understanding { #exercise }
 

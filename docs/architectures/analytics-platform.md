@@ -4,7 +4,7 @@ description: Design a multi-tenant SaaS analytics pipeline where a noisy tenant'
 
 # SaaS Analytics Platform Architecture
 
-A support ticket comes in: customer A's dashboard briefly showed a spike in `api-gateway` traffic that, on inspection, belonged to customer B. Nobody wrote a cross-tenant query on purpose — a noisy tenant's burst just happened to land in the same query window as a smaller tenant's aggregate. Predict before you read on: is this a Kafka partitioning bug, a ClickHouse `ORDER BY`/query problem, or a symptom of not treating tenancy as a first-class requirement at every layer?
+A support ticket comes in: a small tenant's dashboard briefly showed a spike in `api-gateway` traffic that, on inspection, belonged to Acme. Nobody wrote a cross-tenant query on purpose — Acme's burst just happened to land in the same query window as the smaller tenant's aggregate. This is SaaSCo, the company you already work for, viewed as a multi-tenant design problem rather than a timeline. Predict before you read on: is this a Kafka partitioning bug, a ClickHouse `ORDER BY`/query problem, or a symptom of not treating tenancy as a first-class requirement at every layer?
 
 It's the third one, and it recurs at every layer if you let it: you ingest product events from **your customers' users**, and each customer expects dashboards that look like a single-tenant product. The dominant constraints are **multi-tenancy, cost, and not mixing tenants** — not "can Kafka take 100k/s" (it can).
 
@@ -356,3 +356,23 @@ If sales sold "infinite raw" on the cheap tier, that is a **company** incident. 
 Producers: **FORWARD** or **FULL** so old Flink can read new events (new optional fields). Breaking a required field is a versioned topic (`product-events-v2`) plus a dual-read window — not a Friday JSON change.
 
 Quality: count `schema_id` parse fails per tenant. Silent drop of a whale looks like "their dashboard is broken" and pages you as a product bug.
+
+---
+
+## What happened next { #what-happened-next }
+
+Nobody wrote a cross-tenant query, and that is the finding. Acme's burst landed
+in the same query window as a smaller tenant's aggregate, and for a few seconds
+a dashboard showed traffic that was not its own — an isolation failure produced
+entirely by shared resources under load, with every query individually correct.
+
+The fixes are quotas and isolation rather than a bug fix: per-tenant rate
+limits at ingest, a partitioning scheme where one tenant's volume cannot
+monopolise a shard, and enough separation in the serving layer that the largest
+customer cannot degrade the smallest. Acme is 38% of events, so any design that
+treats tenants as interchangeable is already wrong.
+
+This is the same company as the [SaaSCo timeline](saasco-evolution.md), viewed
+as a multi-tenant design problem instead of a chronology. The stages tell you
+when each component arrived; this page is what the finished platform owes every
+tenant on it, including the ones who are not 38%.

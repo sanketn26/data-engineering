@@ -326,6 +326,24 @@ Commit a second write, select the older snapshot, and then apply a narrow date
 filter. Explain separately how Iceberg chooses a snapshot and how it prunes
 files inside that snapshot.
 
+## What happened next { #what-happened-next }
+
+It was **C**. The losing writer re-read the new metadata pointer and retried
+its commit against it. Nothing was locked — Spark's MERGE and Flink's CDC
+writer both ran to completion, and the swap of a single atomic pointer decided
+the order between them.
+
+That is why nobody lost data: a commit is a compare-and-swap on the metadata
+location, so the loser learns it lost *before* anything is visible and rebuilds
+against what actually committed. On a raw Parquet prefix the same 90 seconds
+would have produced two sets of files and no answer to which was the table.
+
+Jordan's design-review point holds here: optimistic concurrency is cheap when
+collisions are rare and expensive when they are not. Two writers in a 90-second
+window retry once. Twenty writers on the same table spend the day retrying.
+
+---
+
 ## Check your understanding { #exercise }
 
 Table `events` partitioned by `day(ts)`. Flink appends 2 MB files every minute. A daily Spark MERGE for late data rewrites the last three days. Trino p95 jumps from 2s to 40s. Snapshot count is 20,000.

@@ -4,7 +4,7 @@ description: Read explain() to catch when Catalyst skips partition pruning or a 
 
 # Catalyst & Tungsten
 
-A teammate opens a PR: a query joining a week of SaaS events to a 40 MB customer dimension, filtered to one region and one day. In review you ask for `explain("formatted")`. It shows a `FileScan` of the full 8 TB week and a `SortMergeJoin` — not the 40 GB, broadcast-joined plan either of you expected.
+Maya opens a PR: a query joining a week of SaaS events to a 40 MB customer dimension, filtered to one region and one day. In review Jordan asks for `explain("formatted")`. It shows a `FileScan` of the full 8 TB week and a `SortMergeJoin` — not the 40 GB, broadcast-joined plan either of you expected.
 
 A. The optimiser has a bug.
 B. The filter is on a computed column (`to_date(timestamp)`), not the partition column, so pruning never fires.
@@ -229,6 +229,24 @@ Table formats give Catalyst **manifest-level** pruning (min/max, partition specs
 | Codegen huge method | Very wide rows; Spark falls back; CPU 5× |
 
 Type mismatch joins are infamous: `customer_id` int vs string → **cast** → sometimes a **BroadcastNestedLoopJoin**. `explain` catches it in review; production catches it in the bill.
+
+---
+
+## What happened next { #what-happened-next }
+
+It was **B**. The filter was on `to_date(timestamp)`, a computed column, and
+partition pruning matches predicates against the partition column itself. A
+function on it means the optimiser cannot prove which directories are
+irrelevant, so it keeps all of them — the full 8 TB week.
+
+The `SortMergeJoin` followed from the same cause. With 8 TB on one side instead
+of 40 GB, the cost model stopped choosing a broadcast, so the 40 MB dimension
+was sorted and shuffled alongside data that should never have been read.
+
+One predicate rewritten to filter the partition column directly restores both
+decisions at once. Which is the argument for `explain("formatted")` in review:
+the plan states what will be read and how it will join, and the query text
+looked correct in both respects.
 
 ---
 

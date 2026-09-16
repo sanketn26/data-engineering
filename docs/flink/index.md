@@ -62,7 +62,7 @@ Without watermarks, the 5-minute window never knows when to emit. Without keyed 
 ```json
 {
   "timestamp": "2024-01-15T10:03:45.123Z",
-  "customer_id": "cust_1842",
+  "customer_id": "cust_0042",
   "user_id": "u_99102",
   "service": "auth",
   "endpoint": "/login",
@@ -208,3 +208,24 @@ You are done when you can look at a Flink UI: checkpoint duration, backpressure 
     - Reason about checkpoint duration growth: distinguish state-size growth, a slow state backend, and a genuinely stuck operator.
     - Explain where Flink's exactly-once guarantee actually ends (the sink needs to cooperate — two-phase commit or idempotent writes) and where it doesn't.
     - Decide when Flink is unnecessary — a stateless transform, a nightly batch job, or ad-hoc analyst SQL are better served elsewhere.
+
+---
+
+## What happened next { #what-happened-next }
+
+Six hours of silence with zero lag is the combination that makes this a Flink
+page rather than a Kafka one. Every record was consumed — that is what lag zero
+means — and no window ever closed, so nothing was emitted and nobody was
+alerted. The user with 40 failed logins in eleven minutes is in the state
+backend, counted, unreported.
+
+The gap between "consumed" and "processed into an answer" is where event time
+lives. A watermark is the job's belief about how far time has advanced, it is
+the minimum across all input partitions, and overnight one quiet partition can
+hold it still while everything else looks healthy.
+
+Which is why this module starts at [time](time.md) rather than at the API, then
+[windows](windows.md) for the shape that decides what counts,
+[state](state.md) for what a stateful job keeps, and
+[checkpoints](checkpoints.md) for how much of it survives a restart. SaaSCo
+reaches here at [Stage 4](../architectures/saasco-evolution.md#stage-4-freshness-under-10-seconds-flink-appears-phase-4).

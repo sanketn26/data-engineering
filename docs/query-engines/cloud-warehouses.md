@@ -199,6 +199,24 @@ WHERE query = pg_last_query_id();
 
 ---
 
+## What happened next { #what-happened-next }
+
+All three, one per vendor, from the same SQL. **A** is BigQuery — bytes
+scanned is the bill, so a query that stopped pruning costs more without running
+differently. **B** is Snowflake — the warehouse was busy with Friday's load and
+the analyst queued behind it. **C** is Redshift — a table outgrew the node's
+memory and the join started spilling.
+
+The same query, the same data, three unrelated failures, because each product
+charges for and constrains a different resource: scanned bytes, warehouse-time,
+and cluster memory. None of those is visible in the SQL.
+
+Which is what makes the vendor comparison a workload question rather than a
+feature question — the right answer depends on whether the analyst's Monday
+query is unpredictable in bytes, in concurrency, or in join size.
+
+---
+
 ## Check your understanding { #exercise }
 
 A 12-person company has two data engineers, 20 TB in the warehouse, spiky weekday BI traffic (idle nights/weekends), and no ML engine requirement. Compare a managed warehouse with Trino + Iceberg. Then decide **which** managed warehouse fits best and name the first metric you'd watch to know you chose wrong.

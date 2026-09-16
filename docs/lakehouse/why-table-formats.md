@@ -249,6 +249,23 @@ See the [detailed comparison](comparison.md) for workload-based guidance.
 
 ---
 
+## What happened next { #what-happened-next }
+
+It was **C**. The retry was idempotent in the sense the author meant — it
+computed the same rows — and that was never the problem. It wrote those rows to
+a new set of files beside the first attempt's, and nothing in a directory says
+which files are the table.
+
+Support saw two rows per order because both attempts' files are "in the
+prefix," and `s3://orders/dt=2024-01-15/` is a location, not a table. There is
+no commit to fail, so there is nothing for the second attempt to supersede.
+
+Every failure mode above collapses into that one question — concurrent
+readers, mid-write crashes, schema changes, updates. Ask **where is the table**;
+if the answer is a prefix, the answer is that there isn't one.
+
+---
+
 ## Check your understanding { #exercise }
 
 Two Spark jobs write to `s3://orders/`. Job A overwrites `dt=2024-01-15` (full day recompute). Job B streams CDC upserts into the same prefix as extra Parquet files. Trino lists the directory.

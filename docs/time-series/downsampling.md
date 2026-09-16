@@ -225,6 +225,24 @@ ORDER BY m;
 
 ---
 
+## What happened next { #what-happened-next }
+
+It was **C**. Nobody renders more than 1,200 points, so storing a year of raw
+30-second samples means keeping 10¹³ points to draw charts that discard
+essentially all of them.
+
+Tiered rollups — 1 minute, 1 hour, 1 day — with raw kept for days rather than
+years cut the 160 TB by orders of magnitude and made the dashboards faster,
+because a year-long chart now reads daily rollups instead of aggregating
+billions of raw points on every page load.
+
+The aggregation was never optional. The only choice was whether to do it once
+on write or every time someone opens Grafana, and the raw-retention number is
+where that choice is actually made: it is the window in which an incident can
+still be investigated at full resolution.
+
+---
+
 ## Check your understanding { #exercise }
 
 10 M devices, 30 s temperature, 3× replication, 24 bytes/point on disk after compression (all-in). Budget: 40 TB usable for this pipeline.

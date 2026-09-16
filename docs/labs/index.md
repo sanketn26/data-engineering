@@ -4,7 +4,7 @@ description: Predict-run-break labs for Kafka, Spark, Flink, ClickHouse, Cassand
 
 # Labs
 
-Friday, 4:55 PM. You clone `labs/kafka`, run `docker compose up -d`, produce a few hundred events, watch the consumer keep up, and close the laptop. Nothing broke.
+Friday, 16:55. Maya has gone home. You clone `labs/kafka`, run `docker compose up -d`, produce a few hundred events, watch the consumer keep up, and close the laptop. Nothing broke.
 
 Predict before you read on: if you skip the README's hypothesis section and go straight to `docker compose up`, what do you actually lose — the ten minutes it would have taken, or the lesson?
 

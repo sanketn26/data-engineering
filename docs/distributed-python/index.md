@@ -214,3 +214,23 @@ If you cannot fill that table for your job, you are not ready to size the cluste
 - [SaaS analytics architecture](../architectures/analytics-platform.md)
 - [IoT architecture](../architectures/iot.md)
 - [Fraud architecture](../architectures/fraud.md) — graph first, Python features second
+
+---
+
+## What happened next { #what-happened-next }
+
+40 ms in a notebook and 400 ms in a Spark task is the whole story, and the
+extra 360 ms is not compute. The model is deserialized per task, the data is
+converted between the JVM and Python on every call, and a function written
+against objects is being run by an engine that schedules partitions of rows.
+
+Four hours at 80% means the deadline is gone whatever happens next, so the
+question is what the next run looks like. More executors shortens the tail and
+leaves the per-call overhead exactly where it is — it is paid 40 million times
+either way.
+
+What removes it is holding the model in a long-lived actor and passing data
+through shared memory, which is [Ray](ray.md)'s model rather than a tuning
+exercise. The events still arrive through Kafka and the rollups stay in Spark;
+the scoring moves. [Spark vs Ray](../comparisons/spark-vs-ray.md) draws the
+boundary explicitly.

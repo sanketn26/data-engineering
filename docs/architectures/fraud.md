@@ -4,7 +4,7 @@ description: Splitting fraud detection into a sub-200ms scoring path and a separ
 
 # Fraud Detection Architecture
 
-14:02:11.900 — a $4,200 transaction is authorized. 14:02:12.300 — the fraud model finally returns a high-risk score, 400 ms after the authorization already fired. The chargeback lands six weeks later. A design review asks: what should have been on the 200 ms path that wasn't? A. A faster model. B. A 3-hop graph query to check known fraud rings before scoring. C. Keyed feature lookups only — no graph hop — with rings caught downstream instead. D. More Kafka partitions. Pick one before reading on.
+14:02:11.900 — a $4,200 transaction is authorized. 14:02:12.300 — the fraud model finally returns a high-risk score, 400 ms after the authorization already fired. The chargeback lands six weeks later. Jordan's design review asks: what should have been on the 200 ms path that wasn't? A. A faster model. B. A 3-hop graph query to check known fraud rings before scoring. C. Keyed feature lookups only — no graph hop — with rings caught downstream instead. D. More Kafka partitions. Pick one before reading on.
 
 C is the shape of this architecture: transactions, devices, cards, IPs, merchants, users. Four products share a bus and **must not share a latency budget**:
 
@@ -346,3 +346,23 @@ Salt **after** you no longer need a single key for state, or use a dedicated key
 ## Why Redis appears and when to remove it
 
 Redis is a **p99** tool for hot features. It is a bad 30-day aggregate store and a bad SoR. Populate from Flink; rebuild from CH/Kafka on flush. If CH p99 is already 8 ms, skip Redis (operational cost). V1 in many shops is CH-only until the SLO misses.
+
+---
+
+## What happened next { #what-happened-next }
+
+Jordan's review answered its own question: nothing model-shaped belonged on the
+200 ms path. A faster model is a smaller model that is still a network call,
+and a 3-hop graph query against the live ledger is the
+[traversal](../graph/graph-vs-relational.md) that times out at 40 million rows.
+
+What goes on the path is what can be looked up: precomputed features in a
+low-latency store, a ring membership id written by a scheduled graph job, a
+velocity counter maintained by Flink. The expensive work happens before the
+authorization, and the decision reads the result.
+
+The 400 ms miss also settled fail-open versus fail-closed, which had been
+theoretical until a $4,200 chargeback made it concrete. A scorer that answers
+late is a scorer that did not answer, so the path needs a deadline and a
+declared behaviour when it expires — declined, or authorized and flagged for
+review. Both are defensible. Having no answer is not.

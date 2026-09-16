@@ -62,6 +62,25 @@ The postmortem's real finding is not "Flink replayed data" — replay is correct
 
 ---
 
+## What happened next { #what-happened-next }
+
+It was **(C)**. Nobody had written down what had to be true at the sink, so
+nobody noticed it had stopped being true. Kafka replayed from the last
+committed offset, which is the behaviour it promises; Flink restarted from its
+checkpoint, which is the behaviour it promises; and `revenue_agg` double-counted
+eleven minutes because neither of those promises is about the sink.
+
+"Kafka is exactly-once" was the mental model that failed, and it failed by being
+a true statement about one hop applied to a pipeline with four. Every hop has
+its own guarantee, and end-to-end correctness is the weakest one in the chain —
+not the strongest one anybody can name.
+
+The invariant that was missing fits on a line: *writing the same batch twice
+leaves `revenue_agg` unchanged.* Written down, it is testable in CI and
+checkable in a postmortem. Unwritten, it is something a team believes.
+
+---
+
 ## Check your understanding { #exercise }
 
 A CDC pipeline (Debezium → Kafka → Flink → Iceberg → dbt → ClickHouse) shows a customer's order count as 2× the source database's count, but only for orders created in the last hour, and only for one customer.

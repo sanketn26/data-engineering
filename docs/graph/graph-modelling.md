@@ -256,6 +256,24 @@ Idempotency: same `txn_id` replayed must not create a second `:Transaction`. Tha
 
 ---
 
+## What happened next { #what-happened-next }
+
+It was **C**. The corporate VPN's IP node with five million edges is a
+supernode, and every 2-hop query through it fans out across all of them before
+filtering. The model was not wrong about IP being a node — it was missing any
+way to route around entities that everyone shares.
+
+B is the fix that looks right and removes the query. Inlining IP as a
+relationship property makes "other users sharing this IP" unanswerable by
+traversal, which is the one question the graph exists for.
+
+`Transaction` stays a node, because three things reach it. The supernode gets
+handled where supernodes are handled: excluded by degree threshold, or split by
+time bucket, so a shared VPN stops being a hub that every investigation runs
+through.
+
+---
+
 ## Check your understanding { #exercise }
 
 ??? question "Pick the model"

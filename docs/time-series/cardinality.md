@@ -242,6 +242,24 @@ predict the multiplier from adding `user_id`. Then run the
 [time-series lab](../labs/index.md#time-series-labstime-series) and observe
 `prometheus_tsdb_head_series` before and after the label is enabled.
 
+## What happened next { #what-happened-next }
+
+It was **C**. Friday's `user_id` label multiplied the metric's series count by
+the number of distinct users, and each series is an identity the TSDB keeps in
+an in-memory index. Traffic was unchanged all week — the *number of things being
+counted* was not.
+
+That is why the restart took 40 minutes. WAL replay rebuilds the index, and the
+index is now proportional to users rather than to endpoints, so recovery time
+grew with the same multiplier that caused the OOM.
+
+The label was added "for better debugging," and per-user latency is a
+reasonable thing to want. It is a request for an events store with
+high-cardinality columns, not for another dimension on a metric — the same
+distinction the [TSDB page](tsdbs.md) sorts engines by.
+
+---
+
 ## Check your understanding { #exercise }
 
 `http_request_duration_seconds_bucket` has labels `service` (80), `le` (12 buckets), `endpoint` (templated 40), `method` (8). Traffic: 200 M requests/day, 2 M DAU.

@@ -263,6 +263,24 @@ When WCC blobs are huge (marketplace), Louvain splits **dense** communities. Run
 
 ---
 
+## What happened next { #what-happened-next }
+
+It was **C**. The projection pins the graph in memory on the serving cluster,
+and every other Bolt session queues behind it. Forty million edges do not fail
+fast — they succeed slowly, at the cost of every request arriving during the
+afternoon it runs.
+
+WCC is not expensive because it is badly implemented. It is global: it has to
+see the whole graph to answer, which makes it structurally the wrong shape for
+a request handler that promised a p99.
+
+The version that ships runs the same algorithm on a schedule, writes component
+ids back as properties, and lets the request handler read one. The freshness
+the PR wanted is real — it is just measured in minutes, on a separate cluster,
+instead of per request.
+
+---
+
 ## Check your understanding { #exercise }
 
 ??? question "Place the jobs on a clock"

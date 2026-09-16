@@ -4,7 +4,7 @@ description: Browser labs for Kafka hot keys, Spark shuffle skew, ClickHouse ORD
 
 # Interactive Simulations
 
-Browser tools for failure modes that are hard to **feel** from prose: hot Kafka keys, shuffle skew, ClickHouse `ORDER BY`, TSDB cardinality, backpressure recovery time, stalled watermarks, ISR failure, metadata pruning, hash distribution, and dimension history. They are not dashboards of a real cluster. They are labs for your **mental model**.
+Browser tools for failure modes that are hard to **feel** from prose: hot Kafka keys, shuffle skew, ClickHouse `ORDER BY`, TSDB cardinality, backpressure recovery time, stalled watermarks, ISR failure, metadata pruning, hash distribution, and dimension history. They run on SaaSCo's events, with Acme (`cust_0042`) as the key that ruins things. They are not dashboards of a real cluster. They are labs for your **mental model**.
 
 Related: [how to study](../how-to-study.md), [labs](../labs/index.md), [incidents](../incidents/index.md).
 

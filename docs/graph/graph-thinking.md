@@ -254,6 +254,24 @@ Graph thinking decides **which box** the question lands in. It does not require 
 
 ---
 
+## What happened next { #what-happened-next }
+
+It was **C**. At a fan-out of about 30, three hops is roughly 27,000 rows of
+intermediate join output and five hops is in the tens of millions — and well
+before that the planner stops estimating the recursive CTE usefully and picks a
+plan for a row count it cannot see.
+
+The analyst's question was not unreasonable, and neither was Postgres. A join
+materialises intermediate results at every hop; a traversal follows pointers
+from a known starting node and only touches what it reaches. The gap is not
+implementation quality, it is what each engine has to do per hop.
+
+Which is why the answer to "can you pull this?" is yes, and the answer to "can
+you pull this from the ledger, at 2:47 PM, while it serves production" is a
+different store — one traversal moved, not the ledger.
+
+---
+
 ## Check your understanding { #exercise }
 
 ??? question "Is this a graph query?"

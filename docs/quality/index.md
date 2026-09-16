@@ -4,7 +4,7 @@ description: Catch silent data quality failures — schema drift, fan-out joins,
 
 # Data Quality
 
-14:02. Airflow DAG: SUCCESS. Kafka lag: 0. ClickHouse insert: confirmed. Then a VP pings the channel — why does the revenue tile show $40M when finance's spreadsheet says $19M? No job failed. No alert fired. Every system you'd check first is green.
+14:02. Airflow DAG: SUCCESS. Kafka lag: 0. ClickHouse insert: confirmed. Then Elena pings the channel — why does the revenue tile show $40M when her spreadsheet says $19M? No job failed. No alert fired. Every system you'd check first is green.
 
 What actually happened?
 
@@ -309,3 +309,23 @@ Global row count can pass while `cust_0042` is zero. Group volume checks by `cus
 ## Timezone and clocks
 
 Store UTC. Document it. Check: `hour(ts)` distribution weekday vs last week; `max(ts) < now() + 1h` (future) and `max(ts) > now() - slo`. Epoch ms vs s is a **bimodal** timestamp histogram. Cheap. Catch it.
+
+---
+
+## What happened next { #what-happened-next }
+
+Every one of the four is possible, and that is the answer to Elena's question:
+from green dashboards alone, nobody could say which. The DAG reports that tasks
+ran. Kafka lag reports that events were delivered. The ClickHouse insert
+reports that rows arrived. None of them is a statement about whether the number
+is right.
+
+What eventually named it was a check nobody had: row counts against source,
+sum of revenue against the transactional system, and a distinct count on the
+join key. Those three separate the four hypotheses in about a minute — a fanned
+join doubles counts, a coerced field leaves counts intact and sums wrong, a
+timezone bug moves rows between days, and duplicate delivery inflates both.
+
+The $19M gap existed for as long as it did because "every system is green" was
+being read as "the data is correct." Liveness and correctness are different
+properties, and only one of them had monitoring.

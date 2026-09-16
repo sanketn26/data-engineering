@@ -253,6 +253,24 @@ Unaligned snapshots include in-flight buffers. A job with large network buffers 
 
 ---
 
+## What happened next { #what-happened-next }
+
+It was **B**. The sink was slow, backpressure filled the pipeline, and
+checkpoint barriers could not travel through operators that had no room to
+accept them. The job stayed RUNNING throughout, because nothing had failed.
+
+That is the answer to the question the fraud team actually asked: six hours of
+failed-login counts are only as safe as the last completed checkpoint, so a
+recovery would have replayed from 47 minutes ago and rebuilt the state from
+Kafka — provided retention still holds those 47 minutes.
+
+A dead TaskManager (A) or an unreachable S3 (C) both fail loudly. This one
+degrades: checkpoint duration climbs, then the interval is missed, then
+alignment times out. The metric that catches it early is checkpoint duration,
+not job status.
+
+---
+
 ## Check your understanding { #exercise }
 
 Job checkpoints every 60s to S3. RocksDB state 40 GB, incremental. Sink is Kafka `EXACTLY_ONCE`. A downstream warehouse consumer uses default isolation. You kill a TM. Then you notice duplicate rows in the warehouse for a 2-minute window.

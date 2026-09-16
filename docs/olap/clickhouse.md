@@ -36,7 +36,7 @@ GROUP BY endpoint;
 -- Q2 tenant: one customer, recent time
 SELECT status_code, count()
 FROM requests
-WHERE customer_id = 'bigcorp'
+WHERE customer_id = 'cust_0042'
   AND timestamp >= now() - INTERVAL 6 HOUR
 GROUP BY status_code;
 
@@ -143,7 +143,7 @@ Rows are a time stream. Granules are “a few seconds of the fleet.”
 | Query | Fast? | Why |
 |-------|-------|-----|
 | Q1 `service = 'checkout'` last hour | **Slow** | Last hour is many granules; each granule contains **all** services. Filter `service` after read. |
-| Q2 `customer_id = 'bigcorp'` | **Slow** | `customer_id` is not in the key. Full hour/day scan + filter. |
+| Q2 `customer_id = 'cust_0042'` | **Slow** | `customer_id` is not in the key. Full hour/day scan + filter. |
 | Q3 all services last hour | **Fast** | Time prefix matches. You wanted the whole fleet anyway. |
 
 ```sql
@@ -162,7 +162,7 @@ Granules are “this endpoint of this service, in time order.”
 | Query | Fast? | Why |
 |-------|-------|-----|
 | Q1 checkout, last hour, by endpoint | **Fast** | Index seeks `service=checkout`, then `endpoint`, then time. Other services never decoded. |
-| Q2 `customer_id = 'bigcorp'` | **Slow** | Customer is scattered across services. Scan all services for the time range (or the whole partition). |
+| Q2 `customer_id = 'cust_0042'` | **Slow** | Customer is scattered across services. Scan all services for the time range (or the whole partition). |
 | Q3 all services last hour | **OK / mixed** | Time is the **third** column. You cannot binary-search time globally. You walk each `(service, endpoint)` and skip old timestamps **within** that prefix — still much less than a full table if partitions are daily. |
 
 ```sql
@@ -181,7 +181,7 @@ Granules are “this tenant’s stream.”
 | Query | Fast? | Why |
 |-------|-------|-----|
 | Q1 `service = 'checkout'` fleet-wide | **Slow** | Service is not a prefix. Every customer granule mixed services. |
-| Q2 `customer_id = 'bigcorp'` last 6 h | **Fast** | Seek tenant, then time. Everyone else skipped. |
+| Q2 `customer_id = 'cust_0042'` last 6 h | **Fast** | Seek tenant, then time. Everyone else skipped. |
 | Q3 fleet last hour | **Slow** | Time is second; you iterate customers. |
 
 ```sql
@@ -255,7 +255,7 @@ CREATE TABLE requests_d ON CLUSTER '{cluster}' AS requests
 ENGINE = Distributed('{cluster}', currentDatabase(), requests, cityHash64(customer_id));
 ```
 
-The last argument is the **sharding key**. `rand()` spreads load and **destroys** locality for tenant queries (every shard scanned). `cityHash64(customer_id)` colocates a tenant; BigCorp becomes a **hot shard**.
+The last argument is the **sharding key**. `rand()` spreads load and **destroys** locality for tenant queries (every shard scanned). `cityHash64(customer_id)` colocates a tenant; Acme becomes a **hot shard**.
 
 Replication ≠ sharding. Replicas are copies of a shard (Keeper coordinates). Distributed is a **fan-out query**. `SELECT` on the Distributed table hits every shard unless the optimizer can infer a shard from the key (often it cannot for `WHERE service = ...`).
 
@@ -418,7 +418,7 @@ Observability cluster, 500 million events/day, queries:
 2. Support: `WHERE customer_id = ? AND timestamp > now()-1d` (9%).
 3. Exec wall: `WHERE timestamp > now()-1h GROUP BY service` (1%).
 
-Shard count will be 4 in six months. Pick `PARTITION BY`, `ORDER BY`, sharding key, and what you do for (2). Say what happens to BigCorp (8% of events) and what `EXPLAIN indexes = 1` should show for (1).
+Shard count will be 4 in six months. Pick `PARTITION BY`, `ORDER BY`, sharding key, and what you do for (2). Say what happens to Acme (38% of events) and what `EXPLAIN indexes = 1` should show for (1).
 
 ??? success "Answer"
     **`PARTITION BY toYYYYMMDD(timestamp)`** (or weekly/monthly if 500 M/day still makes daily partitions huge but countable). Not `toYYYYMMDDhh` — too many parts.
@@ -431,7 +431,7 @@ Shard count will be 4 in six months. Pick `PARTITION BY`, `ORDER BY`, sharding k
 
     **Sharding:** `cityHash64(service)` keeps (1) often on fewer shards **if** you filter by service **and** the Distributed engine can prune (do not assume it always does). `cityHash64(customer_id)` makes (2) local and (1) fan-out. Given 90% QPS is (1), shard by `service` (or `sipHash64(service, endpoint)`), and accept (2) hitting all shards until a tenant table exists. **Do not** shard by `rand()`.
 
-    **BigCorp 8%:** if you sharded by `customer_id`, one shard is permanently hot. If you sharded by `service`, BigCorp is spread; their support query scans every shard’s day.
+    **Acme at 38%:** if you sharded by `customer_id`, one shard is permanently hot. If you sharded by `service`, Acme is spread; their support query scans every shard’s day.
 
     **`EXPLAIN indexes = 1` for (1):** primary index used, granules selected ≪ granules total (roughly checkout’s share of the hour, not 100%). If selected ≈ total, you used a function on `service` or queried the Distributed table in a way that scanned extra, or the table was actually ordered by time.
 

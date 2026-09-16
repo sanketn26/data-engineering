@@ -362,3 +362,22 @@ Airflow orchestrating the whole thing
 | [Columnar](../olap/columnar-storage.md) | Why CH is the tile store |
 | [Cardinality](../time-series/cardinality.md) | Prom vs CH |
 | [Graph modelling](../graph/graph-modelling.md) | Fraud rings vs SQL |
+
+---
+
+## What happened next { #what-happened-next }
+
+The exercise is worth doing before reading on, because the five pages that
+follow all demonstrate the same failure: components drawn before numbers were
+written down.
+
+The three sentences do most of the work. The one query that must be fast tells
+you the latency class and therefore the serving engine. The one unacceptable
+failure tells you where durability and replay have to exist. The one component
+you refuse to add yet is the honest one — it is how Stage 1 stays a laptop and
+Stage 3 gets Kafka for a measured reason rather than a fashionable one.
+
+Read the [SaaSCo timeline](saasco-evolution.md) for what that discipline looks
+like over eight stages of one company, then the five case studies for the same
+reasoning under different constraints. If a box on your diagram cannot be
+traced to a number, it is a pager rotation with no workload behind it.

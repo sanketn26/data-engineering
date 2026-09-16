@@ -25,7 +25,7 @@ Queries (almost always filtered to **one tenant**):
 ```sql
 SELECT endpoint, COUNT(*) AS reqs, AVG(latency_ms)
 FROM events
-WHERE customer_id = 'bigcorp'
+WHERE customer_id = 'cust_0042'
   AND timestamp >= ago('15m')
 GROUP BY endpoint
 LIMIT 50;
@@ -117,12 +117,12 @@ Configured dimensions: `customer_id`, `endpoint`, `status_code`. Metrics: `COUNT
 -- Hits star-tree (subset / exact match of dimensions)
 SELECT endpoint, status_code, COUNT(*), AVG(latency_ms)
 FROM events
-WHERE customer_id = 'bigcorp'
+WHERE customer_id = 'cust_0042'
 GROUP BY endpoint, status_code;
 
 -- Misses: dimension not in the tree
 SELECT user_id, COUNT(*) FROM events
-WHERE customer_id = 'bigcorp'
+WHERE customer_id = 'cust_0042'
 GROUP BY user_id;
 ```
 
@@ -210,7 +210,7 @@ Query:
 ```sql
 SELECT service, endpoint, COUNT(*) AS reqs, AVG(latency_ms) AS avg_lat
 FROM events
-WHERE customer_id = 'bigcorp'
+WHERE customer_id = 'cust_0042'
   AND timestamp >= ago('15m')
   AND timestamp < ago('0m')
 GROUP BY service, endpoint
@@ -251,6 +251,23 @@ Always include the tenant predicate. Multi-tenant isolation in Pinot is **query 
 | Segment explosion | Planning 5 s | Flush too aggressive; no merge/minion task |
 | Inconsistent hybrid | Double count at the seam | Time boundary / watermark misconfig between realtime and offline |
 | Noisy neighbour | Small tenants 2 s p95 | Whale tenant + missing `customer_id` index; or one server holds the whale’s segments |
+
+---
+
+## What happened next { #what-happened-next }
+
+It was **D**. Nothing was saturated because the problem was not throughput —
+ten thousand tenants each wanting a different small slice at 09:00 is a
+concurrency shape, and a scan-oriented engine answers each of those by scanning.
+
+More shards (A) and replicas (B) spread the scanning without removing it. A
+cache (C) works when tenants ask the same question, and each of these asks
+about their own company and their own last 15 minutes.
+
+The difference is the index. Inverted indexes and star-trees answer a
+tenant-filtered aggregation by lookup rather than by reading a range, which is
+what holds p99 under 100 ms while ten thousand of them arrive at once. Same
+events, same volume, a different question being asked of them.
 
 ---
 

@@ -262,6 +262,22 @@ Availability: Neo4j Causal Cluster (or Aura) — read replicas for analysts, **w
 
 ---
 
+## What happened next { #what-happened-next }
+
+It was **A**. `PROFILE` opened with `AllNodesScan`, which is the planner saying
+it had no way to find the starting node and read every node in the graph to
+locate one. An index on `User.user_id` turns that first operator into a seek
+and the query into the bounded 2-hop expand it was always meant to be.
+
+The `LIMIT` was already there and did not help, because it applies after the
+rows exist. Limiting the output of a scan still costs the scan.
+
+Every Cypher pattern has this shape: find the start, then expand. The expand
+was already bounded — `[:USED]` twice, nothing recursive — so the entire
+incident lived in the first operator, and `PROFILE` named it in one line.
+
+---
+
 ## Check your understanding { #exercise }
 
 ??? question "Write and critique the risk query"

@@ -4,7 +4,7 @@ description: Why an IoT platform ingesting millions of samples per second needs 
 
 # IoT Platform Architecture
 
-A finance review flags the storage bill: 10 million devices, one sample every 30 seconds, and someone kept "just in case" raw resolution for a full year. Nobody has plotted a single point older than three weeks at anything finer than an hourly average. A. The fix is a bigger discount on object storage. B. The fix is a downsample pyramid that never should have been skipped. C. The fix is dropping to 5-minute sampling at the device. Predict before you read on.
+Elena flags the storage bill in review: 10 million devices, one sample every 30 seconds, and someone kept "just in case" raw resolution for a full year. Nobody has plotted a single point older than three weeks at anything finer than an hourly average. A. The fix is a bigger discount on object storage. B. The fix is a downsample pyramid that never should have been skipped. C. The fix is dropping to 5-minute sampling at the device. Predict before you read on.
 
 B: tens of millions of devices, small numeric samples, a handful of query shapes, and a **downsample pyramid** are the actual shape of this workload. The dominant constraint is **write rate + retention cost**, not join complexity. If you model this as "just events in a lakehouse," you will pay full-resolution storage for data nobody plots at 1 Hz a year later.
 
@@ -350,3 +350,23 @@ Flink upserts on every sample (or every N seconds). Grafana fleet map reads **th
 Hash(`device_id`) with 192 partitions is even **if** ids are even. Vendor ids that are MAC-ish are fine. Sequential ids are fine. A **single** `device_id=gateway-uk-1` reporting 50k sensors as one key is not. Model the **series** (`device_id, sensor`) in the Kafka key if one physical box fans in.
 
 Estimate: 10M devices × 2 sensors = 20M keys. Flink keyed state for z-score at 100 B/key ≈ 2 GB plus RocksDB overhead — fits. Session state with 7-day raw buffers does **not**.
+
+---
+
+## What happened next { #what-happened-next }
+
+Elena got the number she wanted and the fleet kept its history. Raw resolution
+now lives for 30 days rather than a year, with 1-minute, 1-hour and 1-day
+rollups behind it — and since nobody had plotted anything older than three
+weeks at finer than hourly, the dashboards did not change at all.
+
+The saving is the ratio between what was stored and what was read. A year of
+30-second samples for 10 million devices exists to answer questions that are
+asked at hourly granularity, which means the expensive copy was never the one
+being queried.
+
+What the 30 days buys is the thing to defend in the next review: it is the
+window in which an incident can still be investigated at full resolution.
+Shorten it to save more and the next firmware bug becomes unreconstructable —
+which is a different kind of cost, and one that does not appear on the storage
+bill.

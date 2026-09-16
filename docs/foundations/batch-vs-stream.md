@@ -4,7 +4,7 @@ description: Batch vs stream framed as latency classes and state requirements, n
 
 # Batch vs Stream Processing
 
-Design review, Thursday. Someone proposes: "let's just put everything on Flink so we're real-time-ready." The same event —
+Design review, Thursday. Jordan is handed a proposal: "let's just put everything on Flink so we're real-time-ready." The same event —
 
 ```text
 {timestamp, customer_id, user_id, service, endpoint, region, latency_ms, status_code, bytes}

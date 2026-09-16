@@ -309,3 +309,22 @@ That paragraph in a design doc is the framework working.
 - [ ] Incident class linked
 
 If the PR is a landscape diagram with 18 logos, bounce it.
+
+---
+
+## What happened next { #what-happened-next }
+
+It was **B**. Rejecting it is not the point — asking what latency requirement
+changed is, and nobody in the room could answer. A 20 MB CSV due Friday noon
+has no freshness requirement that batch fails to meet, so "stream-native before
+Q3" is a statement about a roadmap rather than about the workload.
+
+D is close and still lets the proposal survive on a technicality: tabling it
+until someone writes the SLA treats the missing requirement as paperwork.
+Jordan's version asks the question in the room, because the answer is usually
+"none" and the proposal ends there.
+
+This is the whole framework in one exchange. Every selection on the pages here
+starts from a measured requirement — latency class, state size, concurrency,
+correctness — and any component that cannot be traced back to one is a pager
+rotation with no workload behind it.

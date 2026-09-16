@@ -174,6 +174,28 @@ When you can answer “what is a series, which clock, which window, which layer,
 
 ---
 
+## What happened next { #what-happened-next }
+
+The arithmetic is what silenced the room: 10 million devices at one sample per
+30 seconds is ~3.3×10⁵ points/s, about 2.9×10¹⁰ rows a day. Plain Postgres does
+not hold that, and the index is the reason rather than the disk — a B-tree on
+`(device_id, timestamp)` is being rewritten 330,000 times a second, and the
+write amplification arrives long before the storage bill does.
+
+What makes it tractable is that this data has properties a general-purpose
+table cannot assume: rows arrive roughly in time order, are never updated, are
+queried in ranges rather than by key, and lose value with age. Every engine in
+this module trades generality for those four facts — time-partitioned chunks,
+delta-of-delta compression, and retention as a first-class policy.
+
+The order the module then follows is the order the questions arrive:
+[what time even means](time-semantics.md) when a device buffers offline,
+[cardinality](cardinality.md) when someone adds a label, [windows](windows.md)
+when the chart is finite and the stream is not, and
+[downsampling](downsampling.md) when Elena asks about the 160 TB.
+
+---
+
 ## Check your understanding { #exercise }
 
 IoT: 10 M devices, 30 s temperature, plus a `firmware_crash` event with `{device_id, stack_hash}`. Product wants PromQL alerts on temperature **and** a “crashes per customer last 7 days” SQL report (customers have 1–50k devices). One engineer proposes one Prometheus with `device_id` and `customer_id` labels on both metrics.

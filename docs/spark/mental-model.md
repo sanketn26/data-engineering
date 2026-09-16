@@ -245,6 +245,24 @@ Three actions, **three jobs** (more if AQE or `count` on a computed frame). In a
 
 ---
 
+## What happened next { #what-happened-next }
+
+**Two stages.** The `filter` is narrow and rides along in the first; the
+`groupBy` forces a shuffle, and the shuffle is the stage boundary. The `write`
+adds no third stage — it is the action that makes the other two run at all.
+
+And no, `hourly.collect()` does not cost what `hourly.write()` costs. `write`
+has each executor write its own partition in parallel and nothing returns.
+`collect` pulls every partition through the driver's heap, which is where the
+incident on [gotchas](gotchas.md) comes from.
+
+Which answers all three of the reviewer's questions: the driver holds the plan,
+the executors hold the 5 TB, and line 1 touches S3 only for schema — the read
+happens when the `write` runs, because everything before an action is a
+description of work, not the work.
+
+---
+
 ## Check your understanding { #exercise }
 
 ```python

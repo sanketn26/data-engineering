@@ -302,3 +302,24 @@ People write the same latency to Prom **and** CH. Acceptable if Prom labels are 
 | When | Bounded labels + alerts | High-card events + SQL | Pinot tiles, Trino lake, Timescale if PG-shaped moderate |
 | First failure | Series explosion | Parts / `GROUP BY` RAM | — |
 | Label `user_id` | Never | Column OK | — |
+
+---
+
+## What happened next { #what-happened-next }
+
+Prometheus was the wrong tool for the question, and the label only made that
+visible. "Latency by customer" asks about a dimension with as many values as
+there are customers, and a metrics engine keeps one in-memory series per
+distinct label combination — so the memory tripled for the reason the design
+intends, not despite it.
+
+The review passed because the change was small and the sentence was true:
+Prometheus does store time series, and it is just a label. What nobody asked
+was how many distinct values the new label takes, which is the only question
+that matters before adding a dimension to a metric.
+
+Support's request was real and belongs in an events store, where `customer_id`
+is a column with high cardinality rather than a series identity — the same
+split the [observability architecture](../architectures/observability.md)
+settles on the bridge at 02:47. Metrics answer "is it broken." Events answer
+"for whom."

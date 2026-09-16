@@ -4,7 +4,7 @@ description: How to choose a partition key so twenty workers actually split 10 T
 
 # Partitioning
 
-14:20. Design review. Someone proposes partitioning the 10 TB SaaS events table by `region`, because "that's how the business thinks about it." You have 20 workers, each holds about 500 GB, and product wants p95 latency per customer for yesterday.
+14:20. Jordan's design review, the same day as Maya's OOM. The proposal on the table is partitioning the 10 TB SaaS events table by `region`, because "that's how the business thinks about it." There are 20 workers, each holding about 500 GB, and Priya still wants p95 latency per customer for yesterday.
 
 Before you weigh in: does partitioning by `region` help the BI scan that filters `WHERE region = 'eu-west-1'`, the `GROUP BY customer_id` rollup, both, or neither? And what happens to the one worker holding `eu-west-1` if that region is 60% of traffic?
 
@@ -274,7 +274,7 @@ Two-phase aggregation: first shuffle is balanced; second shuffle is tiny. Percen
 ```mermaid
 graph LR
     subgraph "Hash by customer_id"
-        P0["P0 BigCorp 4 TB"]
+        P0["P0 Acme 4 TB"]
         P1["P1 SmallCo 50 GB"]
         P2["P2 MidCorp 200 GB"]
     end

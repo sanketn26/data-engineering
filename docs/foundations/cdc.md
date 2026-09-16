@@ -114,6 +114,28 @@ Periodically repair from a bounded source snapshot. A replay procedure that has 
 - Repartitioning changes per-key order during migration.
 - A sink uses ingestion timestamp for last-write-wins.
 
+## What happened next { #what-happened-next }
+
+It was **(A)**. The one-time `COPY` ran without establishing a log position
+first, so every row changed between the start of that copy and the beginning of
+streaming fell into a gap that nothing was watching. Forty rows, no errors,
+because from the connector's point of view nothing failed — it was not yet
+reading.
+
+That is the snapshot-to-stream handoff, and it only works in one order: record
+the LSN, take the snapshot, then stream from the recorded position, accepting
+that the overlap will replay some rows. The overlap is what makes the handoff
+safe, which is why the sink has to be idempotent on the primary key rather than
+append-only.
+
+"Backfill it faster" is where this starts. A `COPY` into Kafka looks like the
+same data and carries none of the ordering guarantees the connector's snapshot
+provides — and the only way Maya found the gap was reconciling counts against
+Postgres, which is the check this page argues should run on a schedule rather
+than at 02:17.
+
+---
+
 ## Check your understanding { #exercise }
 
 An `orders` snapshot runs for six hours. Order 42 changes from `PAID` to `SHIPPED` during hour two. The snapshot row reaches the sink after the live update. Specify the fields and merge predicate that keep `SHIPPED`, and the metrics that prove no key range was skipped.
