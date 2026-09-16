@@ -6,7 +6,12 @@ description: Event time versus ingestion time versus scrape time — why the wro
 
 **10:07 AM.** An on-call engineer is staring at a Grafana panel showing a fleet-wide temperature spike to 95° at 10:06. Nothing is actually overheating — a batch of devices just reconnected to Wi-Fi after a brief outage and dumped their buffered readings. The sensor read 95° at `10:02:03Z`; the gateway didn't deliver it until `10:06`.
 
-Predict before you read on: does the chart look wrong because of (A) a bad `avg` aggregation, (B) the wrong timestamp column being used to bucket the data, (C) clock drift on the device, or (D) too coarse a scrape interval?
+A. A bad `avg` aggregation.
+B. The wrong timestamp column being used to bucket the data.
+C. Clock drift on the device.
+D. Too coarse a scrape interval.
+
+Predict before you read on: which one made the chart look wrong?
 
 It's (B) — and which clock you stored, event time, ingestion time, or scrape time, decides whether this reads as a spike in the past, a spike now, or a sample that never enters the window at all. Time-series bugs like this are usually **silent**: the chart looks plausible.
 
@@ -249,20 +254,11 @@ WITH FILL STEP 3600;   -- ClickHouse: show gaps as defaults
 
 ## What happened next { #what-happened-next }
 
-The chart was drawn on the wrong clock — **B**. The reading was bucketed by the
-time it arrived rather than the time the sensor took it, so a buffered batch
-delivered at 10:06 drew a fleet-wide spike at 10:06 that never happened. The
-sensor's own timestamp said `10:02:03Z`.
+The chart was drawn on the wrong clock — **B**. The reading was bucketed by the time it arrived rather than the time the sensor took it, so a buffered batch delivered at 10:06 drew a fleet-wide spike at 10:06 that never happened. The sensor's own timestamp said `10:02:03Z`.
 
-Nothing alerted, because nothing was wrong by any check that was running. The
-values were real, the devices were healthy, the pipeline was current — the
-chart was a true statement about the wrong clock.
+Nothing alerted, because nothing was wrong by any check that was running. The values were real, the devices were healthy, the pipeline was current — the chart was a true statement about the wrong clock.
 
-Storing event time fixes the chart and creates the question every streaming
-system inherits: how long to wait for stragglers before closing a bucket. Wait
-too briefly and reconnecting devices land after their window has closed; wait
-too long and the dashboard lags. That is [watermarks](../flink/time.md),
-arrived at from the storage side.
+Storing event time fixes the chart and creates the question every streaming system inherits: how long to wait for stragglers before closing a bucket. Wait too briefly and reconnecting devices land after their window has closed; wait too long and the dashboard lags. That is [watermarks](../flink/time.md), arrived at from the storage side.
 
 ---
 

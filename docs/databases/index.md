@@ -195,20 +195,8 @@ Vertical scaling still wins more arguments than Twitter-era folklore. The counte
 
 ## What happened next { #what-happened-next }
 
-Jordan's question ended the meeting faster than the proposals did: the three
-workloads on that Postgres primary are not one problem. Checkout sessions are
-key-value reads and writes with a TTL. Observability writes are a firehose of
-appends queried by time range. The device registry is a small, mostly-static
-table that happens to live in the same place.
+Jordan's question ended the meeting faster than the proposals did: the three workloads on that Postgres primary are not one problem. Checkout sessions are key-value reads and writes with a TTL. Observability writes are a firehose of appends queried by time range. The device registry is a small, mostly-static table that happens to live in the same place.
 
-Bigger hardware buys a quarter for all three and fixes none. Read replicas help
-the registry and do nothing for the write paths, because the constraint is WAL
-throughput and connections rather than read capacity. And "move it to NoSQL"
-had no answer to the only question that decides anything — what is the primary
-key of the hottest query.
+Bigger hardware buys a quarter for all three and fixes none. Read replicas help the registry and do nothing for the write paths, because the constraint is WAL throughput and connections rather than read capacity. And "move it to NoSQL" had no answer to the only question that decides anything — what is the primary key of the hottest query.
 
-Splitting by access pattern is what the rest of this module is for: [what NoSQL
-actually trades away](nosql.md), then [Cassandra](cassandra.md) for the
-append-heavy time-range workload and [DynamoDB](dynamodb.md) for the session
-store. Postgres keeps what is actually relational, which is more than the
-one-pager assumed.
+Splitting by access pattern is what the rest of this module is for: [what NoSQL actually trades away](nosql.md), then [Cassandra](cassandra.md) for the append-heavy time-range workload and [DynamoDB](dynamodb.md) for the session store. Postgres keeps what is actually relational, which is more than the one-pager assumed.

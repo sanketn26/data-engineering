@@ -54,7 +54,7 @@ If each device has 10 sensors at 1 Hz instead of 1/30 s, multiply ingest by **30
 
 V1 with ClickHouse (the 10M-device case):
 
-```
+```text
 devices → MQTT (or vendor cloud) → Kafka bridge
        → Kafka (device_id key, 96 partitions)
        → Flink or even Kafka Engine
@@ -355,18 +355,8 @@ Estimate: 10M devices × 2 sensors = 20M keys. Flink keyed state for z-score at 
 
 ## What happened next { #what-happened-next }
 
-Elena got the number she wanted and the fleet kept its history. Raw resolution
-now lives for 30 days rather than a year, with 1-minute, 1-hour and 1-day
-rollups behind it — and since nobody had plotted anything older than three
-weeks at finer than hourly, the dashboards did not change at all.
+Elena got the number she wanted and the fleet kept its history. Raw resolution now lives for 30 days rather than a year, with 1-minute, 1-hour and 1-day rollups behind it — and since nobody had plotted anything older than three weeks at finer than hourly, the dashboards did not change at all.
 
-The saving is the ratio between what was stored and what was read. A year of
-30-second samples for 10 million devices exists to answer questions that are
-asked at hourly granularity, which means the expensive copy was never the one
-being queried.
+The saving is the ratio between what was stored and what was read. A year of 30-second samples for 10 million devices exists to answer questions that are asked at hourly granularity, which means the expensive copy was never the one being queried.
 
-What the 30 days buys is the thing to defend in the next review: it is the
-window in which an incident can still be investigated at full resolution.
-Shorten it to save more and the next firmware bug becomes unreconstructable —
-which is a different kind of cost, and one that does not appear on the storage
-bill.
+What the 30 days buys is the thing to defend in the next review: it is the window in which an incident can still be investigated at full resolution. Shorten it to save more and the next firmware bug becomes unreconstructable — which is a different kind of cost, and one that does not appear on the storage bill.

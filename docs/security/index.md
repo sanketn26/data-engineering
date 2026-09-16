@@ -221,7 +221,7 @@ Security that exists only in an architecture slide will not show up in an incide
 
 ## Kafka ACL sketch (topic families)
 
-```
+```text
 product-events     WRITE: ingest-gw      READ: flink-enrich, spark-lake
 product-events-dlq WRITE: flink-enrich   READ: oncall-role
 payments-cdc       WRITE: debezium       READ: flink-fraud, spark-finance
@@ -334,17 +334,8 @@ Pager role: read logs/metrics, restart jobs, **not** SELECT email. Separate `inc
 
 ## What happened next { #what-happened-next }
 
-It was **B**. The masking view existed and worked exactly as designed — and
-`events`, the raw table behind it, was grantable to the same role. The analyst
-did not bypass a control; they queried a table they had been given access to,
-which is why nothing errored and nothing alerted.
+It was **B**. The masking view existed and worked exactly as designed — and `events`, the raw table behind it, was grantable to the same role. The analyst did not bypass a control; they queried a table they had been given access to, which is why nothing errored and nothing alerted.
 
-Audit logging (C) would have surfaced it eventually, and "eventually" is after
-real emails are on a screen. RBAC (A) was present. The gap was that the default
-path and the privileged path were both open to the same role, which makes the
-default a convention rather than a control.
+Audit logging (C) would have surfaced it eventually, and "eventually" is after real emails are on a screen. RBAC (A) was present. The gap was that the default path and the privileged path were both open to the same role, which makes the default a convention rather than a control.
 
-Jordan's fix is the one that generalises: the masked view is what a normal role
-can reach, the raw table is a break-glass role that is requested, time-bound
-and logged, and the two are never granted together. Defaults only protect
-people when the alternative requires an explicit act.
+Jordan's fix is the one that generalises: the masked view is what a normal role can reach, the raw table is a break-glass role that is requested, time-bound and logged, and the two are never granted together. Defaults only protect people when the alternative requires an explicit act.

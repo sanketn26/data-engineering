@@ -260,21 +260,11 @@ If you cannot write one of those sentences, you are not ready to create the tabl
 
 ## What happened next { #what-happened-next }
 
-There was no single answer, and that was the answer. Team A's append-only SaaS
-events, Team B's CDC upserts, and Team C's nightly MERGE want different
-properties, and the question "which one do we standardize on" assumes they
-don't.
+There was no single answer, and that was the answer. Team A's append-only SaaS events, Team B's CDC upserts, and Team C's nightly MERGE want different properties, and the question "which one do we standardize on" assumes they don't.
 
-What the three teams could agree on was the property list: atomic commits,
-snapshot isolation, schema evolution for all of them; record-level upserts and
-incremental pulls for Team B alone. Once that was on the whiteboard, the vendor
-names sorted themselves, and two of the three teams turned out to want the same
-thing.
+What the three teams could agree on was the property list: atomic commits, snapshot isolation, schema evolution for all of them; record-level upserts and incremental pulls for Team B alone. Once that was on the whiteboard, the vendor names sorted themselves, and two of the three teams turned out to want the same thing.
 
-Standardizing still has a real argument behind it — one catalogue, one set of
-maintenance jobs, one on-call rotation. That argument is about operational
-cost, which is worth making explicitly, rather than dressing it up as a
-technical verdict the workloads do not support.
+Standardizing still has a real argument behind it — one catalogue, one set of maintenance jobs, one on-call rotation. That argument is about operational cost, which is worth making explicitly, rather than dressing it up as a technical verdict the workloads do not support.
 
 ---
 

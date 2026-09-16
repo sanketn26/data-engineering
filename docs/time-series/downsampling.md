@@ -6,7 +6,13 @@ description: Build tiered rollups and drop raw retention instead of paying 160 T
 
 **Storage review, Thursday.** Finance flags the observability budget: the raw-readings disk has grown to 160 TB and is still climbing. Someone points out the dashboards only ever render a 1,200-pixel-wide chart — nobody looks at more than 1,200 points at once, no matter how many billions of rows sit behind it.
 
-Predict before you read on: (A) buy more/cheaper disk, (B) shorten raw retention with nothing to replace it, (C) build tiered rollups (1 min / 1 hour / 1 day) and drop raw after days not years, or (D) compress harder at the same resolution?
+A. Buy more/cheaper disk.
+B. Shorten raw retention with nothing to replace it.
+C. Build tiered rollups (1 min / 1 hour / 1 day) and drop raw after days, not
+   years.
+D. Compress harder at the same resolution.
+
+Predict before you read on.
 
 It's (C). 10 million devices × 1 sample / 30 s ≈ 3.3×10⁵ points/s ≈ **2.9×10¹⁰ / day** ≈ **10¹³ / year**, and at 16 bytes/point (time + id hash + value) that's already **~160 TB/year** before indexes and replicas. You will aggregate. The only question is whether you aggregate **once**, on write, or **every time someone opens Grafana**.
 
@@ -227,19 +233,11 @@ ORDER BY m;
 
 ## What happened next { #what-happened-next }
 
-It was **C**. Nobody renders more than 1,200 points, so storing a year of raw
-30-second samples means keeping 10¹³ points to draw charts that discard
-essentially all of them.
+It was **C**. Nobody renders more than 1,200 points, so storing a year of raw 30-second samples means keeping 10¹³ points to draw charts that discard essentially all of them.
 
-Tiered rollups — 1 minute, 1 hour, 1 day — with raw kept for days rather than
-years cut the 160 TB by orders of magnitude and made the dashboards faster,
-because a year-long chart now reads daily rollups instead of aggregating
-billions of raw points on every page load.
+Tiered rollups — 1 minute, 1 hour, 1 day — with raw kept for days rather than years cut the 160 TB by orders of magnitude and made the dashboards faster, because a year-long chart now reads daily rollups instead of aggregating billions of raw points on every page load.
 
-The aggregation was never optional. The only choice was whether to do it once
-on write or every time someone opens Grafana, and the raw-retention number is
-where that choice is actually made: it is the window in which an incident can
-still be investigated at full resolution.
+The aggregation was never optional. The only choice was whether to do it once on write or every time someone opens Grafana, and the raw-retention number is where that choice is actually made: it is the window in which an incident can still be investigated at full resolution.
 
 ---
 

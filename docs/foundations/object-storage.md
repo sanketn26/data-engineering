@@ -78,21 +78,11 @@ This is also why [manifests are also central to Delta's transaction log](../lake
 
 ## What happened next { #what-happened-next }
 
-The thing to carry forward is that rename is not a rename. Hive-style "write to
-a temp prefix, then move it into place" is a copy of every byte followed by a
-delete of every object, at object-store latency, with no atomicity across the
-set — and a job that dies halfway leaves a prefix that is neither the old
-partition nor the new one.
+The thing to carry forward is that rename is not a rename. Hive-style "write to a temp prefix, then move it into place" is a copy of every byte followed by a delete of every object, at object-store latency, with no atomicity across the set — and a job that dies halfway leaves a prefix that is neither the old partition nor the new one.
 
-`LIST` is the other half of the bill. It is paginated, it costs per request,
-and on a table with millions of small files, finding out what the table
-contains becomes slower than reading it.
+`LIST` is the other half of the bill. It is paginated, it costs per request, and on a table with millions of small files, finding out what the table contains becomes slower than reading it.
 
-Both are why Iceberg keeps manifests. A commit swaps one pointer, which is
-atomic because it is a single object write, and the file list is data the table
-already carries rather than a question asked of the bucket. [Jordan's Stage 6
-argument](../lakehouse/why-table-formats.md) is this page — the forcing
-function arrives later, but the physics is here.
+Both are why Iceberg keeps manifests. A commit swaps one pointer, which is atomic because it is a single object write, and the file list is data the table already carries rather than a question asked of the bucket. [Jordan's Stage 6 argument](../lakehouse/why-table-formats.md) is this page — the forcing function arrives later, but the physics is here.
 
 ---
 

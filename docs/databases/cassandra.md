@@ -279,18 +279,11 @@ problems and require different fixes.
 
 ## What happened next { #what-happened-next }
 
-It was **B**. One partition key — `service=checkout-api` — was absorbing a
-disproportionate share of 400,000 writes/s, and in a ring every replica of a
-partition lives on the same three nodes. The other five were idle because
-nothing addressed them.
+It was **B**. One partition key — `service=checkout-api` — was absorbing a disproportionate share of 400,000 writes/s, and in a ring every replica of a partition lives on the same three nodes. The other five were idle because nothing addressed them.
 
-Compaction and tombstones (A and C) produce the same p99 shape but across the
-whole ring, not on one node for one tag value. That is the tell: a hot
-partition is *selective*, and the selection is your partition key.
+Compaction and tombstones (A and C) produce the same p99 shape but across the whole ring, not on one node for one tag value. That is the tell: a hot partition is *selective*, and the selection is your partition key.
 
-Adding nodes would not have moved it. The partition is the unit of placement,
-so until the key includes something that splits `checkout-api` across the ring
-— a time bucket, a hash suffix — one node owns that traffic by design.
+Adding nodes would not have moved it. The partition is the unit of placement, so until the key includes something that splits `checkout-api` across the ring — a time bucket, a hash suffix — one node owns that traffic by design.
 
 ---
 

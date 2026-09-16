@@ -11,7 +11,12 @@ description: Choose grain, facts, dimensions, keys, and history before choosing 
 
 Code review, 4:52 PM. A join between `fct_order_item` and `payment_attempt` just shipped, and this morning's GMV number is running 2.3x high. The SQL is clean — every join key exists, every column resolves, nothing errors.
 
-Before you scroll to the diff, pick one: is the bug (A) a wrong join key, (B) a grain mismatch — payments join at attempt grain while orders are at item grain, so retries fan out the join — or (C) a missing filter on refunds?
+A. A wrong join key.
+B. A grain mismatch — payments join at attempt grain while orders are at item
+   grain, so retries fan out the join.
+C. A missing filter on refunds.
+
+Pick one before you scroll to the diff.
 
 It's (B), and no engine would have caught it: an engine cannot rescue an ambiguous grain. Before Spark, Iceberg, dbt, or ClickHouse, decide what one row means and which business changes must remain historically true.
 
@@ -126,20 +131,11 @@ then move a validity boundary. This makes the half-open interval rule visible.
 
 ## What happened next { #what-happened-next }
 
-A grain mismatch — **(B)**. `payment_attempt` is at attempt grain,
-`fct_order_item` at item grain, and an order paid on the third try joined three
-times. Every join key existed and every column resolved, which is why nothing
-errored and the number was 2.3× rather than obviously wrong.
+A grain mismatch — **(B)**. `payment_attempt` is at attempt grain, `fct_order_item` at item grain, and an order paid on the third try joined three times. Every join key existed and every column resolved, which is why nothing errored and the number was 2.3× rather than obviously wrong.
 
-2.3 is the average number of payment attempts per order, which is the tell: a
-fan-out multiplier is never a round number, and it moves when customer
-behaviour moves. Elena's GMV was wrong on a Tuesday and right again on a
-Wednesday when retries happened to be fewer.
+2.3 is the average number of payment attempts per order, which is the tell: a fan-out multiplier is never a round number, and it moves when customer behaviour moves. Elena's GMV was wrong on a Tuesday and right again on a Wednesday when retries happened to be fewer.
 
-The fix is one aggregation — collapse payments to order-item grain before the
-join — and the discipline is to write the grain down in a sentence before
-writing columns. "One row per order item" and "one row per payment attempt" are
-incompatible in a way no engine will tell you about.
+The fix is one aggregation — collapse payments to order-item grain before the join — and the discipline is to write the grain down in a sentence before writing columns. "One row per order item" and "one row per payment attempt" are incompatible in a way no engine will tell you about.
 
 ---
 

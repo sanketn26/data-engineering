@@ -37,7 +37,7 @@ At 2M events/s, a mistaken sliding window is a cluster-sized bill.
 
 Bound the stream. Compute. Emit. Forget (unless sliding/session needs overlap).
 
-```
+```text
 Events: ●●●●●●●●●●●●●●●●●●
 Tumbling:  ← W1 →← W2 →← W3 →
 ```
@@ -73,7 +73,7 @@ counts = (
 
 Size S, slide D. Windows overlap.
 
-```
+```text
 S=5 min, D=1 min
 [10:00, 10:05), [10:01, 10:06), [10:02, 10:07), ...
 ```
@@ -95,7 +95,7 @@ p95 = (
 
 Per-key timeout. A session window is the span from first to last event with gaps < gap time.
 
-```
+```text
 user A: ●●●  gap>30m  ●●      → two sessions
 ```
 
@@ -278,20 +278,11 @@ Session windows still need merge: two in-progress sessions become one when a lat
 
 ## What happened next { #what-happened-next }
 
-Thirteen failed logins inside six minutes, split by a tumbling boundary at
-11:55 into six and seven — **B**. No single window ever saw more than seven, so
-nothing crossed ten, so nothing fired. The watermark was fine; the count was
-fine; the *shape* was wrong.
+Thirteen failed logins inside six minutes, split by a tumbling boundary at 11:55 into six and seven — **B**. No single window ever saw more than seven, so nothing crossed ten, so nothing fired. The watermark was fine; the count was fine; the *shape* was wrong.
 
-A sliding window of 5 minutes evaluated every 30 seconds would have caught it,
-at the cost of every event belonging to ten windows instead of one. That is the
-trade being made — tumbling is cheap and has edges, sliding has no edges and
-multiplies state.
+A sliding window of 5 minutes evaluated every 30 seconds would have caught it, at the cost of every event belonging to ten windows instead of one. That is the trade being made — tumbling is cheap and has edges, sliding has no edges and multiplies state.
 
-The same shapes appear over stored data in [time-series
-windows](../time-series/windows.md). Fraud thresholds phrased as "N in M
-minutes" almost always mean a sliding window, and almost always get built as a
-tumbling one, because tumbling is what `window(...)` does by default.
+The same shapes appear over stored data in [time-series windows](../time-series/windows.md). Fraud thresholds phrased as "N in M minutes" almost always mean a sliding window, and almost always get built as a tumbling one, because tumbling is what `window(...)` does by default.
 
 ---
 
@@ -373,7 +364,7 @@ IoT session windows at 1000× (100M devices) need aggressive [state TTL](state.m
 
 For every windowed job, write one line:
 
-```
+```text
 key = user_id
 type = sliding 5m slide 1m
 time = event

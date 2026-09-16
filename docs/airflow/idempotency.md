@@ -50,13 +50,13 @@ Retries without idempotency are a data-corruption feature.
 
 A function `f` is idempotent if `f(x) = f(f(x))`. For pipelines:
 
-```
+```text
 load(ds=2024-01-15); load(ds=2024-01-15)  ==  load(ds=2024-01-15) once
 ```
 
 Not:
 
-```
+```text
 append(rows); append(rows)  ==  2× rows
 now() as partition; now() as partition  ==  two different folders
 ```
@@ -309,14 +309,9 @@ Debugging duplicates almost always starts with `COUNT(*) GROUP BY dt` and `MAX(i
 appended a full day beside it. Airflow did nothing wrong — it called the same
 function with the same `ds`, which is the entire contract it offers.
 
-Which answer you get was decided in the task body, long before the failure:
-`INSERT` gives you C, `INSERT OVERWRITE` for the partition gives you B. That is
-the whole difference, and it does not appear anywhere in the DAG file, the
-retry settings, or the UI.
+Which answer you get was decided in the task body, long before the failure: `INSERT` gives you C, `INSERT OVERWRITE` for the partition gives you B. That is the whole difference, and it does not appear anywhere in the DAG file, the retry settings, or the UI.
 
-The number nobody noticed is that the run was **green**. A retry that succeeds
-reports success, so the only trace of a 140% day is in the row counts — which
-is why the check after the publish matters more than the alert on the failure.
+The number nobody noticed is that the run was **green**. A retry that succeeds reports success, so the only trace of a 140% day is in the row counts — which is why the check after the publish matters more than the alert on the failure.
 
 ---
 

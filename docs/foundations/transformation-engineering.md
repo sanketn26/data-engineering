@@ -11,7 +11,11 @@ description: Build tested, incremental, deployable SQL models rather than a DAG 
 
 09:15. Last night's Airflow retry reran the 02:00 revenue model after a transient timeout. This morning finance reports revenue is double what it should be for that hour. The DAG shows green.
 
-Before you read on, pick one: did the retry duplicate rows because (A) the model does a plain `INSERT` instead of a merge, (B) the incremental boundary has no overlap and skipped a watermark update, or (C) two DAG runs executed concurrently on the same partition?
+A. The model does a plain `INSERT` instead of a merge.
+B. The incremental boundary has no overlap and skipped a watermark update.
+C. Two DAG runs executed concurrently on the same partition.
+
+Pick one before you read on.
 
 It's (A) most often, and it's a modelling problem, not an orchestration one: Airflow decides **when** a transformation runs, but Spark, Trino, a warehouse, or dbt executes it, and the model itself must remain correct under retry, late data, backfill, and concurrent readers — that is, it must be **idempotent**: rerunning the same interval, on schedule or as a retry, produces the same output rather than duplicating or corrupting it. [Airflow idempotency](../airflow/idempotency.md) covers the orchestration side of this in depth later; here it drives the merge behavior below.
 
@@ -77,20 +81,11 @@ Pull requests should compile models, resolve dependencies, lint SQL, run unit fi
 
 ## What happened next { #what-happened-next }
 
-It was **(A)**. The model ends in `INSERT`, the retry ran the same hour again,
-and the 02:00 revenue rows exist twice. Airflow reported green because the
-retry succeeded — which it did, at exactly the job it was asked to do.
+It was **(A)**. The model ends in `INSERT`, the retry ran the same hour again, and the 02:00 revenue rows exist twice. Airflow reported green because the retry succeeded — which it did, at exactly the job it was asked to do.
 
-Maya's rerun is the cheapest test there is, and it is the one nobody runs: a
-model that is safe to re-execute produces the same table the second time. A
-`MERGE` on the model's key, or an `INSERT OVERWRITE` bounded to the incremental
-window, both pass it. A plain `INSERT` passes only when nothing ever retries.
+Maya's rerun is the cheapest test there is, and it is the one nobody runs: a model that is safe to re-execute produces the same table the second time. A `MERGE` on the model's key, or an `INSERT OVERWRITE` bounded to the incremental window, both pass it. A plain `INSERT` passes only when nothing ever retries.
 
-The other two options are real failures with different fingerprints — a missing
-watermark overlap *loses* rows rather than duplicating them, and [concurrent
-DAG runs on one partition](../airflow/idempotency.md) produce a number that
-changes between queries. All three arrive as "the number is wrong" and separate
-on whether the count is high, low, or unstable.
+The other two options are real failures with different fingerprints — a missing watermark overlap *loses* rows rather than duplicating them, and [concurrent DAG runs on one partition](../airflow/idempotency.md) produce a number that changes between queries. All three arrive as "the number is wrong" and separate on whether the count is high, low, or unstable.
 
 ---
 

@@ -256,19 +256,11 @@ Debugging pointers: Prom `head_series`; Timescale `EXPLAIN` chunk exclusion; CH 
 
 ## What happened next { #what-happened-next }
 
-There was no single engine, and the forty replies were unanswerable because
-nobody had stated an access pattern. Once the three teams did, they separated
-cleanly: scrape-and-alert on service SLOs is Prometheus-shaped; device readings
-joined to a customer table want SQL and relational joins; `user_id`-level
-latency is not a metric at all.
+There was no single engine, and the forty replies were unanswerable because nobody had stated an access pattern. Once the three teams did, they separated cleanly: scrape-and-alert on service SLOs is Prometheus-shaped; device readings joined to a customer table want SQL and relational joins; `user_id`-level latency is not a metric at all.
 
-The third team is the interesting one. Their data has a timestamp, which is why
-it arrived in a TSDB conversation, but its defining property is cardinality —
-and that is an events store's problem, as [cardinality](cardinality.md) works
-through at the cost of a Prometheus restart.
+The third team is the interesting one. Their data has a timestamp, which is why it arrived in a TSDB conversation, but its defining property is cardinality — and that is an events store's problem, as [cardinality](cardinality.md) works through at the cost of a Prometheus restart.
 
-The question that ends threads like this is what you write and what you read,
-asked before any product name is on screen.
+The question that ends threads like this is what you write and what you read, asked before any product name is on screen.
 
 ---
 

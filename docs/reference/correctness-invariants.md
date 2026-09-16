@@ -6,7 +6,10 @@ description: Exactly-once is not a platform checkbox — trace an event through 
 
 Postmortem, 11 AM. `revenue_agg` double-counted eleven minutes of orders after a Flink restart. Kafka replayed from the last committed offset — correctly, that is exactly what it is supposed to do. The sink was not idempotent. Nobody had asked "what happens if this exact batch is written twice?" because the team's mental model of correctness was "Kafka is exactly-once" — a claim about one hop, applied to the whole pipeline.
 
-A. The Kafka producer config was wrong. B. Flink checkpointing was misconfigured. C. Nobody named the invariant that should have held at the sink. D. This needs a bigger cluster.
+A. The Kafka producer config was wrong.
+B. Flink checkpointing was misconfigured.
+C. Nobody named the invariant that should have held at the sink.
+D. This needs a bigger cluster.
 
 It's (C). Every other answer patches one hop and leaves the same class of bug at the next one. This page exists because "exactly-once" is not a single guarantee you buy from a platform — it is a **chain of invariants**, one per hop, and the chain is only as strong as its weakest, unstated link. This synthesizes correctness mechanisms already covered per-system in [CDC](../foundations/cdc.md), [Kafka exactly-once](../kafka/exactly-once.md), and [batch vs stream](../foundations/batch-vs-stream.md); this page's job is to show them as one chain instead of three separate stories.
 
@@ -64,22 +67,11 @@ The postmortem's real finding is not "Flink replayed data" — replay is correct
 
 ## What happened next { #what-happened-next }
 
-It was **(C)**. Nobody had written down what had to be true at the sink, so
-nobody noticed it had stopped being true. Kafka replayed from the last
-committed offset, which is the behaviour it promises; Flink restarted from its
-checkpoint, which is the behaviour it promises; and `revenue_agg`
-double-counted eleven minutes because neither of those promises is about the
-sink.
+It was **(C)**. Nobody had written down what had to be true at the sink, so nobody noticed it had stopped being true. Kafka replayed from the last committed offset, which is the behaviour it promises; Flink restarted from its checkpoint, which is the behaviour it promises; and `revenue_agg` double-counted eleven minutes because neither of those promises is about the sink.
 
-"Kafka is exactly-once" was the mental model that failed, and it failed by
-being a true statement about one hop applied to a pipeline with four. Every hop
-has its own guarantee, and end-to-end correctness is the weakest one in the
-chain — the argument [exactly-once](../kafka/exactly-once.md) makes hop by hop
-— not the strongest one anybody can name.
+"Kafka is exactly-once" was the mental model that failed, and it failed by being a true statement about one hop applied to a pipeline with four. Every hop has its own guarantee, and end-to-end correctness is the weakest one in the chain — the argument [exactly-once](../kafka/exactly-once.md) makes hop by hop — not the strongest one anybody can name.
 
-The invariant that was missing fits on a line: *writing the same batch twice
-leaves `revenue_agg` unchanged.* Written down, it is testable in CI and
-checkable in a postmortem. Unwritten, it is something a team believes.
+The invariant that was missing fits on a line: *writing the same batch twice leaves `revenue_agg` unchanged.* Written down, it is testable in CI and checkable in a postmortem. Unwritten, it is something a team believes.
 
 ---
 

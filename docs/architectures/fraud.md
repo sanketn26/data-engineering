@@ -49,7 +49,7 @@ Partitions: 24–48 at 2k/s if scoring is heavier than the broker. **Key for sco
 
 ## V1 — fewest parts (ship a score)
 
-```
+```text
 Payment API → Kafka (or sync call into a scorer that also logs to Kafka)
            → Flink (rules + keyed velocity + in-process model)
            → response (sync sidecar) or async with a tight timeout
@@ -149,7 +149,7 @@ graph TD
 
 ### Hot path (< 200 ms) — still no graph
 
-```
+```text
 tx in → Flink / scorer
         lookup user_features (CH or KV)
         lookup device_risk
@@ -178,7 +178,7 @@ ORDER BY user_id;
 
 ### Ring detection (batch)
 
-```
+```text
 hourly/daily:
 1. Edges from Kafka/Iceberg: user–device, device–ip, user–card, user–merchant
 2. MERGE into Neo4j (or rebuild)
@@ -298,7 +298,7 @@ If you cannot join scores to labels, you do not have ML; you have rules with ext
 
 ## Graph edge model (batch)
 
-```
+```text
 (:User)-[:USED]->(:Device)
 (:User)-[:USED]->(:IP)
 (:User)-[:HAS]->(:Card)
@@ -351,18 +351,8 @@ Redis is a **p99** tool for hot features. It is a bad 30-day aggregate store and
 
 ## What happened next { #what-happened-next }
 
-Jordan's review answered its own question: nothing model-shaped belonged on the
-200 ms path. A faster model is a smaller model that is still a network call,
-and a 3-hop graph query against the live ledger is the
-[traversal](../graph/graph-vs-relational.md) that times out at 40 million rows.
+Jordan's review answered its own question: nothing model-shaped belonged on the 200 ms path. A faster model is a smaller model that is still a network call, and a 3-hop graph query against the live ledger is the [traversal](../graph/graph-vs-relational.md) that times out at 40 million rows.
 
-What goes on the path is what can be looked up: precomputed features in a
-low-latency store, a ring membership id written by a scheduled graph job, a
-velocity counter maintained by Flink. The expensive work happens before the
-authorization, and the decision reads the result.
+What goes on the path is what can be looked up: precomputed features in a low-latency store, a ring membership id written by a scheduled graph job, a velocity counter maintained by Flink. The expensive work happens before the authorization, and the decision reads the result.
 
-The 400 ms miss also settled fail-open versus fail-closed, which had been
-theoretical until a $4,200 chargeback made it concrete. A scorer that answers
-late is a scorer that did not answer, so the path needs a deadline and a
-declared behaviour when it expires — declined, or authorized and flagged for
-review. Both are defensible. Having no answer is not.
+The 400 ms miss also settled fail-open versus fail-closed, which had been theoretical until a $4,200 chargeback made it concrete. A scorer that answers late is a scorer that did not answer, so the path needs a deadline and a declared behaviour when it expires — declined, or authorized and flagged for review. Both are defensible. Having no answer is not.

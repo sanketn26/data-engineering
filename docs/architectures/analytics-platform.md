@@ -59,7 +59,7 @@ Partitions: 100k/s / ~5k/s ≈ 20; use **24–48** on `events`. Key = `customer_
 
 ## V1 — fewest parts (one tenant-aware serving table)
 
-```
+```text
 SDKs → Kafka (24–48 partitions, key=customer_id, 2–3 d retention in V1)
     → Flink or Spark Structured Streaming (schema, PII strip)
     → ClickHouse (customer_id in ORDER BY, 14–30 d TTL)
@@ -361,18 +361,8 @@ Quality: count `schema_id` parse fails per tenant. Silent drop of a whale looks 
 
 ## What happened next { #what-happened-next }
 
-Nobody wrote a cross-tenant query, and that is the finding. Acme's burst landed
-in the same query window as a smaller tenant's aggregate, and for a few seconds
-a dashboard showed traffic that was not its own — an isolation failure produced
-entirely by shared resources under load, with every query individually correct.
+Nobody wrote a cross-tenant query, and that is the finding. Acme's burst landed in the same query window as a smaller tenant's aggregate, and for a few seconds a dashboard showed traffic that was not its own — an isolation failure produced entirely by shared resources under load, with every query individually correct.
 
-The fixes are quotas and isolation rather than a bug fix: per-tenant rate
-limits at ingest, a partitioning scheme where one tenant's volume cannot
-monopolise a shard, and enough separation in the serving layer that the largest
-customer cannot degrade the smallest. Acme is 38% of events, so any design that
-treats tenants as interchangeable is already wrong.
+The fixes are quotas and isolation rather than a bug fix: per-tenant rate limits at ingest, a partitioning scheme where one tenant's volume cannot monopolise a shard, and enough separation in the serving layer that the largest customer cannot degrade the smallest. Acme is 38% of events, so any design that treats tenants as interchangeable is already wrong.
 
-This is the same company as the [SaaSCo timeline](saasco-evolution.md), viewed
-as a multi-tenant design problem instead of a chronology. The stages tell you
-when each component arrived; this page is what the finished platform owes every
-tenant on it, including the ones who are not 38%.
+This is the same company as the [SaaSCo timeline](saasco-evolution.md), viewed as a multi-tenant design problem instead of a chronology. The stages tell you when each component arrived; this page is what the finished platform owes every tenant on it, including the ones who are not 38%.

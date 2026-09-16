@@ -6,7 +6,13 @@ description: How Apache Pinot's segments, star-tree indexes, and realtime ingest
 
 **09:00 AM, every weekday.** The moment the workday starts, ClickHouse's p95 latency jumps from 80 ms to 4 seconds. CPU isn't pegged, disk isn't saturated — the cluster just can't keep up with the sudden burst of concurrent queries, each filtered to a different tenant, each wanting an answer in under 100 ms.
 
-Predict before you read on: (A) shard ClickHouse further, (B) add read replicas, (C) put a cache in front, or (D) the workload has outgrown what a scan-oriented engine was built for and needs a different index strategy?
+A. Shard ClickHouse further.
+B. Add read replicas.
+C. Put a cache in front.
+D. The workload has outgrown what a scan-oriented engine was built for and
+   needs a different index strategy.
+
+Predict before you read on.
 
 The same events ClickHouse loves — hundreds of millions a day — now sit behind a **customer** dashboard where ten thousand tenants open the app at 09:00, each asking "my company, last 15 minutes, breakdown by endpoint," and that concurrency-plus-freshness shape is what Apache Pinot was built for: segments, inverted indexes, star-trees, a realtime/offline split, brokers that fan out and merge.
 
@@ -16,7 +22,7 @@ The same events ClickHouse loves — hundreds of millions a day — now sit behi
 
 SaaS product analytics, user-facing:
 
-```
+```text
 {timestamp, customer_id, user_id, service, endpoint, status_code, latency_ms, country}
 ```
 
@@ -256,19 +262,11 @@ Always include the tenant predicate. Multi-tenant isolation in Pinot is **query 
 
 ## What happened next { #what-happened-next }
 
-It was **D**. Nothing was saturated because the problem was not throughput —
-ten thousand tenants each wanting a different small slice at 09:00 is a
-concurrency shape, and a scan-oriented engine answers each of those by
-scanning.
+It was **D**. Nothing was saturated because the problem was not throughput — ten thousand tenants each wanting a different small slice at 09:00 is a concurrency shape, and a scan-oriented engine answers each of those by scanning.
 
-More shards (A) and replicas (B) spread the scanning without removing it. A
-cache (C) works when tenants ask the same question, and each of these asks
-about their own company and their own last 15 minutes.
+More shards (A) and replicas (B) spread the scanning without removing it. A cache (C) works when tenants ask the same question, and each of these asks about their own company and their own last 15 minutes.
 
-The difference is the index. Inverted indexes and star-trees answer a
-tenant-filtered aggregation by lookup rather than by reading a range, which is
-what holds p99 under 100 ms while ten thousand of them arrive at once. Same
-events, same volume, a different question being asked of them.
+The difference is the index. Inverted indexes and star-trees answer a tenant-filtered aggregation by lookup rather than by reading a range, which is what holds p99 under 100 ms while ten thousand of them arrive at once. Same events, same volume, a different question being asked of them.
 
 ---
 

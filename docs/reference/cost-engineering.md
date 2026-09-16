@@ -11,7 +11,11 @@ description: Turn architecture choices into workload units, budgets, and scaling
 
 Finance pings the platform channel: the Kafka bill tripled this quarter and nobody can explain why in one sentence. Traffic is up maybe 20%.
 
-A. Blame the replication factor. B. Blame cross-AZ consumer fetches. C. Blame retention-window creep. D. Blame partition count. E. All of the above, in proportions nobody has measured.
+A. Blame the replication factor.
+B. Blame cross-AZ consumer fetches.
+C. Blame retention-window creep.
+D. Blame partition count.
+E. All of the above, in proportions nobody has measured.
 
 "Kafka is expensive" gets you nowhere in that meeting — only a broken-down number does. Cost is a workload property, and the rest of this page turns "expensive" into "three replicated copies plus cross-AZ consumers cost X per retained event": a claim you can actually defend.
 
@@ -116,17 +120,9 @@ the bill tripled, so the driver is not volume — it is some combination of
 replication factor, cross-AZ fetches, retention creep and partition count, in
 proportions nobody had measured.
 
-The reason nobody could explain it in one sentence is that the bill arrives as
-one number and the cost is four. A cluster's dollars decompose into bytes
-stored × replication × retention, plus bytes moved × the AZ crossings they
-make, plus a per-partition overhead that is invisible until partition count
-doubles.
+The reason nobody could explain it in one sentence is that the bill arrives as one number and the cost is four. A cluster's dollars decompose into bytes stored × replication × retention, plus bytes moved × the AZ crossings they make, plus a per-partition overhead that is invisible until partition count doubles.
 
-Elena does not need the bill to be lower on the spot. She needs a unit —
-dollars per million events, or per tenant, per month — because a unit cost that
-holds steady while volume grows is a platform working correctly, and a unit
-cost that climbs is the thing worth a quarter of engineering time. This page is
-how to compute that number before the next review.
+Elena does not need the bill to be lower on the spot. She needs a unit — dollars per million events, or per tenant, per month — because a unit cost that holds steady while volume grows is a platform working correctly, and a unit cost that climbs is the thing worth a quarter of engineering time. This page is how to compute that number before the next review.
 
 ---
 

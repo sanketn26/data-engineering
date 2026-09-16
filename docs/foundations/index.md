@@ -29,12 +29,14 @@ quarter one enterprise tenant — Acme, `cust_0042` — is **38% of volume** on
 their own and the total is 400 GB/day. The script is unchanged. The company is
 not.
 
-Before you read on, pick one: when that job dies, is it (A) RAM, (B) the
-network between machines, or (C) one customer's rows all landing on the same
-reducer? And would handing it to a 40-node Spark cluster fix the real problem,
-or relocate the OOM to a different process? Hold your answer — [Data at
-Scale](scale.md) opens on exactly this morning, and the four pages after it
-name each of the three mechanisms in turn.
+A. RAM.
+B. The network between machines.
+C. One customer's rows all landing on the same reducer.
+
+Pick one before you read on. And would handing it to a 40-node Spark cluster
+fix the real problem, or relocate the OOM to a different process? Hold your
+answer — [Data at Scale](scale.md) opens on exactly this morning, and the four
+pages after it name each of the three mechanisms in turn.
 
 The SQL didn't change; the *physics* did. This phase is the shared vocabulary for naming that physics before Spark, Kafka, Flink, Iceberg, and ClickHouse each fail at it in a different costume: **divide the work, move the data, survive a crash, combine the answers**. Two adjacent phases build directly on it: [Phase 1: Data Representation](parquet-internals.md) (Parquet internals, object storage, data modelling, data contracts, transformation engineering) covers how data is *shaped* once it's moving; [Phase 2: Data Movement](../kafka/index.md) (Kafka, plus [Change Data Capture](cdc.md)) covers how it gets from a source to everywhere it's needed. Read this phase first — Phase 1 and 2 both assume it.
 

@@ -263,7 +263,7 @@ Audit: user, spawn time, profile, SQL text to Trino/CH (engine-side). Hub logs a
 
 ## Papermill pattern (if you must)
 
-```
+```text
 Airflow → papermill input.ipynb → s3://reports/date=.../out.ipynb
 ```
 
@@ -336,12 +336,6 @@ specific path and leave the notebook holding 200,000 real emails — a
 screenshot, a copy-paste, or a write to any reachable bucket still works. Audit
 logging (D) tells Jordan about it on Monday.
 
-Giving the notebook masked, curated data instead of raw IAM removes the thing
-being exfiltrated. The analyst's actual work — distributions, joins, model
-features — is unaffected by `email` arriving hashed, because none of it needed
-the address.
+Giving the notebook masked, curated data instead of raw IAM removes the thing being exfiltrated. The analyst's actual work — distributions, joins, model features — is unaffected by `email` arriving hashed, because none of it needed the address.
 
-Which is the platform question rather than the security one: the notebook had
-`s3://lake/raw/**` because that was the easiest credential to hand out, not
-because anyone decided analysts should read raw PII. The other three controls
-are still worth having, in depth, behind this one.
+Which is the platform question rather than the security one: the notebook had `s3://lake/raw/**` because that was the easiest credential to hand out, not because anyone decided analysts should read raw PII. The other three controls are still worth having, in depth, behind this one.

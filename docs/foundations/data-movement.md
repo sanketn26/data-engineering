@@ -6,7 +6,12 @@ description: Why a Spark job's slow minutes are shuffle and network I/O, not com
 
 11:40. Maya has the Spark UI open. `percentile_approx` — the actual math — finishes in nine seconds. The whole job takes fourteen minutes. Nobody on the team can point at where the other thirteen-plus minutes went.
 
-Before you open the DAG: is the missing time (A) reading 500 GB from S3, (B) the shuffle for `groupBy("customer_id")`, or (C) writing the output? Customer `cust_0042` alone has rows sitting on machines A, B, and C — pick where you'd bet first.
+A. Reading 500 GB from S3.
+B. The shuffle for `groupBy("customer_id")`.
+C. Writing the output.
+
+Customer `cust_0042` alone has rows sitting on machines A, B, and C — pick
+where you'd bet first, before you open the DAG.
 
 It's usually (B): until those rows **meet**, the aggregation is a lie, and meeting means bytes on a wire, on disk, and through a serialiser. Moving data is expensive in time first, money second (especially cross-AZ and egress) — treat it as the design constraint, not as an implementation detail Spark will hide.
 
@@ -240,27 +245,13 @@ Fetch failures under **dynamic allocation** happen because executors with shuffl
 
 ## What happened next { #what-happened-next }
 
-It was **(B)**. Nine seconds of `percentile_approx`, about eleven minutes of
-shuffle, and the rest split between the S3 read and a write that produced far
-more files than rows deserved. Nobody had been able to point at the missing
-time because the Spark UI reports it honestly and in the wrong place: the
-*stage* boundary is where the money went, and the stage boundary is not an
-operator anyone wrote.
+It was **(B)**. Nine seconds of `percentile_approx`, about eleven minutes of shuffle, and the rest split between the S3 read and a write that produced far more files than rows deserved. Nobody had been able to point at the missing time because the Spark UI reports it honestly and in the wrong place: the *stage* boundary is where the money went, and the stage boundary is not an operator anyone wrote.
 
-The number Maya puts on the screen is bytes-shuffled, not CPU. Once it is
-there, the options stop being "add executors" and start being the real ones:
-project fewer columns before the shuffle so less has to move, pre-aggregate so
-the wire carries partial results instead of raw rows, and keep the exchange
-inside one AZ so the bill reflects the work.
+The number Maya puts on the screen is bytes-shuffled, not CPU. Once it is there, the options stop being "add executors" and start being the real ones: project fewer columns before the shuffle so less has to move, pre-aggregate so the wire carries partial results instead of raw rows, and keep the exchange inside one AZ so the bill reflects the work.
 
-Adding machines would have made it slightly worse. More executors means more
-fetch connections pulling the same bytes across the same NIC — the math is the
-same as the last page's: the expensive decision is where bytes have to meet.
+Adding machines would have made it slightly worse. More executors means more fetch connections pulling the same bytes across the same NIC — the math is the same as the last page's: the expensive decision is where bytes have to meet.
 
-This is the mechanism the p95 job has been paying for since Stage 2. What it
-looks like from inside Spark's scheduler is [Distributed
-Execution](distributed-execution.md); what it looks like when one key owns the
-exchange is [The Shuffle](../spark/shuffle.md).
+This is the mechanism the p95 job has been paying for since Stage 2. What it looks like from inside Spark's scheduler is [Distributed Execution](distributed-execution.md); what it looks like when one key owns the exchange is [The Shuffle](../spark/shuffle.md).
 
 ---
 

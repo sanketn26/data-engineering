@@ -117,7 +117,7 @@ A plan fragment is a **stage**. Stages connect with **exchanges**:
 | **Repartition** (hash) | Shuffle by key | Partitioned join, `GROUP BY` with high cardinality |
 | **Replicate** (broadcast) | Send the whole build side to every worker | Small dimension table |
 
-```
+```text
 Stage 0  (output / gather)
    ↑
 Stage 1  (join + partial aggregation)
@@ -314,23 +314,13 @@ Federation **cost** is a failure mode of the budget, not the JVM: a “cheap” 
 
 ## What happened next { #what-happened-next }
 
-It was **B**. The `WHERE` clause really was right there — wrapped in
-`date_trunc`. A function on the partition column means Trino can no longer
-match the predicate against Iceberg's manifests, so it stops pruning and reads
-all 400 days. Nothing errors. The query returns the correct answer, eventually,
-having scanned 400 TB to produce one day of rows.
+It was **B**. The `WHERE` clause really was right there — wrapped in `date_trunc`. A function on the partition column means Trino can no longer match the predicate against Iceberg's manifests, so it stops pruning and reads all 400 days. Nothing errors. The query returns the correct answer, eventually, having scanned 400 TB to produce one day of rows.
 
-Filtering on the typed partition column directly brings the same query back to
-a single day's manifests. `CAST(ds AS varchar) = '2024-06-12'` breaks it the
-same way, for the same reason.
+Filtering on the typed partition column directly brings the same query back to a single day's manifests. `CAST(ds AS varchar) = '2024-06-12'` breaks it the same way, for the same reason.
 
-The query was correct throughout. It returned the right rows before the fix and
-after it; only the time and the bill differed, and neither is visible in a
-result set. `EXPLAIN` is where the difference shows up — files or splits
-selected against the table's total.
+The query was correct throughout. It returned the right rows before the fix and after it; only the time and the bill differed, and neither is visible in a result set. `EXPLAIN` is where the difference shows up — files or splits selected against the table's total.
 
-The analyst had no symptom to go on. The clock and the bill arrive at Maya's
-desk instead.
+The analyst had no symptom to go on. The clock and the bill arrive at Maya's desk instead.
 
 ---
 

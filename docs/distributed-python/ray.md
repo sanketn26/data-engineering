@@ -332,15 +332,9 @@ not that Ray tasks are lighter than Spark UDF invocations — it is that the
 model is loaded once into an actor and the data reaches it through a
 shared-memory object store, instead of being serialized on every call.
 
-Tuning `spark.sql.shuffle.partitions` cannot reach that. The cost in the
-original pipeline was per-invocation serialization of a model that never
-changed, and no amount of partition sizing removes a cost that is paid inside
-each task.
+Tuning `spark.sql.shuffle.partitions` cannot reach that. The cost in the original pipeline was per-invocation serialization of a model that never changed, and no amount of partition sizing removes a cost that is paid inside each task.
 
-C was the answer to reject. The events still arrive through Kafka, the rollups
-are still [Spark](../spark/index.md)'s, and Ray owns the scoring and the
-simulation — the part with long-lived Python state that a batch engine was
-never shaped for.
+C was the answer to reject. The events still arrive through Kafka, the rollups are still [Spark](../spark/index.md)'s, and Ray owns the scoring and the simulation — the part with long-lived Python state that a batch engine was never shaped for.
 
 ---
 

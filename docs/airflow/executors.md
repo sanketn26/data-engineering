@@ -44,7 +44,7 @@ Hard parts:
 
 Picture a dispatch window:
 
-```
+```text
 Scheduler: "TI transform / 2024-01-15 is runnable"
 Executor:  "I have a slot on worker 3"  OR  "I will create pod airflow-transform-7f2a"
 Worker:    runs operator, heartbeats, writes state
@@ -75,7 +75,7 @@ graph TD
 
 Knobs that apply everywhere:
 
-```
+```text
 parallelism = 32                    # Max tasks running across entire Airflow
 dag_concurrency = 16                # Max tasks running per DAG (max_active_tasks)
 max_active_runs_per_dag = 1         # Max concurrent DAG runs per DAG
@@ -113,7 +113,7 @@ Internals: scheduler forks/execs task processes. Memory is the sum of all runnin
 
 The traditional production executor. Distributes tasks to a pool of Celery workers via a message broker (Redis or RabbitMQ).
 
-```
+```text
 Scheduler → Redis/RabbitMQ (message broker) → Celery Workers (run tasks)
 ```
 
@@ -140,7 +140,7 @@ S3KeySensor(..., queue="sensors", mode="reschedule")
 
 Spawns a new Kubernetes pod for each task. Tasks run in isolation and are cleaned up after completion.
 
-```
+```text
 Scheduler → Kubernetes API → Pod per task (runs and exits)
 ```
 
@@ -265,14 +265,9 @@ is not a promise that 32 slots exist. Two Celery workers at
 `worker_concurrency=2` is four slots, and four was exactly what was running.
 The other six workers had been gone long enough that nothing remembered them.
 
-Raising `parallelism` would have changed nothing, because the constraint was
-never the number Airflow was being asked about. Three limits stack —
-`parallelism`, per-DAG concurrency, and the pool — and the real ceiling is the
-smallest of them and the number of workers actually alive.
+Raising `parallelism` would have changed nothing, because the constraint was never the number Airflow was being asked about. Three limits stack — `parallelism`, per-DAG concurrency, and the pool — and the real ceiling is the smallest of them and the number of workers actually alive.
 
-The missing alert is the part worth keeping: a worker that disappears does not
-fail anything. Tasks simply queue, the UI stays green, and the first symptom is
-a dashboard that is late at 07:00.
+The missing alert is the part worth keeping: a worker that disappears does not fail anything. Tasks simply queue, the UI stays green, and the first symptom is a dashboard that is late at 07:00.
 
 ---
 

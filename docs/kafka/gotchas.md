@@ -346,19 +346,11 @@ You debug fraud, then notice `BytesInPerSec` on `device-state` is 40× normal on
 
 ## What happened next { #what-happened-next }
 
-It was **D**. The alert database had slowed down, the consumer was blocking on
-writes, and Kafka lag rose as a faithful mirror of a problem that was not
-Kafka's. Nothing crashed, no broker was down, and the single PagerDuty alert
-was pointing at the symptom.
+It was **D**. The alert database had slowed down, the consumer was blocking on writes, and Kafka lag rose as a faithful mirror of a problem that was not Kafka's. Nothing crashed, no broker was down, and the single PagerDuty alert was pointing at the symptom.
 
-The other three produce the same lag curve with different fingerprints: an
-ingest spike moves bytes-in first, a hot key leaves 47 partitions healthy and
-one behind, and a rebalance storm shows in group coordinator logs with
-throughput that stops and restarts. Lag alone separates none of them.
+The other three produce the same lag curve with different fingerprints: an ingest spike moves bytes-in first, a hot key leaves 47 partitions healthy and one behind, and a rebalance storm shows in group coordinator logs with throughput that stops and restarts. Lag alone separates none of them.
 
-Which is the argument for the metric set on this page over a single lag alert —
-bytes-in, per-partition lag, rebalance rate, and sink latency, because the four
-incidents are only distinguishable before they all look like "lag is up."
+Which is the argument for the metric set on this page over a single lag alert — bytes-in, per-partition lag, rebalance rate, and sink latency, because the four incidents are only distinguishable before they all look like "lag is up."
 
 ---
 

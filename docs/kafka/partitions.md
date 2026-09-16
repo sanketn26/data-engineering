@@ -72,7 +72,7 @@ A second group (`warehouse-loader`) has its own assignment and its own offsets. 
 
 **Order is per partition.** Cross-partition, there is no "happened before".
 
-```
+```text
 Partition 0: A (10:00:01) → B (10:00:02) → C (10:00:03)
 Partition 1: D (10:00:01) → E (10:00:02)
 ```
@@ -137,7 +137,7 @@ Rules:
 3. Extra members beyond partition count sit idle.
 4. Different groups do not share assignments.
 
-```
+```text
 4 partitions, 6 consumers in `alert-processor`:
   C0..C3: one partition each
   C4, C5: idle
@@ -163,7 +163,7 @@ When membership or subscribed partitions change, the group **rebalances**.
 
 **Eager** (classic `range`, `roundrobin`, `sticky` assignors): every member **revokes all partitions**, stops processing, commits if configured, then receives a new assignment. This is stop-the-world. A 200-partition group with slow `onPartitionsRevoked` (flushing a buffer, calling an external API) stalls *all* consumption.
 
-```
+```text
 Before:  A{0,1}  B{2,3}
 C joins (eager): everyone pauses
 After:   A{0,1}  B{2}  C{3}     # sticky tries to minimise movement
@@ -202,7 +202,7 @@ More partitions: more parallelism, more open files, more replication threads, sl
 
 **Rule of thumb:** start from required consumer throughput, not from a round number.
 
-```
+```text
 needed_partitions ≈ peak_in_records_per_sec / per_consumer_records_per_sec
 ```
 
@@ -219,7 +219,7 @@ You **can increase** partition count. You **cannot decrease** it without creatin
 
 **Lag** = log end offset − consumer's committed (or fetched) offset, **per partition**.
 
-```
+```text
 Partition 0: log end 10_000, committed 9_500 → lag 500
 ```
 
@@ -238,7 +238,7 @@ Lag that approaches retention is not a latency problem; it is impending **data l
 
 Partition by `customer_id` in SaaS analytics. One enterprise tenant emits 40% of events.
 
-```
+```text
 P0 Acme: 40_000/s
 P1 SmallCo:  1_000/s
 P2 MidCorp:  5_000/s
@@ -316,19 +316,11 @@ real per-partition counts. Finish with the
 
 ## What happened next { #what-happened-next }
 
-`service-events` has 12 partitions — **B** — so 12 partitions, so 12 consumers
-in the group can be assigned work and the other 40 pods sit idle holding
-nothing. The rebalance happened, quickly and correctly, and assigned 12 of 52.
+`service-events` has 12 partitions — **B** — so 12 partitions, so 12 consumers in the group can be assigned work and the other 40 pods sit idle holding nothing. The rebalance happened, quickly and correctly, and assigned 12 of 52.
 
-Partition count is the parallelism ceiling for a consumer group, and it is set
-on the topic, not on the deployment. Scaling past it costs money and changes
-nothing — which is why the ten minutes of waiting produced exactly the lag it
-started with.
+Partition count is the parallelism ceiling for a consumer group, and it is set on the topic, not on the deployment. Scaling past it costs money and changes nothing — which is why the ten minutes of waiting produced exactly the lag it started with.
 
-Raising partitions is the real lever and it is not a slider: `hash(key) % 12`
-is not `hash(key) % 48`, so per-key order splits at the moment of the change.
-That is a compatibility event to plan, and it is also why C matters — if one
-`customer_id` is hot, more partitions will not split it either.
+Raising partitions is the real lever and it is not a slider: `hash(key) % 12` is not `hash(key) % 48`, so per-key order splits at the moment of the change. That is a compatibility event to plan, and it is also why C matters — if one `customer_id` is hot, more partitions will not split it either.
 
 ---
 

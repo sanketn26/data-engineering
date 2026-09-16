@@ -6,7 +6,10 @@ description: Practice diagnosing Kafka hot partitions, Spark skew, and Flink wat
 
 02:47. Maya's pager: `P1 consumer_lag_seconds{topic="product-events"} > 180`. Three teams' dashboards go stale in the next ten minutes and she has not opened a terminal yet. You are Maya for the next twenty minutes.
 
-A. Restart the consumer group. B. Add more processing slots. C. Check per-partition lag before touching anything else. D. Page the on-call lead and wait for guidance.
+A. Restart the consumer group.
+B. Add more processing slots.
+C. Check per-partition lag before touching anything else.
+D. Page the on-call lead and wait for guidance.
 
 Only one of those survives contact with the metrics below — figuring out which one, before you act, is the whole exercise on this page. These are drills, not blog posts. Read **Alert** and **Symptoms**. Write a hypothesis. Only then open **Resolution**.
 

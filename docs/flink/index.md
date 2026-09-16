@@ -213,19 +213,8 @@ You are done when you can look at a Flink UI: checkpoint duration, backpressure 
 
 ## What happened next { #what-happened-next }
 
-Six hours of silence with zero lag is the combination that makes this a Flink
-page rather than a Kafka one. Every record was consumed — that is what lag zero
-means — and no window ever closed, so nothing was emitted and nobody was
-alerted. The user with 40 failed logins in eleven minutes is in the state
-backend, counted, unreported.
+Six hours of silence with zero lag is the combination that makes this a Flink page rather than a Kafka one. Every record was consumed — that is what lag zero means — and no window ever closed, so nothing was emitted and nobody was alerted. The user with 40 failed logins in eleven minutes is in the state backend, counted, unreported.
 
-The gap between "consumed" and "processed into an answer" is where event time
-lives. A watermark is the job's belief about how far time has advanced, it is
-the minimum across all input partitions, and overnight one quiet partition can
-hold it still while everything else looks healthy.
+The gap between "consumed" and "processed into an answer" is where event time lives. A watermark is the job's belief about how far time has advanced, it is the minimum across all input partitions, and overnight one quiet partition can hold it still while everything else looks healthy.
 
-Which is why this module starts at [time](time.md) rather than at the API, then
-[windows](windows.md) for the shape that decides what counts, [state](state.md)
-for what a stateful job keeps, and [checkpoints](checkpoints.md) for how much
-of it survives a restart. SaaSCo reaches here at [Stage
-4](../architectures/saasco-evolution.md#stage-4-freshness-under-10-seconds-flink-appears-phase-4).
+Which is why this module starts at [time](time.md) rather than at the API, then [windows](windows.md) for the shape that decides what counts, [state](state.md) for what a stateful job keeps, and [checkpoints](checkpoints.md) for how much of it survives a restart. SaaSCo reaches here at [Stage 4](../architectures/saasco-evolution.md#stage-4-freshness-under-10-seconds-flink-appears-phase-4).

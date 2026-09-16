@@ -139,7 +139,7 @@ Using Flink to rewrite a 200 TB Iceberg table is possible and usually worse. Usi
 
 ## Both together (default for serious platforms)
 
-```
+```text
 Kafka → Flink  → ClickHouse     (seconds)
      → Spark  → Iceberg → Trino (hours)
 ```
@@ -150,7 +150,7 @@ This is not waste. It is two SLAs. Sharing "one compute cluster to simplify ops"
 
 ## Decision checklist
 
-```
+```text
 Latency < 1 s?                         → Flink (or not Spark)
 Keyed state / sessions / velocity?     → Flink
 Primary work is lakehouse SQL?         → Spark
@@ -316,15 +316,6 @@ same conclusion Jordan reached in the [Flink comparison](../flink/comparison.md)
 from the other direction, and deliberately the same argument rather than a
 second one.
 
-The specifics are what make it B rather than A. Thirty-minute event-time
-session windows with 10 minutes of allowed lateness mean state has to live
-across micro-batches, late events have to reopen windows that already emitted,
-and session gaps have to be evaluated per user rather than per batch.
-Structured Streaming can be made to do all of it. Every one of those is native
-in the engine built for event time, and a workaround in the engine built for
-batches.
+The specifics are what make it B rather than A. Thirty-minute event-time session windows with 10 minutes of allowed lateness mean state has to live across micro-batches, late events have to reopen windows that already emitted, and session gaps have to be evaluated per user rather than per batch. Structured Streaming can be made to do all of it. Every one of those is native in the engine built for event time, and a workaround in the engine built for batches.
 
-The 1-second trigger was the tell. It is a request for the batch interval to
-stop mattering, which is the point at which the batch model has stopped being
-the right one — and the cluster already running the lake keeps running the
-lake.
+The 1-second trigger was the tell. It is a request for the batch interval to stop mattering, which is the point at which the batch model has stopped being the right one — and the cluster already running the lake keeps running the lake.

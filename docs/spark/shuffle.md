@@ -308,26 +308,13 @@ turns that observation into a diagnosis.
 
 ## What happened next { #what-happened-next }
 
-The answer was **B**. Not the network, not too few partitions, not uniform
-spill: 199 reducers finished in four minutes and one owned `cust_0042`'s share
-of the day. Maya finds it in the stage's task-duration histogram rather than in
-a config file — median four minutes, max forty and climbing, on a cluster whose
-CPU graphs looked idle because 199 executors had nothing left to do.
+The answer was **B**. Not the network, not too few partitions, not uniform spill: 199 reducers finished in four minutes and one owned `cust_0042`'s share of the day. Maya finds it in the stage's task-duration histogram rather than in a config file — median four minutes, max forty and climbing, on a cluster whose CPU graphs looked idle because 199 executors had nothing left to do.
 
-Raising `spark.sql.shuffle.partitions` would not have helped. Every hash of
-`cust_0042` lands in the same bucket no matter how many buckets there are. AQE
-skew join would not have helped either — this is an aggregation, not a join.
-What fixes it is changing the key: salt `customer_id` into sixteen sub-keys,
-aggregate twice, and the whale's 760 GB becomes sixteen reducers of ~48 GB. The
-job is back under twenty minutes.
+Raising `spark.sql.shuffle.partitions` would not have helped. Every hash of `cust_0042` lands in the same bucket no matter how many buckets there are. AQE skew join would not have helped either — this is an aggregation, not a join. What fixes it is changing the key: salt `customer_id` into sixteen sub-keys, aggregate twice, and the whale's 760 GB becomes sixteen reducers of ~48 GB. The job is back under twenty minutes.
 
-Nothing about the cluster changed: the same twenty executors, the same memory,
-the same engine. One different key.
+Nothing about the cluster changed: the same twenty executors, the same memory, the same engine. One different key.
 
-Percentiles are the sting in the tail. `count` and `sum` merge cleanly across
-salts; `percentile_approx` needs a mergeable sketch or a separate path for the
-whale — which is why the p95 job stayed slow a week longer than the byte counts
-did.
+Percentiles are the sting in the tail. `count` and `sum` merge cleanly across salts; `percentile_approx` needs a mergeable sketch or a separate path for the whale — which is why the p95 job stayed slow a week longer than the byte counts did.
 
 ---
 

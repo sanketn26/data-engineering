@@ -11,7 +11,11 @@ description: Snapshot, stream, order, replay, and reconcile database changes saf
 
 02:17 AM page: the orders sink in the lake is missing 40 rows that definitely exist in Postgres. The connector logs show no errors. Someone ran a one-time `COPY` of the table into Kafka last week to "backfill it faster."
 
-Before you read on, pick one: were those 40 rows lost because (A) the COPY ran before the log position was established, (B) a later update raced an earlier snapshot row into the sink, or (C) the primary key changed underneath the connector?
+A. The COPY ran before the log position was established.
+B. A later update raced an earlier snapshot row into the sink.
+C. The primary key changed underneath the connector.
+
+Pick one before you read on.
 
 It's almost always (A) or (B), because CDC is not "send database rows to Kafka" — it is a protocol for reproducing committed database history from a snapshot plus a position in the transaction log, and the two must be sequenced correctly or rows silently vanish or get overwritten.
 
@@ -116,23 +120,11 @@ Periodically repair from a bounded source snapshot. A replay procedure that has 
 
 ## What happened next { #what-happened-next }
 
-The `COPY` is where the rows went — **(A)**. It ran without establishing a log
-position first, so every row changed between the start of that copy and the
-beginning of streaming fell into a gap that nothing was watching. Forty rows,
-no errors, because from the connector's point of view nothing failed — it was
-not yet reading.
+The `COPY` is where the rows went — **(A)**. It ran without establishing a log position first, so every row changed between the start of that copy and the beginning of streaming fell into a gap that nothing was watching. Forty rows, no errors, because from the connector's point of view nothing failed — it was not yet reading.
 
-That is the snapshot-to-stream handoff, and it only works in one order: record
-the LSN, take the snapshot, then stream from the recorded position, accepting
-that the overlap will replay some rows. The overlap is what makes the handoff
-safe, which is why the sink has to be idempotent on the primary key rather than
-append-only.
+That is the snapshot-to-stream handoff, and it only works in one order: record the LSN, take the snapshot, then stream from the recorded position, accepting that the overlap will replay some rows. The overlap is what makes the handoff safe, which is why the sink has to be idempotent on the primary key rather than append-only.
 
-"Backfill it faster" is where this starts. A `COPY` into Kafka looks like the
-same data and carries none of the ordering guarantees the connector's snapshot
-provides — and the only way Maya found the gap was reconciling counts against
-Postgres, which is the check this page argues should run on a schedule rather
-than at 02:17.
+"Backfill it faster" is where this starts. A `COPY` into Kafka looks like the same data and carries none of the ordering guarantees the connector's snapshot provides — and the only way Maya found the gap was reconciling counts against Postgres, which is the check this page argues should run on a schedule rather than at 02:17.
 
 ---
 

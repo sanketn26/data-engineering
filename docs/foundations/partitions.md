@@ -302,27 +302,13 @@ Fixes, in order: **measure the histogram** → **change storage key** if pruning
 
 ## What happened next { #what-happened-next }
 
-Jordan does not take `region`. The review ends with the split the two jobs were
-always asking for: the lake is partitioned on **`date`**, because that is the
-only key both jobs filter on and the only one with low enough cardinality to
-avoid a directory bomb. `region` becomes a *sort* column inside the files, so
-the BI scan still skips most of what it reads without a worker owning
-`eu-west-1`. And the `GROUP BY customer_id` rollup does not get a directory at
-all — its key is a **shuffle** key, chosen at compute time, not a storage
-layout.
+Jordan does not take `region`. The review ends with the split the two jobs were always asking for: the lake is partitioned on **`date`**, because that is the only key both jobs filter on and the only one with low enough cardinality to avoid a directory bomb. `region` becomes a *sort* column inside the files, so the BI scan still skips most of what it reads without a worker owning `eu-west-1`. And the `GROUP BY customer_id` rollup does not get a directory at all — its key is a **shuffle** key, chosen at compute time, not a storage layout.
 
-That answers the question the room actually had: partitioning is not one
-decision. It is one decision for storage and a different one for compute, and
-`region` was a good answer to neither.
+That answers the question the room actually had: partitioning is not one decision. It is one decision for storage and a different one for compute, and `region` was a good answer to neither.
 
-The hot key is still there. `cust_0042` at 38% of events now means one reducer
-owns 38% of the rollup, and no partition layout on S3 changes that — it is
-decided when the shuffle hashes the key. That is [The
-Shuffle](../spark/shuffle.md), the next page that has to pay for this one.
+The hot key is still there. `cust_0042` at 38% of events now means one reducer owns 38% of the rollup, and no partition layout on S3 changes that — it is decided when the shuffle hashes the key. That is [The Shuffle](../spark/shuffle.md), the next page that has to pay for this one.
 
-This is [SaaSCo Stage
-2](../architectures/saasco-evolution.md#stage-2-400-gbday-spark-appears-phase-0-phase-3):
-still one nightly Spark job, now with a layout that survives the next 10×.
+This is [SaaSCo Stage 2](../architectures/saasco-evolution.md#stage-2-400-gbday-spark-appears-phase-0-phase-3): still one nightly Spark job, now with a layout that survives the next 10×.
 
 ---
 

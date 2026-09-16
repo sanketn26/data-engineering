@@ -6,7 +6,11 @@ description: Choose Airflow, Flink, Spark, or a warehouse from measured workload
 
 Design review, Tuesday 2 PM. The proposal: migrate the nightly NPS CSV job (20 MB, due Friday noon) from Airflow to Flink, "so we're stream-native before Q3." Nobody in the room can name what breaks if it stays batch.
 
-A. Approve it — Flink is the more modern choice. B. Reject it and ask what latency requirement changed. C. Approve it, but only if two other jobs migrate too, to amortize the ops cost. D. Table it until someone writes down the SLA.
+A. Approve it — Flink is the more modern choice.
+B. Reject it and ask what latency requirement changed.
+C. Approve it, but only if two other jobs migrate too, to amortize the ops
+   cost.
+D. Table it until someone writes down the SLA.
 
 Only one of these asks the question this page exists to force. Choose tools from **workload properties**, not from blogs or resume pressure. This page is a procedure: questions, a mapping table, failure questions, anti-patterns, then worked examples from the running systems.
 
@@ -219,7 +223,7 @@ If your doc contains three of these, stop drawing.
 
 ## Decision record (copy this)
 
-```
+```text
 Consumer + SLO:
 Volume (events/s, GB/day, retain):
 Access (get / agg / join / graph):
@@ -314,17 +318,8 @@ If the PR is a landscape diagram with 18 logos, bounce it.
 
 ## What happened next { #what-happened-next }
 
-It was **B**. Rejecting it is not the point — asking what latency requirement
-changed is, and nobody in the room could answer. A 20 MB CSV due Friday noon
-has no freshness requirement that batch fails to meet, so "stream-native before
-Q3" is a statement about a roadmap rather than about the workload.
+It was **B**. Rejecting it is not the point — asking what latency requirement changed is, and nobody in the room could answer. A 20 MB CSV due Friday noon has no freshness requirement that batch fails to meet, so "stream-native before Q3" is a statement about a roadmap rather than about the workload.
 
-D is close and still lets the proposal survive on a technicality: tabling it
-until someone writes the SLA treats the missing requirement as paperwork.
-Jordan's version asks the question in the room, because the answer is usually
-"none" and the proposal ends there.
+D is close and still lets the proposal survive on a technicality: tabling it until someone writes the SLA treats the missing requirement as paperwork. Jordan's version asks the question in the room, because the answer is usually "none" and the proposal ends there.
 
-This is the whole framework in one exchange. Every selection on the pages here
-starts from a measured requirement — latency class, state size, concurrency,
-correctness — and any component that cannot be traced back to one is a pager
-rotation with no workload behind it.
+This is the whole framework in one exchange. Every selection on the pages here starts from a measured requirement — latency class, state size, concurrency, correctness — and any component that cannot be traced back to one is a pager rotation with no workload behind it.
