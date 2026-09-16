@@ -39,7 +39,7 @@ Kafka is not a queue. It is a **distributed, replicated, append-only log**.
 
 Producers append. Consumers *read from an offset*. The log stays around for a retention window (or is compacted to the latest value per key). Ten consumer groups can read the same bytes at ten different speeds. Replay is seeking, not begging the producer to send again.
 
-```
+```text
 Partition 0 of `service-events`
 offset   0     1     2     3     4     5     6     7
          e0 → e1 → e2 → e3 → e4 → e5 → e6 → e7 → (tail)
@@ -177,7 +177,7 @@ If you remember one operational sentence: **Kafka is a disk and metadata system 
 
 Do not create `service-events` until you can fill this:
 
-```
+```text
 key:           customer_id          # order scope
 partitions:    24                   # headroom for consumers
 RF / min.ISR:  3 / 2
@@ -218,20 +218,8 @@ You are done with Kafka as a *platform* when you can look at a lag graph, an ISR
 
 ## What happened next { #what-happened-next }
 
-Billing caught up on its own, which is the property worth naming. Five
-consumers read `service-events` at five different speeds, and the slow one did
-not slow the API gateway, did not block fraud or search, and did not lose the
-nine minutes it was behind — because each group owns its offsets and the log
-keeps records until retention says otherwise, not until someone reads them.
+Billing caught up on its own, which is the property worth naming. Five consumers read `service-events` at five different speeds, and the slow one did not slow the API gateway, did not block fraud or search, and did not lose the nine minutes it was behind — because each group owns its offsets and the log keeps records until retention says otherwise, not until someone reads them.
 
-The version of this system where billing is a queue that deletes on
-acknowledgement, or a database table five services poll, fails all three ways
-at once: the writer feels the slow reader, the readers compete for the same
-rows, and replay is a restore from backup.
+The version of this system where billing is a queue that deletes on acknowledgement, or a database table five services poll, fails all three ways at once: the writer feels the slow reader, the readers compete for the same rows, and replay is a restore from backup.
 
-That is what the rest of this module builds out — [the log](log.md) itself,
-[partitions](partitions.md) as the parallelism unit,
-[replication](replication.md) for the broker that loses a disk, and
-[gotchas](gotchas.md) for the morning lag climbs and nothing has crashed.
-SaaSCo arrives here at [Stage
-3](../architectures/saasco-evolution.md#stage-3-4-tbday-kafka-appears-phase-2).
+That is what the rest of this module builds out — [the log](log.md) itself, [partitions](partitions.md) as the parallelism unit, [replication](replication.md) for the broker that loses a disk, and [gotchas](gotchas.md) for the morning lag climbs and nothing has crashed. SaaSCo arrives here at [Stage 3](../architectures/saasco-evolution.md#stage-3-4-tbday-kafka-appears-phase-2).

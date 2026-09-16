@@ -106,7 +106,7 @@ New commits **add a metadata file** and CAS-update the catalog pointer. Old meta
 
 When a writer commits, it creates a new snapshot. The old snapshot remains valid.
 
-```
+```text
 Time →
 
 Snapshot 1: [file-001, file-002, file-003]
@@ -206,7 +206,7 @@ Hive cannot do this: `dt=` is a directory convention. Iceberg stores the spec id
 
 Traditional Hive-style partitioning requires explicit partition columns:
 
-```
+```text
 s3://events/year=2024/month=01/day=15/file.parquet
 ```
 
@@ -333,14 +333,9 @@ its commit against it. Nothing was locked — Spark's MERGE and Flink's CDC
 writer both ran to completion, and the swap of a single atomic pointer decided
 the order between them.
 
-That is why nobody lost data: a commit is a compare-and-swap on the metadata
-location, so the loser learns it lost *before* anything is visible and rebuilds
-against what actually committed. On a raw Parquet prefix the same 90 seconds
-would have produced two sets of files and no answer to which was the table.
+That is why nobody lost data: a commit is a compare-and-swap on the metadata location, so the loser learns it lost *before* anything is visible and rebuilds against what actually committed. On a raw Parquet prefix the same 90 seconds would have produced two sets of files and no answer to which was the table.
 
-Jordan's design-review point holds here: optimistic concurrency is cheap when
-collisions are rare and expensive when they are not. Two writers in a 90-second
-window retry once. Twenty writers on the same table spend the day retrying.
+Jordan's design-review point holds here: optimistic concurrency is cheap when collisions are rare and expensive when they are not. Two writers in a 90-second window retry once. Twenty writers on the same table spend the day retrying.
 
 ---
 

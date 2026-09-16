@@ -251,9 +251,7 @@ CDC-specific: the stream is a **log of mutations**. Treating it as a batch of �
 
 ## What happened next { #what-happened-next }
 
-Jordan does not agree to "everything on Flink." The review ends by separating
-the three questions instead of the three technologies, because they were never
-the same requirement:
+Jordan does not agree to "everything on Flink." The review ends by separating the three questions instead of the three technologies, because they were never the same requirement:
 
 - The CFO's monthly usage number is due **Monday 09:00**. An hour late is
   invisible. This is a batch job, and putting it on Flink buys nothing except a
@@ -266,13 +264,9 @@ the same requirement:
   only one of the three where being an hour late is an incident rather than an
   annoyed Slack message.
 
-One of the three needs streaming. The other two were sorted by asking how late
-each answer is allowed to be and how much state has to be remembered between
-events — not by which engine was proposed.
+One of the three needs streaming. The other two were sorted by asking how late each answer is allowed to be and how much state has to be remembered between events — not by which engine was proposed.
 
-The 200 ms case is what eventually brings Flink in, at [SaaSCo Stage
-4](../architectures/saasco-evolution.md#stage-4-freshness-under-10-seconds-flink-appears-phase-4)
-— years after this review, for exactly one of these three questions.
+The 200 ms case is what eventually brings Flink in, at [SaaSCo Stage 4](../architectures/saasco-evolution.md#stage-4-freshness-under-10-seconds-flink-appears-phase-4) — years after this review, for exactly one of these three questions.
 
 ---
 

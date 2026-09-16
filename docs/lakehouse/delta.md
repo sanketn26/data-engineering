@@ -42,7 +42,7 @@ Hard parts: log length (hence checkpoints), concurrent commits (lost update on t
 
 Delta is Git with a linear `main` and no branches in the original protocol: commit N+1 names files added and removed relative to N. Checkpoints are **squash**: a Parquet snapshot of the current file set so you do not replay 10,000 JSON files.
 
-```
+```text
 version 10 checkpoint: {file-a, file-b, file-c}
 version 11 JSON: add file-d, remove file-b
 current table = {file-a, file-c, file-d}
@@ -56,7 +56,7 @@ Time travel = stop replay at version K. VACUUM = delete files not in any version
 
 Delta Lake stores all table changes in a **transaction log** — a directory `_delta_log/` containing JSON files describing every operation.
 
-```
+```text
 s3://orders/
     _delta_log/
         00000000000000000000.json   (initial table creation)
@@ -313,15 +313,9 @@ Not "which is best" — [choose by workload](comparison.md).
 window referenced, and the Trino query had been pinned to a six-hour-old
 version that still needed them. Both behaved exactly as configured.
 
-The retention window is a promise about how long old versions stay readable,
-and a query that runs for three hours is a reader holding a version for three
-hours. Seven days of retention sounds generous until the question becomes
-whether anything is *reading* the version being collected.
+The retention window is a promise about how long old versions stay readable, and a query that runs for three hours is a reader holding a version for three hours. Seven days of retention sounds generous until the question becomes whether anything is *reading* the version being collected.
 
-The `FileNotFoundException` is the honest failure here. A [table format that
-kept no log](why-table-formats.md) would have given the same query a silently
-different answer — the files simply gone, the count quietly lower, and the
-analyst asleep either way.
+The `FileNotFoundException` is the honest failure here. A [table format that kept no log](why-table-formats.md) would have given the same query a silently different answer — the files simply gone, the count quietly lower, and the analyst asleep either way.
 
 ---
 

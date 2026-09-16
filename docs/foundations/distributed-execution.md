@@ -221,26 +221,13 @@ Retries: Spark retries tasks, then stages (`spark.stage.maxConsecutiveAttempts`)
 
 ## What happened next { #what-happened-next }
 
-Twenty more executors would not have helped. The stage cannot finish until its
-slowest task does, so the cluster would have gained twenty machines waiting on
-the same one — more cost, identical wall-clock, and a cheaper-looking CPU graph
-to argue about.
+Twenty more executors would not have helped. The stage cannot finish until its slowest task does, so the cluster would have gained twenty machines waiting on the same one — more cost, identical wall-clock, and a cheaper-looking CPU graph to argue about.
 
-What turned one line of `groupBy("service")` into 199 fast tasks and one slow
-one is the cut in the graph. Spark splits at every point where data must move,
-each side becomes a set of tasks, and the reduce side gets one task per key
-range. `500`s are not spread evenly across services: one service produced most
-of them, its rows all hashed to one range, and that task inherited a share of
-the data the other 199 never saw.
+What turned one line of `groupBy("service")` into 199 fast tasks and one slow one is the cut in the graph. Spark splits at every point where data must move, each side becomes a set of tasks, and the reduce side gets one task per key range. `500`s are not spread evenly across services: one service produced most of them, its rows all hashed to one range, and that task inherited a share of the data the other 199 never saw.
 
-So Maya's answer to Jordan is neither "undersized" nor "something else": 40
-cores were fine, and one of them had twenty-five minutes of work. The fix lives
-at the key, not at the cluster size.
+So Maya's answer to Jordan is neither "undersized" nor "something else": 40 cores were fine, and one of them had twenty-five minutes of work. The fix lives at the key, not at the cluster size.
 
-Once you can name the job, the stages, the tasks, and the straggler, the Spark
-UI stops being decorative: sort the stage's tasks by duration, and the gap
-between median and max tells you which of the two problems you have. Flink,
-Trino, and Ray draw the same hierarchy with different nouns.
+Once you can name the job, the stages, the tasks, and the straggler, the Spark UI stops being decorative: sort the stage's tasks by duration, and the gap between median and max tells you which of the two problems you have. Flink, Trino, and Ray draw the same hierarchy with different nouns.
 
 ---
 

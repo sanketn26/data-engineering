@@ -58,7 +58,7 @@ Serving:
 
 **Goal:** reliable analytics on orders + a clickstream lake. No recs, no real-time inventory microservice.
 
-```
+```text
 Postgres (orders, payments, users, stock)
     → Debezium
     → Kafka (CDC topics, keyed by PK)
@@ -375,20 +375,8 @@ Pick user `U`. List every copy: PG, Kafka (retention days), Iceberg files, CH, N
 
 ## What happened next { #what-happened-next }
 
-Thirty days was enough, but only because the lake had table formats and not
-because anyone had planned for erasure. Twenty Parquet files across as many
-partitions is a rewrite job, and a rewrite job is only safe when something can
-name the table before and after — which is the
-[Iceberg](../lakehouse/iceberg.md) argument arriving as a legal deadline rather
-than a design review.
+Thirty days was enough, but only because the lake had table formats and not because anyone had planned for erasure. Twenty Parquet files across as many partitions is a rewrite job, and a rewrite job is only safe when something can name the table before and after — which is the [Iceberg](../lakehouse/iceberg.md) argument arriving as a legal deadline rather than a design review.
 
-The part that took the time was not the delete. It was enumerating where the
-customer's rows actually were: the lake, the ClickHouse serving table, the
-Kafka topic still inside its retention window, three derived marts, and a
-backup nobody had scoped. Lineage would have answered in minutes what took days
-of asking people.
+The part that took the time was not the delete. It was enumerating where the customer's rows actually were: the lake, the ClickHouse serving table, the Kafka topic still inside its retention window, three derived marts, and a backup nobody had scoped. Lineage would have answered in minutes what took days of asking people.
 
-Erasure is also why CDC deletes matter more here than anywhere else in this
-academy. A tombstone that is dropped by a connector, or a soft delete that
-never propagates, is a compliance gap that looks exactly like a working
-pipeline.
+Erasure is also why CDC deletes matter more here than anywhere else in this academy. A tombstone that is dropped by a connector, or a soft delete that never propagates, is a compliance gap that looks exactly like a working pipeline.

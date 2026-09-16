@@ -6,7 +6,12 @@ description: Tumbling, sliding, and session windows for cutting an endless strea
 
 **2:03 PM.** A dashboard request comes in: "rolling 5-minute average temperature, updated every 30 seconds, across the whole fleet." An engineer writes it as a SQL window function directly over 90 days of raw readings from 10 million devices. The query never returns; the cluster's CPU sits at 100%.
 
-Predict before you read on: (A) a bigger cluster, (B) an index on `timestamp`, (C) precompute tumbling windows first and slide over those instead of raw, or (D) switch this chart to Prometheus?
+A. A bigger cluster.
+B. An index on `timestamp`.
+C. Precompute tumbling windows first and slide over those instead of raw.
+D. Switch this chart to Prometheus.
+
+Predict before you read on.
 
 It's (C) — a stream of `{timestamp, device_id, sensor, value}` never ends, a chart is a finite picture, and windows are how you cut the stream into finite aggregates without pretending you loaded "all rows." This is the storage/query side; the streaming side (watermarks, allowed lateness) is [Flink windows](../flink/windows.md) — same shapes, different engines.
 
@@ -269,19 +274,11 @@ A 5-minute sliding chart reads 5 of these minute rows, not 10 raw samples × 30 
 
 ## What happened next { #what-happened-next }
 
-It was **C**. A SQL window function over 90 days of raw readings from 10
-million devices recomputes the average across the full range for every output
-point, which is why the CPU pinned and the query never returned.
+It was **C**. A SQL window function over 90 days of raw readings from 10 million devices recomputes the average across the full range for every output point, which is why the CPU pinned and the query never returned.
 
-Precomputing 1-minute tumbling windows and sliding over *those* gives the same
-chart from a few thousand rows. The 5-minute rolling average becomes five
-pre-aggregated buckets, and the 30-second refresh reads what is already
-computed rather than rebuilding it.
+Precomputing 1-minute tumbling windows and sliding over *those* gives the same chart from a few thousand rows. The 5-minute rolling average becomes five pre-aggregated buckets, and the 30-second refresh reads what is already computed rather than rebuilding it.
 
-A bigger cluster (A) and an index on `timestamp` (B) both make the wrong amount
-of work faster. The stream does not end and the chart is finite, so the
-reduction has to happen once, on write — which is the same conclusion
-[downsampling](downsampling.md) reaches from the storage bill.
+A bigger cluster (A) and an index on `timestamp` (B) both make the wrong amount of work faster. The stream does not end and the chart is finite, so the reduction has to happen once, on write — which is the same conclusion [downsampling](downsampling.md) reaches from the storage bill.
 
 ---
 

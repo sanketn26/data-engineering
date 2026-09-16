@@ -45,7 +45,7 @@ Airflow makes the graph visible. It does not make the writes safe. Safety is [id
 
 Treat a DAG run as **one data interval, many tasks, one intended table state**.
 
-```
+```text
 logical_date / ds = 2024-01-15
   extract  →  spark transform  →  validate  →  load  →  report
 ```
@@ -392,19 +392,11 @@ transform = SparkSubmitOperator(
 
 ## What happened next { #what-happened-next }
 
-It was **A**. `join_enrich` read a table that another DAG writes, and that
-dependency existed only in someone's memory — no edge, no sensor, no dataset.
-Clearing the task re-ran it against half-written upstream data, and the three
-dashboards that read its output went empty in sympathy.
+It was **A**. `join_enrich` read a table that another DAG writes, and that dependency existed only in someone's memory — no edge, no sensor, no dataset. Clearing the task re-ran it against half-written upstream data, and the three dashboards that read its output went empty in sympathy.
 
-The graph was not wrong about what it described. It was incomplete, and an
-incomplete graph fails silently: Airflow scheduled exactly what it was told to,
-in exactly the right order, on data that was not ready.
+The graph was not wrong about what it described. It was incomplete, and an incomplete graph fails silently: Airflow scheduled exactly what it was told to, in exactly the right order, on data that was not ready.
 
-Jordan's rule out of the postmortem is that a dependency you cannot see in the
-DAG is a dependency you cannot clear safely — which is why the next two pages
-are about making reruns survivable ([idempotency](idempotency.md)) rather than
-about making the graph prettier.
+Jordan's rule out of the postmortem is that a dependency you cannot see in the DAG is a dependency you cannot clear safely — which is why the next two pages are about making reruns survivable ([idempotency](idempotency.md)) rather than about making the graph prettier.
 
 ---
 

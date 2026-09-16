@@ -335,19 +335,11 @@ Do not start with Spark UI if step 4 says `queued`.
 
 ## What happened next { #what-happened-next }
 
-It was **B**. Twelve workers, each parked inside a poke-mode sensor, each
-holding a slot while it slept between pokes. Nothing crashed because nothing
-was running: the UI reported twenty-five tasks "running" and every one of them
-was waiting.
+It was **B**. Twelve workers, each parked inside a poke-mode sensor, each holding a slot while it slept between pokes. Nothing crashed because nothing was running: the UI reported twenty-five tasks "running" and every one of them was waiting.
 
-Spark was idle for the honest reason that no job was ever submitted. The slots
-to submit them with were all occupied by tasks whose entire job was to wait,
-which is what `mode="reschedule"` and deferrable operators exist to stop.
+Spark was idle for the honest reason that no job was ever submitted. The slots to submit them with were all occupied by tasks whose entire job was to wait, which is what `mode="reschedule"` and deferrable operators exist to stop.
 
-Every failure on this page has the same shape — Airflow spending worker slots
-on waiting, parsing, or moving data it should have delegated. When the UI and
-the cluster disagree about whether work is happening, the UI is describing slot
-occupancy, not progress.
+Every failure on this page has the same shape — Airflow spending worker slots on waiting, parsing, or moving data it should have delegated. When the UI and the cluster disagree about whether work is happening, the UI is describing slot occupancy, not progress.
 
 ---
 

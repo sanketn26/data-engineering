@@ -16,7 +16,7 @@ The claim about which columns matter is right and the assumption about what the 
 
 Observability / SaaS analytics table:
 
-```
+```text
 timestamp | customer_id | service | endpoint | status | latency_ms | bytes | trace_id | user_agent | ...
 ```
 
@@ -288,19 +288,11 @@ rising false-positive rate to extra reads, not incorrect query results.
 
 ## What happened next { #what-happened-next }
 
-The teammate was right about the columns and wrong about the bytes. Two columns
-out of eighty is the query; 17 GB is what came off disk, because the rows were
-stored as tuples and reading any column meant reading the whole row.
+The teammate was right about the columns and wrong about the bytes. Two columns out of eighty is the query; 17 GB is what came off disk, because the rows were stored as tuples and reading any column meant reading the whole row.
 
-Columnar layout is what makes the claim true: store each column contiguously
-and a two-column query reads two columns, compresses them far better because
-neighbouring values are similar, and skips whole blocks whose min/max cannot
-match the filter. The query never changed.
+Columnar layout is what makes the claim true: store each column contiguously and a two-column query reads two columns, compresses them far better because neighbouring values are similar, and skips whole blocks whose min/max cannot match the filter. The query never changed.
 
-Which is the physics under the next three pages — [ClickHouse](clickhouse.md)
-and [Pinot](pinot.md) operationalize it, and [Trino](../query-engines/trino.md)
-is only fast when the files beneath it are columnar too. Eight seconds was
-never a query-planning problem.
+Which is the physics under the next three pages — [ClickHouse](clickhouse.md) and [Pinot](pinot.md) operationalize it, and [Trino](../query-engines/trino.md) is only fast when the files beneath it are columnar too. Eight seconds was never a query-planning problem.
 
 ---
 

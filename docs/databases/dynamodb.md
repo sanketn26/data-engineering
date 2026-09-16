@@ -47,7 +47,7 @@ A table is a set of items. Each item is identified by:
 - **Partition key (PK / HASH)** — required. Hashes to a storage partition.
 - **Sort key (SK / RANGE)** — optional. Orders items **inside** that partition. Enables `begins_with`, `between`, `>`, `LIMIT`.
 
-```
+```text
 PK                 SK                 attrs
 USER#u001          PROFILE            name, email
 USER#u001          SESS#s9            cart_json, ttl
@@ -165,7 +165,7 @@ If fleet listing is rare and can be minutes-old, **Stream → warehouse** is che
 
 One **service** (checkout) with 4 known access patterns that share entity lifetime:
 
-```
+```text
 PK              SK                 GSI1PK           GSI1SK
 USER#u001       PROFILE
 USER#u001       ORDER#o88
@@ -266,19 +266,11 @@ single partition throttles even though spare capacity exists elsewhere.
 
 ## What happened next { #what-happened-next }
 
-Table-level capacity was fine — **B** — which is why every other tenant was
-healthy on the same table with the same provisioning. One tenant's
-`customer_id` was the partition key, and a partition has its own throughput
-ceiling regardless of what the table is provisioned for.
+Table-level capacity was fine — **B** — which is why every other tenant was healthy on the same table with the same provisioning. One tenant's `customer_id` was the partition key, and a partition has its own throughput ceiling regardless of what the table is provisioned for.
 
-Raising table capacity (A) is the expensive version of doing nothing: the extra
-throughput lands on partitions that were never short. Adaptive capacity absorbs
-some of this automatically, but it cannot split a single key.
+Raising table capacity (A) is the expensive version of doing nothing: the extra throughput lands on partitions that were never short. Adaptive capacity absorbs some of this automatically, but it cannot split a single key.
 
-The fix is the key, as it was for [Cassandra](cassandra.md) a page ago and for
-[Kafka](../kafka/partitions.md) before that — a write sharding suffix so one
-tenant's cart traffic addresses several partitions instead of one. Same
-physics, third storage engine.
+The fix is the key, as it was for [Cassandra](cassandra.md) a page ago and for [Kafka](../kafka/partitions.md) before that — a write sharding suffix so one tenant's cart traffic addresses several partitions instead of one. Same physics, third storage engine.
 
 ---
 

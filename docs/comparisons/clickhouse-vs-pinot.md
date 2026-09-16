@@ -71,7 +71,7 @@ If you do not want to run a batch path at all, you probably want ClickHouse (and
 
 ## Decision
 
-```
+```text
 Need rich SQL / joins / funnels?           → ClickHouse
 Need last-few-seconds + thousands QPS,
   dimensions known in advance?             → Pinot
@@ -113,17 +113,8 @@ Two ingest paths (`Kafka → ClickHouse` **and** `Kafka → Pinot`) have a real 
 
 ## What happened next { #what-happened-next }
 
-It was **B**. The instinct to add a materialized view was reasonable — the
-cluster exists, the data is already there — and it conflates two products that
-share a dataset. Twenty Grafana panels at low QPS is an internal dashboard.
-Tens of thousands of QPS from every logged-in user, on 2-5 second freshness, is
-a feature inside the application.
+It was **B**. The instinct to add a materialized view was reasonable — the cluster exists, the data is already there — and it conflates two products that share a dataset. Twenty Grafana panels at low QPS is an internal dashboard. Tens of thousands of QPS from every logged-in user, on 2-5 second freshness, is a feature inside the application.
 
-The second workload is what breaks the shared cluster, and it breaks it for
-both: the tile's concurrency saturates the same CPUs the panels rely on, so the
-first symptom is on-call losing their dashboards during a product launch.
+The second workload is what breaks the shared cluster, and it breaks it for both: the tile's concurrency saturates the same CPUs the panels rely on, so the first symptom is on-call losing their dashboards during a product launch.
 
-Redis (C) is the answer when every viewer sees the same tile. Each tenant
-seeing their own last 15 minutes is tens of thousands of distinct keys with a
-2-5 second TTL, which is a cache that never hits. Same events, same company — a
-different serving engine, because the shape of the read changed.
+Redis (C) is the answer when every viewer sees the same tile. Each tenant seeing their own last 15 minutes is tens of thousands of distinct keys with a 2-5 second TTL, which is a cache that never hits. Same events, same company — a different serving engine, because the shape of the read changed.

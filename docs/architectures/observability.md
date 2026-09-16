@@ -53,7 +53,7 @@ Produce/consume parallelism: a Flink job at 5M/s with 1k events/s/core (enrich +
 
 ## V1 — fewest parts (≈ 50k events/s, one team)
 
-```
+```text
 apps  →  Kafka (3 brokers, 24–48 partitions, RF=3)
       →  Flink (parse, drop debug if needed, add service metadata)
       →  ClickHouse (single replica or 1 shard × 2 replicas)
@@ -379,18 +379,8 @@ Jumping to Stage 3 on day one is how you spend two quarters on Keeper and never 
 
 ## What happened next { #what-happened-next }
 
-Maya won the argument on the bridge, and the label was not added. `user_id` on
-an HTTP metric is a new time series per user per label combination — the
-[cardinality](../time-series/cardinality.md) incident, arrived at deliberately
-instead of by Friday deploy.
+Maya won the argument on the bridge, and the label was not added. `user_id` on an HTTP metric is a new time series per user per label combination — the [cardinality](../time-series/cardinality.md) incident, arrived at deliberately instead of by Friday deploy.
 
-The question behind the request was still real: *which customer is affected?*
-That is an events question, and it is answered from the log and trace paths
-this architecture already has, where `customer_id` is a column rather than a
-series identity. The empty Grafana panel for `checkout-service` turned out to
-be the metric path working correctly on a service that had genuinely stopped
-reporting.
+The question behind the request was still real: *which customer is affected?* That is an events question, and it is answered from the log and trace paths this architecture already has, where `customer_id` is a column rather than a series identity. The empty Grafana panel for `checkout-service` turned out to be the metric path working correctly on a service that had genuinely stopped reporting.
 
-What this costs is the thing worth naming: two systems, two retention policies,
-and a habit of asking which of them a question belongs to before adding a
-dimension. Metrics answer "is it broken." Events answer "for whom."
+What this costs is the thing worth naming: two systems, two retention policies, and a habit of asking which of them a question belongs to before adding a dimension. Metrics answer "is it broken." Events answer "for whom."

@@ -262,17 +262,11 @@ Recs care about **top-k** under a latency budget. Relational co-occurrence table
 
 ## What happened next { #what-happened-next }
 
-It was **C**. Move the traversal; leave the ledger. The recursive CTE did not
-get slower because the plan went stale — it got slower because 20× the rows
-means 20× the fan-out at every hop, and that is arithmetic, not statistics.
+It was **C**. Move the traversal; leave the ledger. The recursive CTE did not get slower because the plan went stale — it got slower because 20× the rows means 20× the fan-out at every hop, and that is arithmetic, not statistics.
 
-A and B buy a quarter at most. D moves transactions, balances, and every
-reporting query onto an engine chosen for pointer chasing, to fix one query.
+A and B buy a quarter at most. D moves transactions, balances, and every reporting query onto an engine chosen for pointer chasing, to fix one query.
 
-So the fraud ledger stays in Postgres, where the writes and the joins belong,
-and the User → Device → IP subgraph is projected into a graph store for the
-traversal that was never a relational access pattern. Two systems, one
-deliberate copy, and a synchronisation cost accepted on purpose.
+So the fraud ledger stays in Postgres, where the writes and the joins belong, and the User → Device → IP subgraph is projected into a graph store for the traversal that was never a relational access pattern. Two systems, one deliberate copy, and a synchronisation cost accepted on purpose.
 
 ---
 

@@ -291,19 +291,11 @@ Do not tune Flink parallelism because a Kafka partition is hot. The engines do n
 
 ## What happened next { #what-happened-next }
 
-It was **B**. Micro-batch triggers put Structured Streaming's realistic latency
-in the seconds-to-minutes range, and more executors shorten the batch's
-*compute*, not the interval that governs when the batch begins. A 2-second SLO
-is not reachable by making the same batch faster.
+It was **B**. Micro-batch triggers put Structured Streaming's realistic latency in the seconds-to-minutes range, and more executors shorten the batch's *compute*, not the interval that governs when the batch begins. A 2-second SLO is not reachable by making the same batch faster.
 
-Continuous processing mode (C) is the tempting answer and carries its own
-restrictions, which is why the platform team's "we already run Spark" argument
-survived right up until the SLO was read aloud.
+Continuous processing mode (C) is the tempting answer and carries its own restrictions, which is why the platform team's "we already run Spark" argument survived right up until the SLO was read aloud.
 
-The cluster the fraud team wanted to reuse still runs the lake. The alert path
-is the one workload with a latency class Spark's execution model cannot serve,
-and that is what makes it the first genuine Flink requirement rather than the
-fifth.
+The cluster the fraud team wanted to reuse still runs the lake. The alert path is the one workload with a latency class Spark's execution model cannot serve, and that is what makes it the first genuine Flink requirement rather than the fifth.
 
 ---
 

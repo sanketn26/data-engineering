@@ -118,7 +118,7 @@ The catalogue should **block** a Trino join that projects `email` into a world-r
 
 Freshness is an SLO, not a vibe.
 
-```
+```text
 gold.events_agg: max(timestamp) >= now() - 15 minutes
 gold.fct_orders_daily: completed Airflow run for yesterday before 07:00
 ```
@@ -347,12 +347,6 @@ not who is accountable for it now. The table existed, was queryable, and was
 feeding a dashboard — what was missing was any statement of who owned it, how
 fresh it should be, and what it was called.
 
-That is why A is the expensive wrong answer. A tool populated by nobody
-produces a searchable list of tables nobody can vouch for, which is the same
-design review with better autocomplete.
+That is why A is the expensive wrong answer. A tool populated by nobody produces a searchable list of tables nobody can vouch for, which is the same design review with better autocomplete.
 
-The operating model is the part that has to exist first: every dataset has an
-owner who can be paged, a declared freshness, and a name that follows a
-convention. Tooling makes that searchable. Jordan's version of the fix is that
-a table with no owner is a table scheduled for deletion, which is uncomfortable
-and ends the shrugging.
+The operating model is the part that has to exist first: every dataset has an owner who can be paged, a declared freshness, and a name that follows a convention. Tooling makes that searchable. Jordan's version of the fix is that a table with no owner is a table scheduled for deletion, which is uncomfortable and ends the shrugging.

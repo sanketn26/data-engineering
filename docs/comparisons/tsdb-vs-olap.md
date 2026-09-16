@@ -18,7 +18,7 @@ Related: [cardinality](../time-series/cardinality.md), [TSDBs](../time-series/ts
 
 **OLAP** (ClickHouse, Pinot): "count users per region per plan for 90 days" or "p95 latency per `user_id`." High cardinality columns are normal. Alerting is **not** native.
 
-```
+```text
 TSDB:  metric{label=value} sample
 OLAP:  row with many typed columns
 ```
@@ -39,7 +39,7 @@ Timescale sits in the middle: SQL + hypertables, better at joins, weaker than CH
 
 **TSDB**
 
-```
+```text
 http_requests_total{service="api",code="500"}
 PromQL: rate(http_requests_total{service="api"}[5m])
 ```
@@ -121,7 +121,7 @@ IoT [architecture](../architectures/iot.md) often looks TSDB-shaped (device, sen
 
 ## Decision checklist
 
-```
+```text
 Bounded labels + alerts?               → TSDB
 High-card events + SQL?                → ClickHouse
 Postgres-shaped, moderate rate?        → Timescale
@@ -134,7 +134,7 @@ Time on x-axis only?                   → Not a reason
 
 ## Summary
 
-```
+```text
 Infrastructure monitoring + alerting?         → TSDB
 High-cardinality event analytics?             → ClickHouse
 SQL time series, moderate scale?              → Timescale or ClickHouse
@@ -307,19 +307,8 @@ People write the same latency to Prom **and** CH. Acceptable if Prom labels are 
 
 ## What happened next { #what-happened-next }
 
-Prometheus was the wrong tool for the question, and the label only made that
-visible. "Latency by customer" asks about a dimension with as many values as
-there are customers, and a metrics engine keeps one in-memory series per
-distinct label combination — so the memory tripled for the reason the design
-intends, not despite it.
+Prometheus was the wrong tool for the question, and the label only made that visible. "Latency by customer" asks about a dimension with as many values as there are customers, and a metrics engine keeps one in-memory series per distinct label combination — so the memory tripled for the reason the design intends, not despite it.
 
-The review passed because the change was small and the sentence was true:
-Prometheus does store time series, and it is just a label. What nobody asked
-was how many distinct values the new label takes, which is the only question
-that matters before adding a dimension to a metric.
+The review passed because the change was small and the sentence was true: Prometheus does store time series, and it is just a label. What nobody asked was how many distinct values the new label takes, which is the only question that matters before adding a dimension to a metric.
 
-Support's request was real and belongs in an events store, where `customer_id`
-is a column with high cardinality rather than a series identity — the same
-split the [observability architecture](../architectures/observability.md)
-settles on the bridge at 02:47. Metrics answer "is it broken." Events answer
-"for whom."
+Support's request was real and belongs in an events store, where `customer_id` is a column with high cardinality rather than a series identity — the same split the [observability architecture](../architectures/observability.md) settles on the bridge at 02:47. Metrics answer "is it broken." Events answer "for whom."

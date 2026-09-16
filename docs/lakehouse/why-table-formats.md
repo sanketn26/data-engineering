@@ -34,7 +34,7 @@ Hive-style "every file in the partition directory" fails all three at once.
 
 Imagine your data lake looks like this:
 
-```
+```text
 s3://events/
     part-001.parquet   (written by Spark job at 9 AM)
     part-002.parquet   (written by Spark job at 9 AM)
@@ -60,7 +60,7 @@ Object storage makes it harder: no `rename` of directories that is atomic across
 
 A table is a **named snapshot of files**, not a folder.
 
-```
+```text
 Table events @ snapshot 42  →  {file-a, file-b, file-c}
 Writer adds file-d, file-e  →  still snapshot 42 for readers
 Commit                      →  snapshot 43 → {a,b,c,d,e}
@@ -121,7 +121,7 @@ Without (1)–(2) you cannot run concurrent Spark and Trino. Without (3) analyti
 
 ## The Hive Answer (Incomplete)
 
-```
+```text
 s3://events/dt=2024-01-15/part-000.parquet
 ```
 
@@ -251,18 +251,11 @@ See the [detailed comparison](comparison.md) for workload-based guidance.
 
 ## What happened next { #what-happened-next }
 
-It was **C**. The retry was idempotent in the sense the author meant — it
-computed the same rows — and that was never the problem. It wrote those rows to
-a new set of files beside the first attempt's, and nothing in a directory says
-which files are the table.
+It was **C**. The retry was idempotent in the sense the author meant — it computed the same rows — and that was never the problem. It wrote those rows to a new set of files beside the first attempt's, and nothing in a directory says which files are the table.
 
-Support saw two rows per order because both attempts' files are "in the
-prefix," and `s3://orders/dt=2024-01-15/` is a location, not a table. There is
-no commit to fail, so there is nothing for the second attempt to supersede.
+Support saw two rows per order because both attempts' files are "in the prefix," and `s3://orders/dt=2024-01-15/` is a location, not a table. There is no commit to fail, so there is nothing for the second attempt to supersede.
 
-Every failure mode above collapses into that one question — concurrent readers,
-mid-write crashes, schema changes, updates. Ask **where is the table**; if the
-answer is a prefix, the answer is that there isn't one.
+Every failure mode above collapses into that one question — concurrent readers, mid-write crashes, schema changes, updates. Ask **where is the table**; if the answer is a prefix, the answer is that there isn't one.
 
 ---
 

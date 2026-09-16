@@ -293,21 +293,11 @@ If you cannot answer those, you cannot operate the DAG.
 
 ## What happened next { #what-happened-next }
 
-Not more retries — **C** — retries on a non-idempotent step are what wrote 40%
-of the partition twice. Not a bigger box — cron was never short of CPU. What
-was missing is a system of record: one place that knows which of the 25 tasks
-ran, in what order, against which partition, and what each one depended on.
+Not more retries — **C** — retries on a non-idempotent step are what wrote 40% of the partition twice. Not a bigger box — cron was never short of CPU. What was missing is a system of record: one place that knows which of the 25 tasks ran, in what order, against which partition, and what each one depended on.
 
-Retries only become safe once that exists, because "rerun step 4" is only a
-meaningful instruction if something knows steps 5 through 8 consumed its output
-and have to follow. On cron, every one of those facts lived in a different log
-and in the memory of whoever was awake.
+Retries only become safe once that exists, because "rerun step 4" is only a meaningful instruction if something knows steps 5 through 8 consumed its output and have to follow. On cron, every one of those facts lived in a different log and in the memory of whoever was awake.
 
-This is [SaaSCo Stage
-5](../architectures/saasco-evolution.md#stage-5-100-workflows-airflow-appears-phase-5),
-and the ordering in this module follows the incident: [DAGs](dags.md) make the
-dependencies explicit, [idempotency](idempotency.md) makes the rerun safe, and
-[executors](executors.md) decide whether any of it actually gets a slot.
+This is [SaaSCo Stage 5](../architectures/saasco-evolution.md#stage-5-100-workflows-airflow-appears-phase-5), and the ordering in this module follows the incident: [DAGs](dags.md) make the dependencies explicit, [idempotency](idempotency.md) makes the rerun safe, and [executors](executors.md) decide whether any of it actually gets a slot.
 
 ---
 

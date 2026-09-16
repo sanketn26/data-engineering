@@ -238,27 +238,13 @@ Observability analogue: cardinality of labels turns a 2 TB TSDB into a 40 TB TSD
 
 ## What happened next { #what-happened-next }
 
-Maya does not buy the 128 GB notebook. She writes three numbers in the incident
-channel first — 400 GB/day in, ~400 GB scanned, ~400 GB shuffled — and they
-settle the argument: the scan is survivable on one machine, the `groupBy` is
-not, and `cust_0042` at 38% of events means one reducer owns 38% of the shuffle
-no matter how much RAM she buys. A bigger box relocates the OOM; it does not
-remove the hot key.
+Maya does not buy the 128 GB notebook. She writes three numbers in the incident channel first — 400 GB/day in, ~400 GB scanned, ~400 GB shuffled — and they settle the argument: the scan is survivable on one machine, the `groupBy` is not, and `cust_0042` at 38% of events means one reducer owns 38% of the shuffle no matter how much RAM she buys. A bigger box relocates the OOM; it does not remove the hot key.
 
-So the job moves to ten executors, Parquet, partitioned by `date`, shuffle
-partitions sized from bytes rather than the 2014 default. The p95 tile is back
-before 07:00 the next morning, and Priya's CSMs never learn there was an
-incident.
+So the job moves to ten executors, Parquet, partitioned by `date`, shuffle partitions sized from bytes rather than the 2014 default. The p95 tile is back before 07:00 the next morning, and Priya's CSMs never learn there was an incident.
 
-What she has bought is one order of magnitude. The next 10× — 4 TB/day — breaks
-something she has not touched yet: the whale still hashes to a single reducer,
-and no amount of executors fixes a key that is 38% of the bytes. That is [The
-Shuffle](../spark/shuffle.md), and it is the mechanism this page kept
-promising.
+What she has bought is one order of magnitude. The next 10× — 4 TB/day — breaks something she has not touched yet: the whale still hashes to a single reducer, and no amount of executors fixes a key that is 38% of the bytes. That is [The Shuffle](../spark/shuffle.md), and it is the mechanism this page kept promising.
 
-This is [SaaSCo Stage 1 → Stage
-2](../architectures/saasco-evolution.md#stage-2-400-gbday-spark-appears-phase-0-phase-3):
-the deal, not the calendar, is what forced Spark.
+This is [SaaSCo Stage 1 → Stage 2](../architectures/saasco-evolution.md#stage-2-400-gbday-spark-appears-phase-0-phase-3): the deal, not the calendar, is what forced Spark.
 
 ---
 

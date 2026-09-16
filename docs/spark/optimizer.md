@@ -239,15 +239,9 @@ pruning matches predicates against the partition column itself. A
 function on it means the optimiser cannot prove which directories are
 irrelevant, so it keeps all of them — the full 8 TB week.
 
-The `SortMergeJoin` followed from the same cause. With 8 TB on one side instead
-of 40 GB, the cost model stopped choosing a broadcast and fell back to [the
-shuffle](shuffle.md), so the 40 MB dimension was sorted and shuffled alongside
-data that should never have been read.
+The `SortMergeJoin` followed from the same cause. With 8 TB on one side instead of 40 GB, the cost model stopped choosing a broadcast and fell back to [the shuffle](shuffle.md), so the 40 MB dimension was sorted and shuffled alongside data that should never have been read.
 
-One predicate rewritten to filter the partition column directly restores both
-decisions at once. Which is the argument for `explain("formatted")` in review:
-the plan states what will be read and how it will join, and the query text
-looked correct in both respects.
+One predicate rewritten to filter the partition column directly restores both decisions at once. Which is the argument for `explain("formatted")` in review: the plan states what will be read and how it will join, and the query text looked correct in both respects.
 
 ---
 

@@ -44,7 +44,7 @@ At scale, transactions add a coordinator, extra RPCs, and `read_committed` filte
 
 **Exactly once (Kafka's meaning):** the broker deduplicates producer retries, and a **transaction** atomically (a) writes output records and (b) commits the input offsets. Downstream consumers with `isolation.level=read_committed` never see aborted output.
 
-```
+```text
 input topic  ──►  process  ──►  output topic
                  ▲                 │
                  └── offset commit ┘
@@ -72,7 +72,7 @@ Most production systems run **at-least-once + idempotent sinks**. That is not a 
 
 Without idempotence:
 
-```
+```text
 1. Producer sends batch (seq 5) → broker appends → response lost
 2. Producer times out, retries
 3. Broker appends again → duplicate records, new offsets
@@ -273,21 +273,11 @@ Retries may call `execute` twice; the Postgres unique key makes the *effect* onc
 
 ## What happened next { #what-happened-next }
 
-Kafka transactions would not have stopped the double charge. The charge is a
-call to Stripe, and a Kafka transaction covers reads and writes *within* Kafka
-— consume, produce, commit offsets, atomically. Stripe is not a participant in
-it.
+Kafka transactions would not have stopped the double charge. The charge is a call to Stripe, and a Kafka transaction covers reads and writes *within* Kafka — consume, produce, commit offsets, atomically. Stripe is not a participant in it.
 
-What the transaction does fix is the internal half: the enriched event and the
-offset commit land together, so a crash between them stops producing a
-duplicate downstream record. The card is a different problem, and it is solved
-where the side effect happens — an [idempotency key](../airflow/idempotency.md)
-on the Stripe request, so the second call returns the first charge instead of
-making a new one.
+What the transaction does fix is the internal half: the enriched event and the offset commit land together, so a crash between them stops producing a duplicate downstream record. The card is a different problem, and it is solved where the side effect happens — an [idempotency key](../airflow/idempotency.md) on the Stripe request, so the second call returns the first charge instead of making a new one.
 
-"Just turn on exactly-once" is answerable once the question is phrased as
-exactly-once *of what, between which two systems*. Between Kafka and Kafka,
-yes. Between Kafka and a payment processor, only the processor can offer it.
+"Just turn on exactly-once" is answerable once the question is phrased as exactly-once *of what, between which two systems*. Between Kafka and Kafka, yes. Between Kafka and a payment processor, only the processor can offer it.
 
 ---
 

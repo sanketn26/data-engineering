@@ -35,7 +35,7 @@ At 2.5M records/s with replication factor 3, the cluster writes roughly **3×** 
 
 Each partition is a log with several copies. One copy is the **leader**. All produces and (by default) fetches go to it. Followers **fetch** in offset order — they are consumers of the leader.
 
-```
+```text
 Partition 0, RF=3
   Leader:   Broker 1   ← producers write here
   Follower: Broker 2   ← fetch replica
@@ -62,7 +62,7 @@ flowchart LR
 
 A replica stays in the ISR if it has fetched the leader's tail within `replica.lag.time.max.ms` (default 30s). Kafka 0.9.0 dropped the old `replica.lag.max.messages` "lag in *messages*" check; a replica that is steadily catching up remains in ISR even if it is a few thousand offsets behind, as long as it is not *stuck* in time.
 
-```
+```text
 ISR partition 0: [b1, b2, b3]
 b3's disk saturates, fetch stalls > replica.lag.time.max.ms
 ISR: [b1, b2]
@@ -246,18 +246,11 @@ ISR membership rather than only consumer output.
 
 ## What happened next { #what-happened-next }
 
-It was **B**. `min.insync.replicas=2` with two of three replicas out of the ISR
-means Kafka cannot honour `acks=all`, so it refuses the write. Durability was
-not broken; it was being enforced, loudly, at the worst possible moment.
+It was **B**. `min.insync.replicas=2` with two of three replicas out of the ISR means Kafka cannot honour `acks=all`, so it refuses the write. Durability was not broken; it was being enforced, loudly, at the worst possible moment.
 
-The failure worth fixing happened eight minutes earlier, when two replicas fell
-out of the ISR and nobody paged. Under-replicated partitions is the metric that
-had been true and unwatched for eight minutes before checkout noticed.
+The failure worth fixing happened eight minutes earlier, when two replicas fell out of the ISR and nobody paged. Under-replicated partitions is the metric that had been true and unwatched for eight minutes before checkout noticed.
 
-The alternative is worse than the outage. `acks=1` would have accepted every
-one of those writes and lost them with the leader's disk — which is the
-configuration that turns producers into the backup system, and the reason this
-page argues the refusal is the feature.
+The alternative is worse than the outage. `acks=1` would have accepted every one of those writes and lost them with the leader's disk — which is the configuration that turns producers into the backup system, and the reason this page argues the refusal is the feature.
 
 ---
 
@@ -353,7 +346,7 @@ There is no setting that is both "never lose an ack'd record" and "always accept
 
 For each topic, fill this in and put it in the runbook:
 
-```
+```text
 topic: service-events
 RF: 3
 min.insync.replicas: 2

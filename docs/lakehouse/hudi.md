@@ -47,7 +47,7 @@ Without those, CDC-into-Parquet is "rewrite the day, pray."
 
 Hudi slices a partition into **file groups**. Each group has a base Parquet file and, in MoR, a tail of log files. A record key hashes to a group. Upserting order 8831 only touches **that group**.
 
-```
+```text
 Partition dt=2024-01-15
   File group 0: base_0.parquet + .log.1 + .log.2
   File group 1: base_1.parquet
@@ -66,7 +66,7 @@ Hudi supports two storage types with different read/write trade-offs.
 
 On every upsert, rewrite the affected Parquet files immediately.
 
-```
+```text
 File-001: [record A, record B, record C]
 Upsert record B (new value) →
 New File-001: [record A, record B_new, record C]
@@ -80,7 +80,7 @@ New File-001: [record A, record B_new, record C]
 
 Write updates to small delta files (log files). Merge on read.
 
-```
+```text
 File-001 (base): [record A, record B, record C]
 Log file: [UPDATE record B → new value]
 
@@ -115,7 +115,7 @@ graph LR
 
 Hudi maintains a **timeline** of all actions on the table:
 
-```
+```text
 2024-01-15T10:00:00.000Z commit (writes records)
 2024-01-15T10:05:00.000Z commit
 2024-01-15T10:10:00.000Z compaction
@@ -261,21 +261,11 @@ Hudi's operational complexity is higher than Iceberg or Delta for simple append 
 
 ## What happened next { #what-happened-next }
 
-It was **C**. Order 8831's row sits inside a 128 MB Parquet file with half a
-million others, and nothing had rewritten that file since the status changed.
-Postgres said `PAID` forty minutes ago and the lake still said `PENDING`
-because on object storage a row does not change — a file does.
+It was **C**. Order 8831's row sits inside a 128 MB Parquet file with half a million others, and nothing had rewritten that file since the status changed. Postgres said `PAID` forty minutes ago and the lake still said `PENDING` because on object storage a row does not change — a file does.
 
-That is the reason Iceberg and Delta were ruled out for this table months
-earlier. Both are excellent at append-heavy workloads, and a `PENDING → PAID →
-SHIPPED → RETURNED` lifecycle is the opposite: a stream of record-level updates
-arriving continuously against files that already exist.
+That is the reason Iceberg and Delta were ruled out for this table months earlier. Both are excellent at append-heavy workloads, and a `PENDING → PAID → SHIPPED → RETURNED` lifecycle is the opposite: a stream of record-level updates arriving continuously against files that already exist.
 
-[Iceberg](iceberg.md) and [Delta](delta.md) solve the other half of this.
-Copy-on-write rewrites the file on every update and makes readers fast and
-writers expensive. Merge-on-read defers the rewrite and makes writers fast and
-readers pay at query time. Forty minutes of staleness is a compaction schedule,
-not a bug — which means it is a number someone chose.
+[Iceberg](iceberg.md) and [Delta](delta.md) solve the other half of this. Copy-on-write rewrites the file on every update and makes readers fast and writers expensive. Merge-on-read defers the rewrite and makes writers fast and readers pay at query time. Forty minutes of staleness is a compaction schedule, not a bug — which means it is a number someone chose.
 
 ---
 

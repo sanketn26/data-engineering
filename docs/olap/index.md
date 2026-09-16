@@ -9,7 +9,12 @@ description: Why row stores like Postgres fall over under OLAP scan-and-aggregat
 
 **14:47.** Priya wants a live dashboard — p95 latency by endpoint, last hour, one customer at a time — and it gets wired straight to the Postgres replica that already serves the app. Ten minutes later the replica is pegged at 100% CPU on a single `GROUP BY`, and unrelated app queries start timing out.
 
-Predict before you read on: does this get fixed by (A) a covering index, (B) another read replica, (C) Redis in front of the query, or (D) copying the data into a purpose-built OLAP engine?
+A. A covering index.
+B. Another read replica.
+C. Redis in front of the query.
+D. Copying the data into a purpose-built OLAP engine.
+
+Predict before you read on: does one of these fix it?
 
 Hundreds of millions of product and observability events land every day, and the access pattern behind that dashboard — **scan a lot of rows, touch a few columns, aggregate, repeat** — is exactly what OLAP engines exist for, not what a row store like Postgres was built to survive.
 
@@ -24,7 +29,7 @@ Two shapes show up everywhere in this academy.
 
 **SaaS analytics / observability dashboards**
 
-```
+```text
 {timestamp, customer_id, service, endpoint, status_code, latency_ms, bytes, trace_id}
 ```
 
@@ -189,23 +194,11 @@ ClickHouse: `EXPLAIN indexes = 1`, `system.parts`, `system.query_log`. Pinot: br
 
 ## What happened next { #what-happened-next }
 
-Not a covering index, not another replica — **D**. Postgres stores rows, and a
-`GROUP BY` over an hour of events reads every column of every row to answer a
-question about two of them. An index helps it find the rows; it does not change
-what a row costs to read.
+Not a covering index, not another replica — **D**. Postgres stores rows, and a `GROUP BY` over an hour of events reads every column of every row to answer a question about two of them. An index helps it find the rows; it does not change what a row costs to read.
 
-The replica was already the mitigation, which is why the app queries timed out
-too — one analytical query saturating the CPU of the machine that also serves
-the product. That is the failure mode, not a capacity shortfall.
+The replica was already the mitigation, which is why the app queries timed out too — one analytical query saturating the CPU of the machine that also serves the product. That is the failure mode, not a capacity shortfall.
 
-Priya gets her dashboard from an engine that stores columns and sorts them for
-the filter she actually uses. Which one depends on the shape of the load:
-[ClickHouse](clickhouse.md) for internal dashboards and ad-hoc SQL,
-[Pinot](pinot.md) when ten thousand tenants open the app at 09:00 — [SaaSCo
-Stage
-7](../architectures/saasco-evolution.md#stage-7-customer-dashboards-need-sub-second-clickhouse-appears-phase-8),
-and the reason [columnar storage](columnar-storage.md) comes first in this
-module.
+Priya gets her dashboard from an engine that stores columns and sorts them for the filter she actually uses. Which one depends on the shape of the load: [ClickHouse](clickhouse.md) for internal dashboards and ad-hoc SQL, [Pinot](pinot.md) when ten thousand tenants open the app at 09:00 — [SaaSCo Stage 7](../architectures/saasco-evolution.md#stage-7-customer-dashboards-need-sub-second-clickhouse-appears-phase-8), and the reason [columnar storage](columnar-storage.md) comes first in this module.
 
 ---
 

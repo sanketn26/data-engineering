@@ -227,16 +227,8 @@ If you can say those without the page, you are done with this index. Use the chi
 
 ## What happened next { #what-happened-next }
 
-Jordan asked for the SLA in milliseconds, and the twelve-row slide never came
-back up. Two of the three workloads on it turned out to be minutes-tolerant,
-which removed the comparison entirely, and the third had a 2-second alerting
-requirement that one column could meet and the other could not.
+Jordan asked for the SLA in milliseconds, and the twelve-row slide never came back up. Two of the three workloads on it turned out to be minutes-tolerant, which removed the comparison entirely, and the third had a 2-second alerting requirement that one column could meet and the other could not.
 
-That is what makes feature matrices misleading rather than merely useless. Both
-engines have checkmarks in almost every row, because both have windows, state,
-connectors and exactly-once — the checkmark records that a capability exists,
-not what it costs to use or how late its answer arrives.
+That is what makes feature matrices misleading rather than merely useless. Both engines have checkmarks in almost every row, because both have windows, state, connectors and exactly-once — the checkmark records that a capability exists, not what it costs to use or how late its answer arrives.
 
-Every page in this module is the same move: ask the SLA and the state question
-first, then read the matrix to confirm a decision you have already made on the
-workload. A comparison read before the requirement is a shopping list.
+Every page in this module is the same move: ask the SLA and the state question first, then read the matrix to confirm a decision you have already made on the workload. A comparison read before the requirement is a shopping list.

@@ -105,21 +105,11 @@ This is the same deploy-order discipline as [CDC schema evolution](cdc.md#schema
 
 ## What happened next { #what-happened-next }
 
-Two of the three failures are loud and one is not, and the quiet one is the
-expensive one. The Spark crash on a new column stops a pipeline and pages
-somebody. The new `status` enum changes what a dashboard means, keeps running,
-and reaches Elena as a number that is wrong by an amount nobody can bound.
+Two of the three failures are loud and one is not, and the quiet one is the expensive one. The Spark crash on a new column stops a pipeline and pages somebody. The new `status` enum changes what a dashboard means, keeps running, and reaches Elena as a number that is wrong by an amount nobody can bound.
 
-That is the syntactic/semantic split doing real work. Schema registries and
-compatibility modes catch the first kind, because the wire format is checkable.
-No registry catches a new enum value, a unit change from cents to dollars, or a
-field that quietly starts arriving null — the JSON parses perfectly in every
-case.
+That is the syntactic/semantic split doing real work. Schema registries and compatibility modes catch the first kind, because the wire format is checkable. No registry catches a new enum value, a unit change from cents to dollars, or a field that quietly starts arriving null — the JSON parses perfectly in every case.
 
-So the contract has to state the things the schema cannot: the allowed values,
-the units, the nullability anyone relies on, and who is allowed to change them.
-Jordan's version of this is a CI test that fails the producer's build; Elena's
-version is [knowing which number moved and why](../quality/index.md).
+So the contract has to state the things the schema cannot: the allowed values, the units, the nullability anyone relies on, and who is allowed to change them. Jordan's version of this is a CI test that fails the producer's build; Elena's version is [knowing which number moved and why](../quality/index.md).
 
 ---
 

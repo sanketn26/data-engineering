@@ -6,7 +6,12 @@ description: Why ClickHouse's ORDER BY is a physical index design decision, and 
 
 **03:14.** Maya is paged: Grafana's checkout-service tile times out. `EXPLAIN indexes = 1` on the query behind it shows every granule in the partition selected — none skipped — for a filter on `service = 'checkout'`. The table has an `ORDER BY`. The predicate is right there in the `WHERE` clause.
 
-Predict before you read on: (A) `ORDER BY` doesn't include `service` at all, (B) `service` is in `ORDER BY` but not first, (C) the query wraps `service` in a function, or (D) the primary index is just too small for the data volume?
+A. `ORDER BY` doesn't include `service` at all.
+B. `service` is in `ORDER BY` but not first.
+C. The query wraps `service` in a function.
+D. The primary index is just too small for the data volume.
+
+Predict before you read on.
 
 Hundreds of millions of events land every day, Grafana wants p95 latency by endpoint in a few hundred milliseconds, and Postgres cannot answer that chart as a lifestyle — ClickHouse can, but only because `ORDER BY` **is** the index, and the design decision you cannot postpone is which column goes first.
 
@@ -19,7 +24,7 @@ Hundreds of millions of events land every day, Grafana wants p95 latency by endp
 
 Observability / SaaS analytics:
 
-```
+```text
 {timestamp, customer_id, service, endpoint, status_code, latency_ms, bytes, trace_id}
 ```
 
@@ -386,28 +391,13 @@ is the final diagnostic pass.
 
 ## What happened next { #what-happened-next }
 
-The answer was **B**. `service` is in the `ORDER BY` — it is just not first.
-The table was created as `ORDER BY (customer_id, timestamp, service)` back when
-the only dashboard was per tenant, and a filter on the third column cannot
-binary-search anything. ClickHouse read every granule in the partition and did
-the filtering afterwards, which is a full scan wearing an index's clothes. The
-`EXPLAIN indexes = 1` output said so plainly: granules selected ≈ granules
-total.
+The answer was **B**. `service` is in the `ORDER BY` — it is just not first. The table was created as `ORDER BY (customer_id, timestamp, service)` back when the only dashboard was per tenant, and a filter on the third column cannot binary-search anything. ClickHouse read every granule in the partition and did the filtering afterwards, which is a full scan wearing an index's clothes. The `EXPLAIN indexes = 1` output said so plainly: granules selected ≈ granules total.
 
-Maya's fix is not a skip index, and it is not `FINAL`. It is a second sort
-order for the query that lost — a projection ordered `(service, timestamp)`, or
-a second table fed by the same materialized view. The tile answers in a few
-hundred milliseconds again by the next morning.
+Maya's fix is not a skip index, and it is not `FINAL`. It is a second sort order for the query that lost — a projection ordered `(service, timestamp)`, or a second table fed by the same materialized view. The tile answers in a few hundred milliseconds again by the next morning.
 
-What could not be changed at 03:14 was the sort order itself. `ORDER BY` is the
-index, and its first column is fixed at table creation. Q1 and Q2 want
-different first columns, so each additional query shape costs a projection or a
-second table, plus the merge CPU to keep it current.
+What could not be changed at 03:14 was the sort order itself. `ORDER BY` is the index, and its first column is fixed at table creation. Q1 and Q2 want different first columns, so each additional query shape costs a projection or a second table, plus the merge CPU to keep it current.
 
-This is [SaaSCo Stage
-7](../architectures/saasco-evolution.md#stage-7-customer-dashboards-need-sub-second-clickhouse-appears-phase-8):
-ClickHouse is here because a dashboard needs sub-second answers, and the cost
-of that latency class is paid in sort orders.
+This is [SaaSCo Stage 7](../architectures/saasco-evolution.md#stage-7-customer-dashboards-need-sub-second-clickhouse-appears-phase-8): ClickHouse is here because a dashboard needs sub-second answers, and the cost of that latency class is paid in sort orders.
 
 ---
 

@@ -42,7 +42,7 @@ Object storage (S3) is cheap and durable but has no notion of "consumer group of
 
 Treat the stream as a file you only append to.
 
-```
+```text
 Position:  0    1    2    3    4    5    6    7
            ─────────────────────────────────────→
 Event:    [e0] [e1] [e2] [e3] [e4] [e5] [e6] [e7]
@@ -76,7 +76,7 @@ This is the same idea as [foundation-level partitioning](../foundations/partitio
 
 On disk, a partition is a directory. Kafka does not append forever into one giant file. It rolls **segments**.
 
-```
+```text
 /var/lib/kafka/service-events-0/
   00000000000000000000.log
   00000000000000000000.index
@@ -185,7 +185,7 @@ log.retention.bytes=107374182400
 
 **Compact** (`log.cleanup.policy=compact`) — "latest value per key". User settings, current order status, device shadow, a changelog of a Flink/Kafka Streams table.
 
-```
+```text
 Before compaction:
   user_1 → {name: "Alice"}
   user_2 → {name: "Bob"}
@@ -260,27 +260,13 @@ A compacted topic with unique keys (raw `service-events` keyed by UUID) **never 
 
 ## What happened next { #what-happened-next }
 
-Maya's answer is **yes, and it costs nothing** — but only because of a decision
-made months earlier, by someone who is no longer on the team. The 40 minutes are still on
-disk. They were never "consumed": the alerting consumer read them, committed an
-offset, and the bytes stayed exactly where they were, because a log deletes by
-**retention**, not by acknowledgement. She reprocesses with `kafka-consumer-groups
---reset-offsets --to-datetime` on the parser's group alone. The warehouse and
-the fraud consumer never notice; their offsets are their own.
+Maya's answer is **yes, and it costs nothing** — but only because of a decision made months earlier, by someone who is no longer on the team. The 40 minutes are still on disk. They were never "consumed": the alerting consumer read them, committed an offset, and the bytes stayed exactly where they were, because a log deletes by **retention**, not by acknowledgement. She reprocesses with `kafka-consumer-groups --reset-offsets --to-datetime` on the parser's group alone. The warehouse and the fraud consumer never notice; their offsets are their own.
 
-Had that store been the obvious database table — insert, `SELECT ... FOR
-UPDATE`, delete — the rows would have been gone at 10:05 last Tuesday, and the
-only remaining option would be asking 400 services to re-emit.
+Had that store been the obvious database table — insert, `SELECT ... FOR UPDATE`, delete — the rows would have been gone at 10:05 last Tuesday, and the only remaining option would be asking 400 services to re-emit.
 
-So the replay window is not a feature you turn on during an incident. It is
-`log.retention.hours`, decided in advance, and a bug discovered on day eight of
-a seven-day retention is unrecoverable no matter how good the tooling is.
+So the replay window is not a feature you turn on during an incident. It is `log.retention.hours`, decided in advance, and a bug discovered on day eight of a seven-day retention is unrecoverable no matter how good the tooling is.
 
-Next week the constraint moves: five consumers now read this topic at five
-different speeds, and the slowest one is what decides whether retention is
-enough. That is [SaaSCo Stage
-3](../architectures/saasco-evolution.md#stage-3-4-tbday-kafka-appears-phase-2),
-where the log stops being a buffer and becomes the system of record.
+Next week the constraint moves: five consumers now read this topic at five different speeds, and the slowest one is what decides whether retention is enough. That is [SaaSCo Stage 3](../architectures/saasco-evolution.md#stage-3-4-tbday-kafka-appears-phase-2), where the log stops being a buffer and becomes the system of record.
 
 ---
 
@@ -341,8 +327,8 @@ If lag is high *and* the earliest offset is racing toward the committed offset, 
 
 Start from ~25k events/s on `service-events` (a busy SaaS region).
 
-| Scale | Ingest | Log behaviour |
-|-------|--------|----------------|
+| Scale | Log behaviour |
+|-------|----------------|
 | **10×** (~250k/s) | Batching (`linger_ms`, `batch.size`) and compression start to matter more than partition count. Page cache still absorbs the tail. |
 | **100×** (~2.5M/s) | This is the observability number. Sequential disk and network for replication dominate. Split topics by retention (hot 6h vs cold 7d). More disks (`log.dirs`), not one giant volume. |
 | **1000×** | You are into multiple clusters or tiered storage (local tail + object storage for old segments). Controller metadata, replica fetchers, and "replay 7 days" become operational programmes, not flags. |

@@ -278,18 +278,11 @@ run the [Flink lab](../labs/index.md#flink-labsflink) and use
 
 ## What happened next { #what-happened-next }
 
-It was **B**. Overnight, EU traffic thinned until some of the 12 partitions
-stopped producing entirely. A watermark is the minimum across all partitions,
-so the idle ones held it frozen at their last event — and a window only closes
-when the watermark passes its end.
+It was **B**. Overnight, EU traffic thinned until some of the 12 partitions stopped producing entirely. A watermark is the minimum across all partitions, so the idle ones held it frozen at their last event — and a window only closes when the watermark passes its end.
 
-Lag was zero and stayed zero, honestly: there was nothing waiting to be
-consumed. Every symptom pointed at a healthy pipeline, because by Kafka's
-definition of health it was one.
+Lag was zero and stayed zero, honestly: there was nothing waiting to be consumed. Every symptom pointed at a healthy pipeline, because by Kafka's definition of health it was one.
 
-`withIdleness` is the setting that releases an idle partition from the minimum.
-Until it is configured, the quietest partition in the topic decides how fast
-the fraud dashboard moves — which is a property of event time, not a bug.
+`withIdleness` is the setting that releases an idle partition from the minimum. Until it is configured, the quietest partition in the topic decides how fast the fraud dashboard moves — which is a property of event time, not a bug.
 
 ---
 
