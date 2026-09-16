@@ -4,7 +4,7 @@ description: Why ClickHouse's ORDER BY is a physical index design decision, and 
 
 # ClickHouse
 
-**03:14 AM.** Grafana's checkout-service tile times out. `EXPLAIN indexes = 1` on the query behind it shows every granule in the partition selected — none skipped — for a filter on `service = 'checkout'`. The table has an `ORDER BY`. The predicate is right there in the `WHERE` clause.
+**03:14.** Maya is paged: Grafana's checkout-service tile times out. `EXPLAIN indexes = 1` on the query behind it shows every granule in the partition selected — none skipped — for a filter on `service = 'checkout'`. The table has an `ORDER BY`. The predicate is right there in the `WHERE` clause.
 
 Predict before you read on: (A) `ORDER BY` doesn't include `service` at all, (B) `service` is in `ORDER BY` but not first, (C) the query wraps `service` in a function, or (D) the primary index is just too small for the data volume?
 
@@ -191,7 +191,7 @@ PARTITION BY toYYYYMMDD(timestamp)
 ORDER BY (customer_id, timestamp);
 ```
 
-This is the default for **tenant product analytics** (and a prerequisite if you later expose charts to customers). BigCorp 40% of traffic is then **one** dense key range — good for their dashboard, a **hot range** on one shard if you sharded poorly.
+This is the default for **tenant product analytics** (and a prerequisite if you later expose charts to customers). A tenant that dominates traffic is then **one** dense key range — good for their dashboard, a **hot range** on one shard if you sharded poorly.
 
 #### Hybrid that teams actually ship
 
@@ -394,7 +394,7 @@ the filtering afterwards, which is a full scan wearing an index's clothes. The
 `EXPLAIN indexes = 1` output said so plainly: granules selected ≈ granules
 total.
 
-The fix is not a skip index, and it is definitely not `FINAL`. It is a second
+Maya's fix is not a skip index, and it is not `FINAL`. It is a second
 sort order for the query that lost — a projection ordered
 `(service, timestamp)`, or a second table fed by the same materialized view.
 The tile answers in a few hundred milliseconds again by the next morning.

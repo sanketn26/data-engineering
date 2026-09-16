@@ -72,7 +72,7 @@ Sustainable keying:
 - Alert **lag max / lag p50 ratio** per group, not only sum lag.
 - Dashboards: produce bytes **per partition**.
 - Tenant quotas.
-- Capacity: if one customer is 40% of traffic, they are an architecture, not a row. See [Kafka partition sim](../simulations/kafka-partitions.html).
+- Capacity: if one customer is 38% of traffic, they are an architecture, not a row. See [Kafka partition sim](../simulations/kafka-partitions.html).
 - Lab: [Kafka lab](../labs/index.md) hot-key exercise.
 
 </details>

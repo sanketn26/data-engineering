@@ -135,6 +135,7 @@ The phases are named after systems because that is how teams talk. The lessons a
     <span class="course-eyebrow">Five running systems</span>
     <h2>Same events. Different engines.</h2>
     <p>SaaS analytics, observability, e-commerce, IoT, and a fraud graph. The schema does not change; the engine does.</p>
+    <p>One company runs through all of it — SaaSCo, from a laptop script to a lakehouse. The other four are the same physics in a different costume, not four more manuals.</p>
   </div>
   <a class="course-button course-button--primary" href="start-here/">Read the briefing <span aria-hidden="true">→</span></a>
 </div>

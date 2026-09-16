@@ -4,7 +4,7 @@ description: Reading the Spark UI's jobs, stages, and tasks to find a straggler 
 
 # Distributed Execution
 
-16:03. The Spark UI is open. 199 tasks in this stage finished in under 10 seconds each. One is still running at 25 minutes. On-call is asked: is the cluster undersized, or is something else going on?
+16:03. Maya has the Spark UI open. 199 tasks in this stage finished in under 10 seconds each. One is still running at 25 minutes. Jordan asks her the question the budget depends on: is the cluster undersized, or is something else going on?
 
 Before you answer: does adding 20 more executors fix a straggler task, or does it just add 20 more machines waiting on the same one? And what actually turns `groupBy("service").agg(...)` into "199 fast tasks and one slow one" in the first place?
 
@@ -233,8 +233,8 @@ range. `500`s are not spread evenly across services: one service produced most
 of them, its rows all hashed to one range, and that task inherited a share of
 the data the other 199 never saw.
 
-So the answer to on-call was neither "undersized" nor "something else" — it was
-that 40 cores were fine and one of them had twenty-five minutes of work. The
+So Maya's answer to Jordan is neither "undersized" nor "something else": 40
+cores were fine, and one of them had twenty-five minutes of work. The
 fix lives at the key, not at the cluster size.
 
 Once you can name the job, the stages, the tasks, and the straggler, the Spark

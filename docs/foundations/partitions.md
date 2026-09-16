@@ -249,7 +249,7 @@ Two-phase aggregation: first shuffle is balanced; second shuffle is tiny. Percen
 
 | Key | Why it fails |
 |-----|----------------|
-| `customer_id` | One enterprise is 40% of writes **and** of every shuffle |
+| `customer_id` | Acme (`cust_0042`) is 38% of writes **and** of every shuffle |
 | `country` / `region` | US/India/`us-east-1` dwarf the rest |
 | `status` (`ACTIVE`/`INACTIVE`) | Cardinality 2 |
 | `timestamp` alone as Kafka key | All producers hit “now”; also destroys per-entity order |

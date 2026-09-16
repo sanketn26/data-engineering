@@ -53,7 +53,7 @@ Event (canonical):
 | Flink/Spark | parse + agg | $2–8k |
 | If you keep 7 d Kafka **and** 30 d raw CH **and** 2 y raw S3 | COGS explosion | Don't |
 
-Partitions: 100k/s / ~5k/s ≈ 20; use **24–48** on `events`. Key = `customer_id` for tenant-local processing — **and** plan the hot-tenant story (one customer = 40% of traffic).
+Partitions: 100k/s / ~5k/s ≈ 20; use **24–48** on `events`. Key = `customer_id` for tenant-local processing — **and** plan the hot-tenant story (Acme, `cust_0042`, = 38% of traffic).
 
 ---
 

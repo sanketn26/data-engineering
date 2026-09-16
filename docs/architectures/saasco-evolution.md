@@ -31,6 +31,8 @@ This is the same discipline [Architectures](index.md) asks of every design: name
 
 **Team:** two engineers. **Stack:** a pandas script on a laptop, reading Parquet dumped nightly from Postgres.
 
+**Maya** is one of them. The pandas script is hers, and it has never once failed.
+
 `SELECT avg(latency_ms) GROUP BY customer_id, hour` for yesterday finishes in twelve minutes. Product is happy. There is no architecture here worth drawing — see [When *not* to use distributed data systems](../foundations/index.md#when-not-to-use-distributed-data-systems). The only thing that matters is that someone is already writing down volume, not vibes.
 
 **Forcing function to the next stage:** one enterprise customer signs. Volume goes from 40 GB/day to 400 GB/day — not a smooth ramp, a step function, because [SaaS volume follows tenants, not time](../foundations/scale.md#production-gotchas). The laptop OOMs at `read_parquet` the same week the deal closes.
@@ -38,6 +40,8 @@ This is the same discipline [Architectures](index.md) asks of every design: name
 ## Stage 2 — 400 GB/day, Spark appears (Phase 0 → Phase 3)
 
 **Team:** five engineers.
+
+Acme signed six weeks ago. **Maya**'s laptop OOMs at `read_parquet`, and **Priya** has already promised Acme's CSMs their dashboard by 07:00.
 
 Start by refusing the lazy answer. **400 GB is not, by itself, beyond one modern machine.** Do the arithmetic before you distribute anything:
 
@@ -79,6 +83,8 @@ Everything still lands as one nightly batch. There is still no streaming, no Kaf
 ## Stage 3 — 4 TB/day, Kafka appears (Phase 2)
 
 **Team:** 15 services owned by 7 teams.
+
+Five teams want the same events at five different speeds. **Jordan** spends the design review refusing "just write it to S3 and let everyone read it."
 
 Again, refuse the weak reason first. **"S3 can't take the PUT rate" is not why Kafka appears.** Modern S3 scales automatically to high request rates — thousands of requests per second per prefix, and higher with enough ramp-up, though a sharp ramp can produce temporary `503 Slow Down` responses ([object storage](../foundations/object-storage.md#consistency-and-request-rate-considerations)). Request-rate hotspotting is a real production consideration you plan for; it is not a reason to introduce a distributed log.
 
@@ -131,6 +137,8 @@ This is scale.md's **100×** row: *"100+ cores, Iceberg with compaction, shuffle
 
 **Team:** 9 teams, one of which is a brand-new fraud product team.
 
+**Priya**'s new fraud-review queue has to flag a card *while it is still being used* — not in tonight's batch.
+
 The nightly Spark job already reads from the same Kafka topic Stage 3 built — but "read the topic once a night" and "react to each event within seconds, correctly, even out of order" are different problems, not the same problem run more often. [Flink](../flink/index.md) enters because the requirement is now **event time**, **windowed aggregation**, and **exactly-once state** that survives a crash — a stream processor's job, not a scheduler running a batch job more frequently. See [Flink: time semantics](../flink/time.md) and [windows](../flink/windows.md) for why "just run Spark every minute" quietly breaks the moment events arrive late or out of order, which they always eventually do.
 
 At this stage SaaSCo also gets its first taste of streaming's real cost: keyed state per customer, checkpoints that must complete before the next one starts, and a watermark strategy someone has to actually choose, not accept as a default.
@@ -141,6 +149,8 @@ At this stage SaaSCo also gets its first taste of streaming's real cost: keyed s
 
 **Team:** 12 teams, 100+ workflows, no single person who knows what runs before what.
 
+**Maya** is asked which of twelve jobs produced this morning's numbers. Nobody can answer, including the people who wrote them.
+
 This is the same wall [Airflow](../airflow/index.md) opens with: cron scripts that were fine at three jobs become undebuggable at thirty, because "did the thing that has to run before this thing actually finish" stops being answerable by eyeballing a crontab. Airflow's job here is not "prettier cron" — it's dependency-aware scheduling, retries, backfills, and (once the job count crosses into the hundreds) [data-aware scheduling via Assets](../airflow/index.md#sensors-pools-mapping-slas-assets) so a downstream DAG starts when upstream data actually lands, not when a clock guesses it should have.
 
 **Forcing function to the next stage:** the nightly Spark job and the Flink job's checkpoint sink both want to write to the same lake location, and a second Airflow DAG occasionally reads it mid-write. Directory listings on S3 start showing half-written partitions after a crash — the exact [rename-is-not-atomic](../foundations/object-storage.md#why-rename-heavy-systems-struggle) failure mode. "Where is the table?" stops having a good answer.
@@ -148,6 +158,8 @@ This is the same wall [Airflow](../airflow/index.md) opens with: cron scripts th
 ## Stage 6 — Multiple writers collide, Iceberg appears (Phase 6)
 
 **Team:** 12 teams, three engines (Spark, Flink, Trino) writing the same tables.
+
+Three engines now write the same prefix. **Jordan** points out that rename is not atomic on object storage, and that the last green run overwrote a good one.
 
 [Why Table Formats Exist](../lakehouse/why-table-formats.md) opens with exactly this scene: raw Parquet on S3, concurrent readers, writers, a job that dies mid-write, and no way to name a consistent snapshot. SaaSCo adopts [Iceberg](../lakehouse/iceberg.md) not because a lakehouse is trendy, but because the object-storage semantics from Stage 3 — no atomic rename, no atomic multi-file commit — have no other fix once Airflow, Spark, and Flink are all writing to the same tables. This is also where the [manifest-instead-of-LIST](../foundations/object-storage.md#why-iceberg-uses-manifests-instead-of-list) design earns its keep: SaaSCo's file count is now in the hundreds of thousands, and listing a prefix during query planning is no longer fast enough to ignore.
 
@@ -157,13 +169,17 @@ This is the same wall [Airflow](../airflow/index.md) opens with: cron scripts th
 
 **Team:** 12 teams, plus a product team that now ships customer-facing analytics.
 
+**Priya** again, years after the 07:00 tile: this time the chart is inside the product, a customer is looking at it, and it has milliseconds.
+
 Iceberg and Trino answer "give me an answer in seconds to minutes over history." They do not answer "render this chart while a customer is looking at it." [ClickHouse](../olap/clickhouse.md) enters the stack as a **serving** layer fed from the same Kafka topic Stage 3 built, not as a replacement for the lakehouse — this is the same hot-path/cold-path split named in [Architectures](index.md#the-five-systems) for the observability and SaaS-analytics rows. [Why Columnar Storage](../olap/columnar-storage.md) and [ClickHouse `ORDER BY`](../olap/clickhouse.md) are the two lessons that explain why this specific box, and not "a faster Postgres," was the answer.
 
-**Forcing function to the next stage:** SaaSCo now has 400 engineers, dozens of pipelines writing to the same tables, and a revenue dashboard that showed ₹0 one morning because a Spark job's schema change silently broke a downstream ClickHouse materialization. Nobody can say who owns `events_agg`, whether it's fresh, or which of three "active users" definitions is correct.
+**Forcing function to the next stage:** SaaSCo now has 400 engineers, dozens of pipelines writing to the same tables, and a revenue dashboard that showed $0 one morning because a Spark job's schema change silently broke a downstream ClickHouse materialization. Nobody can say who owns `events_agg`, whether it's fresh, or which of three "active users" definitions is correct.
 
 ## Stage 8 — 400 engineers, contracts and lineage become load-bearing (Phase 10)
 
 **Team:** 400 engineers, 40+ teams, ~80 event producers, ~400 downstream consumers.
+
+**Elena** has two revenue figures from two dashboards, $40M and $19M, and every pipeline between them is green.
 
 This is the [metadata](../metadata/index.md) module's own opening argument: *"a platform with 10,000 tables and no operating model for metadata is a swamp with a search box."* At Stage 1 through 6, one team could hold the whole pipeline in their heads. At Stage 8, that stops being true, and the failure mode changes shape — it's no longer "the job is too slow," it's "nobody can tell you if the number is right." [Data Contracts](../foundations/data-contracts.md) (schema and semantic compatibility between producer and consumer teams) and [metadata/lineage](../metadata/index.md) (who owns what, and can you walk backward from a wrong dashboard to its source) become the bottleneck — the same way shuffle bytes were the bottleneck at Stage 2.
 

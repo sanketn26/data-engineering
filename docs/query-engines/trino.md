@@ -4,7 +4,7 @@ description: Why Trino partition pruning silently fails on a wrapped column, and
 
 # Trino
 
-10:41 AM. `WHERE ds = DATE '2024-06-12'` should prune to a single day of a 400 TB Iceberg table. `EXPLAIN` shows Trino scanning all 400 days instead. The analyst who wrote the query swears the `WHERE` clause is right there.
+10:41. Maya is pulled in on a query that is not hers. `WHERE ds = DATE '2024-06-12'` should prune to a single day of a 400 TB Iceberg table. `EXPLAIN` shows Trino scanning all 400 days instead. The analyst who wrote the query swears the `WHERE` clause is right there.
 
 What broke the prune?
 
@@ -329,8 +329,8 @@ after it; only the time and the bill differed, and neither is visible in a
 result set. `EXPLAIN` is where the difference shows up — files or splits
 selected against the table's total.
 
-The analyst had no symptom to go on. The clock and the bill both arrive at
-somebody else's desk.
+The analyst had no symptom to go on. The clock and the bill arrive at Maya's
+desk instead.
 
 ---
 

@@ -7,7 +7,7 @@ description: Why a table format like Iceberg, Hudi, or Delta is what turns a pil
 !!! info "Version and source policy"
     Format specifications, protocol features, and engine support evolve independently. Check [Versions & Primary Sources](../reference/version-matrix.md).
 
-03:14 AM. Spark job status: `SUCCESS`. Files written: 13,429. Trino query for yesterday's revenue: **₹0**. You check S3 — the files are all there, sitting in the prefix.
+03:14 AM. Spark job status: `SUCCESS`. Files written: 13,429. Trino query for yesterday's revenue: **$0**. You check S3 — the files are all there, sitting in the prefix.
 
 What happened?
 

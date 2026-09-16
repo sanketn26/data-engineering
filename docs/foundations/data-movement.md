@@ -4,7 +4,7 @@ description: Why a Spark job's slow minutes are shuffle and network I/O, not com
 
 # Data Movement
 
-11:40. The Spark UI shows `percentile_approx` — the actual math — finishing in nine seconds. The whole job takes fourteen minutes. Nobody on the team can point at where the other thirteen-plus minutes went.
+11:40. Maya has the Spark UI open. `percentile_approx` — the actual math — finishes in nine seconds. The whole job takes fourteen minutes. Nobody on the team can point at where the other thirteen-plus minutes went.
 
 Before you open the DAG: is the missing time (A) reading 500 GB from S3, (B) the shuffle for `groupBy("customer_id")`, or (C) writing the output? Customer `cust_0042` alone has rows sitting on machines A, B, and C — pick where you'd bet first.
 
@@ -247,8 +247,7 @@ missing time because the Spark UI reports it honestly and in the wrong place:
 the *stage* boundary is where the money went, and the stage boundary is not an
 operator anyone wrote.
 
-The number that ends the argument is bytes-shuffled, not CPU. Once it is on the
-screen, the options stop being "add executors" and start being the real ones:
+The number Maya puts on the screen is bytes-shuffled, not CPU. Once it is there, the options stop being "add executors" and start being the real ones:
 project fewer columns before the shuffle so less has to move, pre-aggregate so
 the wire carries partial results instead of raw rows, and keep the exchange
 inside one AZ so the bill reflects the work.

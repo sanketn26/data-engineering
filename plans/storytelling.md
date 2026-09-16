@@ -29,10 +29,30 @@ Landed across 47 lessons:
 - `lesson-guide.js` routes the first pass to the close, numbering computed at
   render time instead of hardcoded.
 
+Landed since, covering PR 1 and most of PR 2:
+
+- `CONTRIBUTING.md` carries the page-shape contract (close the scene, report
+  don't moralise, reference last, don't thin internals, keep heading ids) plus
+  the naming locks.
+- `start-here.md`: "Five stories you will keep revisiting" is now "The company
+  you work for" — SaaSCo, the four-person cast, Acme at 38%, the event shape.
+  Systems B–E demoted to one costume table. The lesson shape now lists the
+  close as step 5 of 6.
+- The three first-hour surfaces agree: start-here's one-hour tip, learning-paths'
+  gentle first hour, and how-to-study's Pass 1 all include the company section
+  and `What happened next`. Pass 3 picks up `Reference`.
+- `docs/index.md` and `README.md` each carry the one-line correction.
+- `architectures/index.md` says eight stages plus the ninth as an exercise.
+- All eight SaaSCo stages open on a named person. `₹` is gone repo-wide (USD).
+- All 9 closes now name a person; the cast appears on 11 files, up from 3.
+
 Still open: 38 pages have the reference tail but no close. A close must be
 built from facts already on its own page, so these stay hand-written, not
-generated. The cast beyond Maya/Priya/Jordan, the start-here and SaaSCo work,
-and everything in the PR list below are untouched.
+generated. Elena exists only on the SaaSCo timeline so far — her lesson scenes
+(quality, correctness, cost) are PR 7. `cust_1842` is still on 6 files,
+`log.md` still opens on observability rather than SaaSCo, `shuffle.md` still
+has the lowercase `acme` key, `foundations/index.md` still contradicts the
+volume ladder, and PRs 4–8 below are otherwise untouched.
 
 ## Problem
 

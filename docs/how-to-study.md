@@ -13,9 +13,11 @@ three passes instead.
 
 ### Pass 1 — get the picture (10–15 minutes)
 
-Read the opening situation and **Build the mental picture**. Ignore unfamiliar
-configuration names. At the end, say the central idea in one sentence. If you
-can predict the broad failure, the pass worked.
+Read the opening situation, **Build the mental picture**, and **What happened
+next**. Ignore unfamiliar configuration names, and skip **Under the hood**
+entirely — the close is written to make sense without it. At the end, say what
+happened in the scene and the central idea in one sentence. If you can predict
+the broad failure, the pass worked.
 
 ### Pass 2 — make it concrete (15–30 minutes)
 
@@ -25,9 +27,11 @@ that journey.
 
 ### Pass 3 — operate it (when relevant)
 
-Read **Where teams get caught**, **How it fails**, and **How to investigate**.
-Run the exercise, simulation, or lab. This pass matters before production work;
-it does not need to block your first understanding of the concept.
+Read **Where teams get caught**, **How it fails**, and everything under
+**Reference** after the exercise — how to investigate, scale factors,
+trade-offs, alternatives. Run the exercise, simulation, or lab. This pass
+matters before production work; it does not need to block your first
+understanding of the concept.
 
 !!! tip "One session, one outcome"
     A good session can be just Pass 1 plus the check at the bottom of the page.
@@ -42,7 +46,7 @@ next paragraph useful, not tests you must get right.
 
 Example:
 
-> What happens if one customer generates 40% of all events in a partitioned Kafka topic?
+> What happens if one customer — Acme, `cust_0042` — generates 38% of all events in a partitioned Kafka topic?
 
 Before reading further: think. Where does that imbalance show up? Which consumer gets overloaded? What metric would alert you?
 

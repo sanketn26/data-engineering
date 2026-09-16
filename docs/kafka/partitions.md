@@ -34,7 +34,7 @@ Throughput is then `min(leader disk, network, that consumer's CPU)`. For the obs
 
 If you naively add partitions later, **keys move**. `hash(cust_1842) % 12` is not `hash(cust_1842) % 48`. Per-customer order is preserved *within the new partition going forward*, but a consumer that was in the middle of a sequence now sees a split history. Increasing partitions is a compatibility event, not a slider.
 
-If you partition on the wrong key, one tenant (or one `region`, or one `device_id` firmware bug) owns 40% of traffic and you have a **hot partition**: 47 idle consumers and one on fire.
+If you partition on the wrong key, one tenant (or one `region`, or one `device_id` firmware bug) owns 38% of traffic and you have a **hot partition**: 47 idle consumers and one on fire.
 
 ---
 

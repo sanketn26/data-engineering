@@ -4,7 +4,7 @@ description: Why Kafka models a topic as an append-only log instead of a databas
 
 # The log abstraction
 
-10:04 AM: a parser bug dropped 40 minutes of production logs last Tuesday. Someone asks, "can we just replay them?" The honest answer depends entirely on what durable thing sits between the producers and every consumer — and whether that thing deletes a record the moment one reader finishes with it.
+10:04. A parser bug dropped 40 minutes of production logs last Tuesday. Priya asks Maya the question that decides how bad the week is: "can we just replay them?" The honest answer depends entirely on what durable thing sits between the producers and every consumer — and whether that thing deletes a record the moment one reader finishes with it.
 
 Predict before you read on: if you built that store as a database table (insert, `SELECT ... FOR UPDATE`, delete), what breaks first at 2.5 million records a second — the write path, the fan-out to multiple readers, or the replay story? All three fail, for three different reasons; this page is the one abstraction that fixes all three at once.
 
@@ -260,11 +260,11 @@ A compacted topic with unique keys (raw `service-events` keyed by UUID) **never 
 
 ## What happened next { #what-happened-next }
 
-The answer to "can we just replay them?" is **yes, and it cost nothing** — but
-only because of a decision made months earlier. The 40 minutes are still on
+Maya's answer is **yes, and it costs nothing** — but only because of a decision
+made months earlier, by someone who is no longer on the team. The 40 minutes are still on
 disk. They were never "consumed": the alerting consumer read them, committed an
 offset, and the bytes stayed exactly where they were, because a log deletes by
-**retention**, not by acknowledgement. Reprocessing is `kafka-consumer-groups
+**retention**, not by acknowledgement. She reprocesses with `kafka-consumer-groups
 --reset-offsets --to-datetime` on the parser's group alone. The warehouse and
 the fraud consumer never notice; their offsets are their own.
 

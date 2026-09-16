@@ -4,7 +4,7 @@ description: Why a Spark groupBy stalls at 199 of 200 tasks — hot-key shuffle 
 
 # The Shuffle
 
-02:47 AM page: the `groupBy("customer_id")` stage has been stuck at 199 of 200 tasks for forty minutes. Yesterday's run of the same code, same cluster, finished in twelve minutes. CPU dashboards look idle; the bill does not.
+02:47. Maya's pager: the `groupBy("customer_id")` stage has been stuck at 199 of 200 tasks for forty minutes. Yesterday's run of the same code, same cluster, finished in twelve minutes. CPU dashboards look idle; the bill does not.
 
 A. The network is saturated moving shuffle data.
 B. One reducer owns a single hot key's share of the data, and the other 199 finished long ago.
@@ -310,7 +310,7 @@ turns that observation into a diagnosis.
 
 The answer was **B**. Not the network, not too few partitions, not uniform
 spill: 199 reducers finished in four minutes and one owned `cust_0042`'s share
-of the day. The tell was in the stage's task-duration histogram, not in a
+of the day. Maya finds it in the stage's task-duration histogram rather than in a
 config file — median four minutes, max forty and climbing, on a cluster whose
 CPU graphs looked idle because 199 executors had nothing left to do.
 
