@@ -207,8 +207,8 @@ throughput and connections rather than read capacity. And "move it to NoSQL"
 had no answer to the only question that decides anything — what is the primary
 key of the hottest query.
 
-Splitting by access pattern is what the rest of this module is for:
-[what NoSQL actually trades away](nosql.md), then
-[Cassandra](cassandra.md) for the append-heavy time-range workload and
-[DynamoDB](dynamodb.md) for the session store. Postgres keeps what is actually
-relational, which is more than the one-pager assumed.
+Splitting by access pattern is what the rest of this module is for: [what NoSQL
+actually trades away](nosql.md), then [Cassandra](cassandra.md) for the
+append-heavy time-range workload and [DynamoDB](dynamodb.md) for the session
+store. Postgres keeps what is actually relational, which is more than the
+one-pager assumed.

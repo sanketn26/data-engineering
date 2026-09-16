@@ -116,11 +116,11 @@ Periodically repair from a bounded source snapshot. A replay procedure that has 
 
 ## What happened next { #what-happened-next }
 
-It was **(A)**. The one-time `COPY` ran without establishing a log position
-first, so every row changed between the start of that copy and the beginning of
-streaming fell into a gap that nothing was watching. Forty rows, no errors,
-because from the connector's point of view nothing failed — it was not yet
-reading.
+The `COPY` is where the rows went — **(A)**. It ran without establishing a log
+position first, so every row changed between the start of that copy and the
+beginning of streaming fell into a gap that nothing was watching. Forty rows,
+no errors, because from the connector's point of view nothing failed — it was
+not yet reading.
 
 That is the snapshot-to-stream handoff, and it only works in one order: record
 the LSN, take the snapshot, then stream from the recorded position, accepting

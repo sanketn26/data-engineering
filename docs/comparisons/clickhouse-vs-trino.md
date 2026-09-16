@@ -142,7 +142,7 @@ Forcing query A through Trino "so we only have one SQL engine" is how you pay p9
 
 ## What happened next { #what-happened-next }
 
-It was **C**. Trino can query all of it, and "can query" is not "is the hot
+Trino can query all of it — **C** — and and "can query" is not "is the hot
 path." The coordinator plans a distributed query, schedules splits across
 workers, and reads from a storage layer it does not own — per-query overhead
 measured in hundreds of milliseconds before any data is touched, which a
@@ -152,9 +152,9 @@ More coordinator memory (A) does not remove planning. A smaller window (B)
 makes the same query cheaper without making it fast, and the panel would have
 kept timing out on the next busy minute.
 
-The panel moves to ClickHouse, where the last 15 minutes of traffic is a sorted
-range in a table shaped for exactly that filter. Trino keeps the work it is the
-only engine here that can do: the ad-hoc join across Iceberg, Postgres and
-MySQL that nobody wants to build a pipeline for. Federation and hot path are
-different jobs, and the slide that said "Trino can query everything" was
-describing reach, not latency.
+The panel moves to [ClickHouse](../olap/clickhouse.md), where the last 15
+minutes of traffic is a sorted range in a table shaped for exactly that filter.
+Trino keeps the work it is the only engine here that can do: the ad-hoc join
+across Iceberg, Postgres and MySQL that nobody wants to build a pipeline for.
+Federation and hot path are different jobs, and the slide that said "Trino can
+query everything" was describing reach, not latency.

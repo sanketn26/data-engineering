@@ -320,12 +320,13 @@ ran. Kafka lag reports that events were delivered. The ClickHouse insert
 reports that rows arrived. None of them is a statement about whether the number
 is right.
 
-What eventually named it was a check nobody had: row counts against source,
-sum of revenue against the transactional system, and a distinct count on the
-join key. Those three separate the four hypotheses in about a minute — a fanned
-join doubles counts, a coerced field leaves counts intact and sums wrong, a
-timezone bug moves rows between days, and duplicate delivery inflates both.
+What eventually named it was a check nobody had: row counts against source, sum
+of revenue against the transactional system, and a distinct count on the join
+key. Those three separate the four hypotheses in about a minute — a fanned join
+doubles counts, a coerced field leaves counts intact and sums wrong, a timezone
+bug moves rows between days, and duplicate delivery inflates both.
 
 The $19M gap existed for as long as it did because "every system is green" was
 being read as "the data is correct." Liveness and correctness are different
-properties, and only one of them had monitoring.
+properties, and only one of them had monitoring — [contracts and
+lineage](../metadata/index.md) are where the other one gets an owner.

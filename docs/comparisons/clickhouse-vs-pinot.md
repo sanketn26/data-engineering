@@ -125,5 +125,5 @@ first symptom is on-call losing their dashboards during a product launch.
 
 Redis (C) is the answer when every viewer sees the same tile. Each tenant
 seeing their own last 15 minutes is tens of thousands of distinct keys with a
-2-5 second TTL, which is a cache that never hits. Same events, same company —
-a different serving engine, because the shape of the read changed.
+2-5 second TTL, which is a cache that never hits. Same events, same company — a
+different serving engine, because the shape of the read changed.

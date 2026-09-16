@@ -309,7 +309,7 @@ Not "which is best" — [choose by workload](comparison.md).
 
 ## What happened next { #what-happened-next }
 
-It was **C**. VACUUM removed files that no version newer than the retention
+**C**. VACUUM removed files that no version newer than the retention
 window referenced, and the Trino query had been pinned to a six-hour-old
 version that still needed them. Both behaved exactly as configured.
 
@@ -318,9 +318,10 @@ and a query that runs for three hours is a reader holding a version for three
 hours. Seven days of retention sounds generous until the question becomes
 whether anything is *reading* the version being collected.
 
-The `FileNotFoundException` is the honest failure here. A table format that
-kept no log would have given the same query a silently different answer — the
-files simply gone, the count quietly lower, and the analyst asleep either way.
+The `FileNotFoundException` is the honest failure here. A [table format that
+kept no log](why-table-formats.md) would have given the same query a silently
+different answer — the files simply gone, the count quietly lower, and the
+analyst asleep either way.
 
 ---
 

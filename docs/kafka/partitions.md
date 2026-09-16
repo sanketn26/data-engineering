@@ -316,9 +316,9 @@ real per-partition counts. Finish with the
 
 ## What happened next { #what-happened-next }
 
-It was **B**. `service-events` has 12 partitions, so 12 consumers in the group
-can be assigned work and the other 40 pods sit idle holding nothing. The
-rebalance happened, quickly and correctly, and assigned 12 of 52.
+`service-events` has 12 partitions — **B** — so 12 partitions, so 12 consumers
+in the group can be assigned work and the other 40 pods sit idle holding
+nothing. The rebalance happened, quickly and correctly, and assigned 12 of 52.
 
 Partition count is the parallelism ceiling for a consumer group, and it is set
 on the topic, not on the deployment. Scaling past it costs money and changes

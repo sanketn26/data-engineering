@@ -266,8 +266,8 @@ single partition throttles even though spare capacity exists elsewhere.
 
 ## What happened next { #what-happened-next }
 
-It was **B**. Table-level capacity was fine, which is why every other tenant
-was healthy on the same table with the same provisioning. One tenant's
+Table-level capacity was fine — **B** — which is why every other tenant was
+healthy on the same table with the same provisioning. One tenant's
 `customer_id` was the partition key, and a partition has its own throughput
 ceiling regardless of what the table is provisioned for.
 
@@ -275,9 +275,10 @@ Raising table capacity (A) is the expensive version of doing nothing: the extra
 throughput lands on partitions that were never short. Adaptive capacity absorbs
 some of this automatically, but it cannot split a single key.
 
-The fix is the key, as it was for Cassandra a page ago and for Kafka before
-that — a write sharding suffix so one tenant's cart traffic addresses several
-partitions instead of one. Same physics, third storage engine.
+The fix is the key, as it was for [Cassandra](cassandra.md) a page ago and for
+[Kafka](../kafka/partitions.md) before that — a write sharding suffix so one
+tenant's cart traffic addresses several partitions instead of one. Same
+physics, third storage engine.
 
 ---
 

@@ -215,7 +215,7 @@ a property, never in a request handler.
 
 So the payment path does a bounded lookup, the analyst does an unbounded
 investigation on a different cluster, and the ledger stays in Postgres where
-the writes belong. The module covers each in turn:
-[when a graph earns its keep](graph-vs-relational.md), what to model as a node
+the writes belong. The module covers each in turn: [when a graph earns its
+keep](graph-vs-relational.md), what to model as a node
 ([modelling](graph-modelling.md)), and how to make the traversal bounded in
 [Neo4j](neo4j.md).

@@ -297,9 +297,10 @@ and a two-column query reads two columns, compresses them far better because
 neighbouring values are similar, and skips whole blocks whose min/max cannot
 match the filter. The query never changed.
 
-Which is the physics under the next three pages — ClickHouse and Pinot
-operationalize it, and Trino is only fast when the files beneath it are
-columnar too. Eight seconds was never a query-planning problem.
+Which is the physics under the next three pages — [ClickHouse](clickhouse.md)
+and [Pinot](pinot.md) operationalize it, and [Trino](../query-engines/trino.md)
+is only fast when the files beneath it are columnar too. Eight seconds was
+never a query-planning problem.
 
 ---
 

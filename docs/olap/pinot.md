@@ -258,7 +258,8 @@ Always include the tenant predicate. Multi-tenant isolation in Pinot is **query 
 
 It was **D**. Nothing was saturated because the problem was not throughput —
 ten thousand tenants each wanting a different small slice at 09:00 is a
-concurrency shape, and a scan-oriented engine answers each of those by scanning.
+concurrency shape, and a scan-oriented engine answers each of those by
+scanning.
 
 More shards (A) and replicas (B) spread the scanning without removing it. A
 cache (C) works when tenants ask the same question, and each of these asks

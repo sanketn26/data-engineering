@@ -119,7 +119,7 @@ case.
 So the contract has to state the things the schema cannot: the allowed values,
 the units, the nullability anyone relies on, and who is allowed to change them.
 Jordan's version of this is a CI test that fails the producer's build; Elena's
-version is knowing which number moved and why.
+version is [knowing which number moved and why](../quality/index.md).
 
 ---
 

@@ -260,9 +260,9 @@ Support saw two rows per order because both attempts' files are "in the
 prefix," and `s3://orders/dt=2024-01-15/` is a location, not a table. There is
 no commit to fail, so there is nothing for the second attempt to supersede.
 
-Every failure mode above collapses into that one question — concurrent
-readers, mid-write crashes, schema changes, updates. Ask **where is the table**;
-if the answer is a prefix, the answer is that there isn't one.
+Every failure mode above collapses into that one question — concurrent readers,
+mid-write crashes, schema changes, updates. Ask **where is the table**; if the
+answer is a prefix, the answer is that there isn't one.
 
 ---
 

@@ -272,9 +272,9 @@ names sorted themselves, and two of the three teams turned out to want the same
 thing.
 
 Standardizing still has a real argument behind it — one catalogue, one set of
-maintenance jobs, one on-call rotation. That argument is about operational cost,
-which is worth making explicitly, rather than dressing it up as a technical
-verdict the workloads do not support.
+maintenance jobs, one on-call rotation. That argument is about operational
+cost, which is worth making explicitly, rather than dressing it up as a
+technical verdict the workloads do not support.
 
 ---
 

@@ -320,4 +320,5 @@ epoch boundary.
 
 The 40-node cluster still does the ETL — the features these runs consume come
 from it. The handoff is the boundary worth drawing explicitly: Spark produces
-the training data, Ray runs the search, and nothing tries to be both.
+the training data, [Ray](../distributed-python/ray.md) runs the search, and
+nothing tries to be both.

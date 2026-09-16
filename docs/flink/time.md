@@ -287,10 +287,9 @@ Lag was zero and stayed zero, honestly: there was nothing waiting to be
 consumed. Every symptom pointed at a healthy pipeline, because by Kafka's
 definition of health it was one.
 
-`withIdleness` is the setting that releases an idle partition from the
-minimum. Until it is configured, the quietest partition in the topic decides
-how fast the fraud dashboard moves — which is a property of event time, not a
-bug.
+`withIdleness` is the setting that releases an idle partition from the minimum.
+Until it is configured, the quietest partition in the topic decides how fast
+the fraud dashboard moves — which is a property of event time, not a bug.
 
 ---
 

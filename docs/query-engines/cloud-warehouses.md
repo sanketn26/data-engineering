@@ -201,8 +201,8 @@ WHERE query = pg_last_query_id();
 
 ## What happened next { #what-happened-next }
 
-All three, one per vendor, from the same SQL. **A** is BigQuery — bytes
-scanned is the bill, so a query that stopped pruning costs more without running
+All three, one per vendor, from the same SQL. **A** is BigQuery — bytes scanned
+is the bill, so a query that stopped pruning costs more without running
 differently. **B** is Snowflake — the warehouse was busy with Friday's load and
 the analyst queued behind it. **C** is Redshift — a table outgrew the node's
 memory and the join started spilling.

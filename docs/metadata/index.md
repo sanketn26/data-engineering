@@ -340,7 +340,8 @@ Five gold files like this beat an empty DataHub. Tooling comes after the files e
 
 ## What happened next { #what-happened-next }
 
-It was **C**. A catalogue would have listed `gold.events_agg` and still not
+**C**, and the tool everyone reached for was the wrong instinct. A catalogue
+would have listed `gold.events_agg` and still not
 told Maya whether to trust it; lineage would have shown where it came from and
 not who is accountable for it now. The table existed, was queryable, and was
 feeding a dashboard — what was missing was any statement of who owned it, how

@@ -218,8 +218,8 @@ Three hours against a normal eleven minutes is the cost of a key that was fine
 until one tenant grew. The job, the cluster, and the SQL are unchanged from the
 night it took eleven minutes — Acme is what changed.
 
-So the module reads in the order the incident forces: the
-[mental model](mental-model.md) to know what a stage is, [the shuffle](shuffle.md)
-for why rows must meet, the [optimizer](optimizer.md) for the plan that decides
-how much is read, and [gotchas](gotchas.md) for the four memory failures that
-look identical at 03:00.
+So the module reads in the order the incident forces: the [mental
+model](mental-model.md) to know what a stage is, [the shuffle](shuffle.md) for
+why rows must meet, the [optimizer](optimizer.md) for the plan that decides how
+much is read, and [gotchas](gotchas.md) for the four memory failures that look
+identical at 03:00.

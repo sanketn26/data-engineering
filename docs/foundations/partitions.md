@@ -317,10 +317,11 @@ decision. It is one decision for storage and a different one for compute, and
 
 The hot key is still there. `cust_0042` at 38% of events now means one reducer
 owns 38% of the rollup, and no partition layout on S3 changes that — it is
-decided when the shuffle hashes the key. That is
-[The Shuffle](../spark/shuffle.md), the next page that has to pay for this one.
+decided when the shuffle hashes the key. That is [The
+Shuffle](../spark/shuffle.md), the next page that has to pay for this one.
 
-This is [SaaSCo Stage 2](../architectures/saasco-evolution.md#stage-2-400-gbday-spark-appears-phase-0-phase-3):
+This is [SaaSCo Stage
+2](../architectures/saasco-evolution.md#stage-2-400-gbday-spark-appears-phase-0-phase-3):
 still one nightly Spark job, now with a layout that survives the next 10×.
 
 ---

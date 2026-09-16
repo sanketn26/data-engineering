@@ -244,7 +244,7 @@ predict the multiplier from adding `user_id`. Then run the
 
 ## What happened next { #what-happened-next }
 
-It was **C**. Friday's `user_id` label multiplied the metric's series count by
+**C**. Friday's `user_id` label multiplied the metric's series count by
 the number of distinct users, and each series is an identity the TSDB keeps in
 an in-memory index. Traffic was unchanged all week — the *number of things being
 counted* was not.

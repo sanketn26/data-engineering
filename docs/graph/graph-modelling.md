@@ -258,8 +258,7 @@ Idempotency: same `txn_id` replayed must not create a second `:Transaction`. Tha
 
 ## What happened next { #what-happened-next }
 
-It was **C**. The corporate VPN's IP node with five million edges is a
-supernode, and every 2-hop query through it fans out across all of them before
+**C**. The corporate VPN's IP node with five million edges is a supernode, and every 2-hop query through it fans out across all of them before
 filtering. The model was not wrong about IP being a node — it was missing any
 way to route around entities that everyone shares.
 

@@ -265,10 +265,10 @@ When WCC blobs are huge (marketplace), Louvain splits **dense** communities. Run
 
 ## What happened next { #what-happened-next }
 
-It was **C**. The projection pins the graph in memory on the serving cluster,
-and every other Bolt session queues behind it. Forty million edges do not fail
-fast — they succeed slowly, at the cost of every request arriving during the
-afternoon it runs.
+The projection pins the graph in memory on the serving cluster — **C** — on the
+serving cluster, and every other Bolt session queues behind it. Forty million
+edges do not fail fast — they succeed slowly, at the cost of every request
+arriving during the afternoon it runs.
 
 WCC is not expensive because it is badly implemented. It is global: it has to
 see the whole graph to answer, which makes it structurally the wrong shape for

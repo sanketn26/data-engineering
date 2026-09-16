@@ -230,7 +230,8 @@ at once: the writer feels the slow reader, the readers compete for the same
 rows, and replay is a restore from backup.
 
 That is what the rest of this module builds out — [the log](log.md) itself,
-[partitions](partitions.md) as the parallelism unit, [replication](replication.md)
-for the broker that loses a disk, and [gotchas](gotchas.md) for the morning lag
-climbs and nothing has crashed. SaaSCo arrives here at
-[Stage 3](../architectures/saasco-evolution.md#stage-3-4-tbday-kafka-appears-phase-2).
+[partitions](partitions.md) as the parallelism unit,
+[replication](replication.md) for the broker that loses a disk, and
+[gotchas](gotchas.md) for the morning lag climbs and nothing has crashed.
+SaaSCo arrives here at [Stage
+3](../architectures/saasco-evolution.md#stage-3-4-tbday-kafka-appears-phase-2).

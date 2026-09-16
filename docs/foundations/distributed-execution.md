@@ -234,8 +234,8 @@ of them, its rows all hashed to one range, and that task inherited a share of
 the data the other 199 never saw.
 
 So Maya's answer to Jordan is neither "undersized" nor "something else": 40
-cores were fine, and one of them had twenty-five minutes of work. The
-fix lives at the key, not at the cluster size.
+cores were fine, and one of them had twenty-five minutes of work. The fix lives
+at the key, not at the cluster size.
 
 Once you can name the job, the stages, the tasks, and the straggler, the Spark
 UI stops being decorative: sort the stage's tasks by duration, and the gap

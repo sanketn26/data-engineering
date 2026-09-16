@@ -259,7 +259,8 @@ Debugging starts by asking: *is the TI even assigned?* Then *is the worker alive
 
 ## What happened next { #what-happened-next }
 
-It was **B**. `parallelism=32` is a ceiling the scheduler will not exceed; it
+**B**, and the number everyone was staring at was the wrong one.
+`parallelism=32` is a ceiling the scheduler will not exceed; it
 is not a promise that 32 slots exist. Two Celery workers at
 `worker_concurrency=2` is four slots, and four was exactly what was running.
 The other six workers had been gone long enough that nothing remembered them.

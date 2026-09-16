@@ -267,10 +267,11 @@ Postgres said `PAID` forty minutes ago and the lake still said `PENDING`
 because on object storage a row does not change — a file does.
 
 That is the reason Iceberg and Delta were ruled out for this table months
-earlier. Both are excellent at append-heavy workloads, and a
-`PENDING → PAID → SHIPPED → RETURNED` lifecycle is the opposite: a stream of
-record-level updates arriving continuously against files that already exist.
+earlier. Both are excellent at append-heavy workloads, and a `PENDING → PAID →
+SHIPPED → RETURNED` lifecycle is the opposite: a stream of record-level updates
+arriving continuously against files that already exist.
 
+[Iceberg](iceberg.md) and [Delta](delta.md) solve the other half of this.
 Copy-on-write rewrites the file on every update and makes readers fast and
 writers expensive. Merge-on-read defers the rewrite and makes writers fast and
 readers pay at query time. Forty minutes of staleness is a compaction schedule,

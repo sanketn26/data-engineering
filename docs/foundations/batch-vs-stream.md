@@ -270,8 +270,8 @@ One of the three needs streaming. The other two were sorted by asking how late
 each answer is allowed to be and how much state has to be remembered between
 events — not by which engine was proposed.
 
-The 200 ms case is what eventually brings Flink in, at
-[SaaSCo Stage 4](../architectures/saasco-evolution.md#stage-4-freshness-under-10-seconds-flink-appears-phase-4)
+The 200 ms case is what eventually brings Flink in, at [SaaSCo Stage
+4](../architectures/saasco-evolution.md#stage-4-freshness-under-10-seconds-flink-appears-phase-4)
 — years after this review, for exactly one of these three questions.
 
 ---

@@ -394,17 +394,18 @@ the filtering afterwards, which is a full scan wearing an index's clothes. The
 `EXPLAIN indexes = 1` output said so plainly: granules selected ≈ granules
 total.
 
-Maya's fix is not a skip index, and it is not `FINAL`. It is a second
-sort order for the query that lost — a projection ordered
-`(service, timestamp)`, or a second table fed by the same materialized view.
-The tile answers in a few hundred milliseconds again by the next morning.
+Maya's fix is not a skip index, and it is not `FINAL`. It is a second sort
+order for the query that lost — a projection ordered `(service, timestamp)`, or
+a second table fed by the same materialized view. The tile answers in a few
+hundred milliseconds again by the next morning.
 
 What could not be changed at 03:14 was the sort order itself. `ORDER BY` is the
-index, and its first column is fixed at table creation. Q1 and Q2 want different
-first columns, so each additional query shape costs a projection or a second
-table, plus the merge CPU to keep it current.
+index, and its first column is fixed at table creation. Q1 and Q2 want
+different first columns, so each additional query shape costs a projection or a
+second table, plus the merge CPU to keep it current.
 
-This is [SaaSCo Stage 7](../architectures/saasco-evolution.md#stage-7-customer-dashboards-need-sub-second-clickhouse-appears-phase-8):
+This is [SaaSCo Stage
+7](../architectures/saasco-evolution.md#stage-7-customer-dashboards-need-sub-second-clickhouse-appears-phase-8):
 ClickHouse is here because a dashboard needs sub-second answers, and the cost
 of that latency class is paid in sort orders.
 

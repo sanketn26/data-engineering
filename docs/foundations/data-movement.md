@@ -241,13 +241,14 @@ Fetch failures under **dynamic allocation** happen because executors with shuffl
 ## What happened next { #what-happened-next }
 
 It was **(B)**. Nine seconds of `percentile_approx`, about eleven minutes of
-shuffle, and the rest split between the S3 read and a write that produced
-far more files than rows deserved. Nobody had been able to point at the
-missing time because the Spark UI reports it honestly and in the wrong place:
-the *stage* boundary is where the money went, and the stage boundary is not an
+shuffle, and the rest split between the S3 read and a write that produced far
+more files than rows deserved. Nobody had been able to point at the missing
+time because the Spark UI reports it honestly and in the wrong place: the
+*stage* boundary is where the money went, and the stage boundary is not an
 operator anyone wrote.
 
-The number Maya puts on the screen is bytes-shuffled, not CPU. Once it is there, the options stop being "add executors" and start being the real ones:
+The number Maya puts on the screen is bytes-shuffled, not CPU. Once it is
+there, the options stop being "add executors" and start being the real ones:
 project fewer columns before the shuffle so less has to move, pre-aggregate so
 the wire carries partial results instead of raw rows, and keep the exchange
 inside one AZ so the bill reflects the work.
@@ -257,9 +258,9 @@ fetch connections pulling the same bytes across the same NIC — the math is the
 same as the last page's: the expensive decision is where bytes have to meet.
 
 This is the mechanism the p95 job has been paying for since Stage 2. What it
-looks like from inside Spark's scheduler is
-[Distributed Execution](distributed-execution.md); what it looks like when one
-key owns the exchange is [The Shuffle](../spark/shuffle.md).
+looks like from inside Spark's scheduler is [Distributed
+Execution](distributed-execution.md); what it looks like when one key owns the
+exchange is [The Shuffle](../spark/shuffle.md).
 
 ---
 

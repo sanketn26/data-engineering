@@ -189,10 +189,10 @@ ClickHouse: `EXPLAIN indexes = 1`, `system.parts`, `system.query_log`. Pinot: br
 
 ## What happened next { #what-happened-next }
 
-It was **D**. Not a covering index, not another replica: Postgres stores rows,
-and a `GROUP BY` over an hour of events reads every column of every row to
-answer a question about two of them. An index helps it find the rows; it does
-not change what a row costs to read.
+Not a covering index, not another replica — **D**. Postgres stores rows, and a
+`GROUP BY` over an hour of events reads every column of every row to answer a
+question about two of them. An index helps it find the rows; it does not change
+what a row costs to read.
 
 The replica was already the mitigation, which is why the app queries timed out
 too — one analytical query saturating the CPU of the machine that also serves
@@ -201,8 +201,9 @@ the product. That is the failure mode, not a capacity shortfall.
 Priya gets her dashboard from an engine that stores columns and sorts them for
 the filter she actually uses. Which one depends on the shape of the load:
 [ClickHouse](clickhouse.md) for internal dashboards and ad-hoc SQL,
-[Pinot](pinot.md) when ten thousand tenants open the app at 09:00 —
-[SaaSCo Stage 7](../architectures/saasco-evolution.md#stage-7-customer-dashboards-need-sub-second-clickhouse-appears-phase-8),
+[Pinot](pinot.md) when ten thousand tenants open the app at 09:00 — [SaaSCo
+Stage
+7](../architectures/saasco-evolution.md#stage-7-customer-dashboards-need-sub-second-clickhouse-appears-phase-8),
 and the reason [columnar storage](columnar-storage.md) comes first in this
 module.
 

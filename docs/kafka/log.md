@@ -278,7 +278,8 @@ a seven-day retention is unrecoverable no matter how good the tooling is.
 
 Next week the constraint moves: five consumers now read this topic at five
 different speeds, and the slowest one is what decides whether retention is
-enough. That is [SaaSCo Stage 3](../architectures/saasco-evolution.md#stage-3-4-tbday-kafka-appears-phase-2),
+enough. That is [SaaSCo Stage
+3](../architectures/saasco-evolution.md#stage-3-4-tbday-kafka-appears-phase-2),
 where the log stops being a buffer and becomes the system of record.
 
 ---

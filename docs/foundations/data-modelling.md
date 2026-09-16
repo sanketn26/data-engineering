@@ -126,10 +126,10 @@ then move a validity boundary. This makes the half-open interval rule visible.
 
 ## What happened next { #what-happened-next }
 
-It was **(B)**. `payment_attempt` is at attempt grain, `fct_order_item` at item
-grain, and an order paid on the third try joined three times. Every join key
-existed and every column resolved, which is why nothing errored and the number
-was 2.3× rather than obviously wrong.
+A grain mismatch — **(B)**. `payment_attempt` is at attempt grain,
+`fct_order_item` at item grain, and an order paid on the third try joined three
+times. Every join key existed and every column resolved, which is why nothing
+errored and the number was 2.3× rather than obviously wrong.
 
 2.3 is the average number of payment attempts per order, which is the tell: a
 fan-out multiplier is never a round number, and it moves when customer

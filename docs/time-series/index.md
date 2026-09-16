@@ -188,8 +188,8 @@ queried in ranges rather than by key, and lose value with age. Every engine in
 this module trades generality for those four facts — time-partitioned chunks,
 delta-of-delta compression, and retention as a first-class policy.
 
-The order the module then follows is the order the questions arrive:
-[what time even means](time-semantics.md) when a device buffers offline,
+The order the module then follows is the order the questions arrive: [what time
+even means](time-semantics.md) when a device buffers offline,
 [cardinality](cardinality.md) when someone adds a label, [windows](windows.md)
 when the chart is finite and the stream is not, and
 [downsampling](downsampling.md) when Elena asks about the 160 TB.

@@ -170,8 +170,9 @@ retention runs out.
 Which of the three responses applies is decided by what the events are worth.
 Autoscaling the processor moves the bottleneck to the sink and changes nothing.
 Admission control protects the sink and makes the producer someone else's
-problem. Load shedding drops events on purpose, which is the right answer for
-metrics and the wrong one for orders — and that is a product decision, not an
+problem — the trade [Kafka's log](../kafka/log.md) defers rather than removes.
+Load shedding drops events on purpose, which is the right answer for metrics
+and the wrong one for orders — and that is a product decision, not an
 infrastructure one.
 
 ---

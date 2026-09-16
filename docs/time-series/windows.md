@@ -269,9 +269,9 @@ A 5-minute sliding chart reads 5 of these minute rows, not 10 raw samples × 30 
 
 ## What happened next { #what-happened-next }
 
-It was **C**. A SQL window function over 90 days of raw readings from 10 million
-devices recomputes the average across the full range for every output point,
-which is why the CPU pinned and the query never returned.
+It was **C**. A SQL window function over 90 days of raw readings from 10
+million devices recomputes the average across the full range for every output
+point, which is why the CPU pinned and the query never returned.
 
 Precomputing 1-minute tumbling windows and sliding over *those* gives the same
 chart from a few thousand rows. The 5-minute rolling average becomes five

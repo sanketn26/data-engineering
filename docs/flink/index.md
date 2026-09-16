@@ -225,7 +225,7 @@ the minimum across all input partitions, and overnight one quiet partition can
 hold it still while everything else looks healthy.
 
 Which is why this module starts at [time](time.md) rather than at the API, then
-[windows](windows.md) for the shape that decides what counts,
-[state](state.md) for what a stateful job keeps, and
-[checkpoints](checkpoints.md) for how much of it survives a restart. SaaSCo
-reaches here at [Stage 4](../architectures/saasco-evolution.md#stage-4-freshness-under-10-seconds-flink-appears-phase-4).
+[windows](windows.md) for the shape that decides what counts, [state](state.md)
+for what a stateful job keeps, and [checkpoints](checkpoints.md) for how much
+of it survives a restart. SaaSCo reaches here at [Stage
+4](../architectures/saasco-evolution.md#stage-4-freshness-under-10-seconds-flink-appears-phase-4).

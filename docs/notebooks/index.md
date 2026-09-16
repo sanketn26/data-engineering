@@ -331,7 +331,7 @@ A VP number lived in a notebook on a user PVC. The user left. The PVC expired. T
 
 ## What happened next { #what-happened-next }
 
-It was **B**. Disabling downloads (A) and blocking egress (C) both stop this
+**B**. Disabling downloads (A) and blocking egress (C) both stop this
 specific path and leave the notebook holding 200,000 real emails — a
 screenshot, a copy-paste, or a write to any reachable bucket still works. Audit
 logging (D) tells Jordan about it on Monday.

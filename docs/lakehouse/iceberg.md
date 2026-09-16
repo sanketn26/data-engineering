@@ -328,7 +328,7 @@ files inside that snapshot.
 
 ## What happened next { #what-happened-next }
 
-It was **C**. The losing writer re-read the new metadata pointer and retried
+**C**: the losing writer re-read the new metadata pointer and retried
 its commit against it. Nothing was locked — Spark's MERGE and Flink's CDC
 writer both ran to completion, and the swap of a single atomic pointer decided
 the order between them.

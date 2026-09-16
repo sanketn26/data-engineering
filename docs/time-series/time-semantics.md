@@ -249,10 +249,10 @@ WITH FILL STEP 3600;   -- ClickHouse: show gaps as defaults
 
 ## What happened next { #what-happened-next }
 
-It was **B**. The reading was bucketed by the time it arrived rather than the
-time the sensor took it, so a buffered batch delivered at 10:06 drew a
-fleet-wide spike at 10:06 that never happened. The sensor's own timestamp said
-`10:02:03Z`.
+The chart was drawn on the wrong clock — **B**. The reading was bucketed by the
+time it arrived rather than the time the sensor took it, so a buffered batch
+delivered at 10:06 drew a fleet-wide spike at 10:06 that never happened. The
+sensor's own timestamp said `10:02:03Z`.
 
 Nothing alerted, because nothing was wrong by any check that was running. The
 values were real, the devices were healthy, the pipeline was current — the
@@ -261,8 +261,8 @@ chart was a true statement about the wrong clock.
 Storing event time fixes the chart and creates the question every streaming
 system inherits: how long to wait for stragglers before closing a bucket. Wait
 too briefly and reconnecting devices land after their window has closed; wait
-too long and the dashboard lags. That is [watermarks](../flink/time.md), arrived
-at from the storage side.
+too long and the dashboard lags. That is [watermarks](../flink/time.md),
+arrived at from the storage side.
 
 ---
 

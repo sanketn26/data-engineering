@@ -274,15 +274,16 @@ Retries may call `execute` twice; the Postgres unique key makes the *effect* onc
 ## What happened next { #what-happened-next }
 
 Kafka transactions would not have stopped the double charge. The charge is a
-call to Stripe, and a Kafka transaction covers reads and writes *within*
-Kafka — consume, produce, commit offsets, atomically. Stripe is not a
-participant in it.
+call to Stripe, and a Kafka transaction covers reads and writes *within* Kafka
+— consume, produce, commit offsets, atomically. Stripe is not a participant in
+it.
 
 What the transaction does fix is the internal half: the enriched event and the
 offset commit land together, so a crash between them stops producing a
 duplicate downstream record. The card is a different problem, and it is solved
-where the side effect happens — an idempotency key on the Stripe request, so
-the second call returns the first charge instead of making a new one.
+where the side effect happens — an [idempotency key](../airflow/idempotency.md)
+on the Stripe request, so the second call returns the first charge instead of
+making a new one.
 
 "Just turn on exactly-once" is answerable once the question is phrased as
 exactly-once *of what, between which two systems*. Between Kafka and Kafka,
