@@ -7,6 +7,8 @@ description: Three cumulative production-data-engineering assessments with an ev
 
 The academy is complete when you can produce and defend evidence, not when every page has been opened. Complete one architecture capstone, one incident diagnosis, and one migration exercise.
 
+Default the architecture deliverable to SaaSCo unless you would rather work in one of the other four costumes — you have the volume steps, the tenant skew, and the eight stages already.
+
 ## Deliverable 1 — architecture decision record
 
 Choose SaaS analytics, observability, e-commerce, IoT, or fraud. Submit:

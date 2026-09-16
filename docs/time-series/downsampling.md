@@ -225,6 +225,66 @@ ORDER BY m;
 
 ---
 
+## What happened next { #what-happened-next }
+
+It was **C**. Nobody renders more than 1,200 points, so storing a year of raw
+30-second samples means keeping 10¹³ points to draw charts that discard
+essentially all of them.
+
+Tiered rollups — 1 minute, 1 hour, 1 day — with raw kept for days rather than
+years cut the 160 TB by orders of magnitude and made the dashboards faster,
+because a year-long chart now reads daily rollups instead of aggregating
+billions of raw points on every page load.
+
+The aggregation was never optional. The only choice was whether to do it once
+on write or every time someone opens Grafana, and the raw-retention number is
+where that choice is actually made: it is the window in which an incident can
+still be investigated at full resolution.
+
+---
+
+## Check your understanding { #exercise }
+
+10 M devices, 30 s temperature, 3× replication, 24 bytes/point on disk after compression (all-in). Budget: 40 TB usable for this pipeline.
+
+Propose raw / 1 min / 1 h retentions that fit, which stats live in 1 min, and what the 1-year exec chart reads. Show the arithmetic.
+
+??? success "Answer"
+    Points/day per layer (10 M devices):
+
+    | Layer | Points/day | Bytes/day at 24 B/point (3× repl. all-in) |
+    |---|---|---|
+    | Raw (30 s) | 10e6 × 86400/30 = 2.88×10¹⁰ | ≈ **691 GB/day** |
+    | 1 min | 10e6 × 1440 = 1.44×10¹⁰ | ≈ **346 GB/day** |
+    | 1 hour | 10e6 × 24 = 2.4×10⁸ | ≈ **5.8 GB/day** |
+    | 1 day | 10e6 × 1 = 1×10⁷ | ≈ **0.24 GB/day** |
+
+    A year of fleet-wide raw would be 691 GB × 365 ≈ **252 TB** — more than 6× the 40 TB budget. That is the actual constraint: not that raw is unaffordable for a day, but that it is unaffordable to keep for a **year** at full fidelity. Coarsen with time, not with a blanket TTL.
+
+    **A design that fits 40 TB:**
+
+    - Raw (30 s), fleet-wide, **7 days**: 7 × 691 GB ≈ **4.8 TB** — enough to debug last week's incident.
+    - 1 min, fleet-wide, **60 days**: 60 × 346 GB ≈ **20.8 TB** — covers "what did last month look like."
+    - 1 hour, fleet-wide, **365 days**: 365 × 5.8 GB ≈ **2.1 TB** — a full year of per-device hourly trend.
+    - 1 day, fleet-wide, **3 years**: negligible (≈0.26 TB) — long-horizon capacity planning.
+    - Per-customer (2,000 customers) 1-min rollups, kept indefinitely: tens of GB, trivial.
+
+    Total ≈ 4.8 + 20.8 + 2.1 + 0.26 ≈ **28 TB**, leaving ~12 TB of headroom for quantile sketches, indices, and growth.
+
+    **1-year exec chart:** daily fleet or per-customer aggregates from the 1-day layer, not per-device 30 s raw. Carry `sum, count, min, max` (and a quantile sketch if you need p95) through every layer — never collapse to average-only, or you lose the ability to reconstruct a proper percentile later.
+
+    The point of the arithmetic: compression buys you weeks of full fidelity almost for free, but a **year** of per-device full fidelity is the expensive part. Downsampling is what buys back the year — by dropping identity (fleet/customer instead of per-device) or resolution (hour/day instead of second), not by a blanket retention cut.
+
+---
+
+## Reference
+
+Behaviour at the next orders of magnitude, the trade-offs, the alternatives, and
+what to check when inheriting someone else's version of this — kept here rather
+than in the walkthrough above.
+
+---
+
 ## How to investigate { #debugging }
 
 Storage:
@@ -313,34 +373,3 @@ At work the smell is a 14-day dashboard that scans 30 s raw for 10 M series, or 
 
 ---
 
-## Check your understanding { #exercise }
-
-10 M devices, 30 s temperature, 3× replication, 24 bytes/point on disk after compression (all-in). Budget: 40 TB usable for this pipeline.
-
-Propose raw / 1 min / 1 h retentions that fit, which stats live in 1 min, and what the 1-year exec chart reads. Show the arithmetic.
-
-??? success "Answer"
-    Points/day per layer (10 M devices):
-
-    | Layer | Points/day | Bytes/day at 24 B/point (3× repl. all-in) |
-    |---|---|---|
-    | Raw (30 s) | 10e6 × 86400/30 = 2.88×10¹⁰ | ≈ **691 GB/day** |
-    | 1 min | 10e6 × 1440 = 1.44×10¹⁰ | ≈ **346 GB/day** |
-    | 1 hour | 10e6 × 24 = 2.4×10⁸ | ≈ **5.8 GB/day** |
-    | 1 day | 10e6 × 1 = 1×10⁷ | ≈ **0.24 GB/day** |
-
-    A year of fleet-wide raw would be 691 GB × 365 ≈ **252 TB** — more than 6× the 40 TB budget. That is the actual constraint: not that raw is unaffordable for a day, but that it is unaffordable to keep for a **year** at full fidelity. Coarsen with time, not with a blanket TTL.
-
-    **A design that fits 40 TB:**
-
-    - Raw (30 s), fleet-wide, **7 days**: 7 × 691 GB ≈ **4.8 TB** — enough to debug last week's incident.
-    - 1 min, fleet-wide, **60 days**: 60 × 346 GB ≈ **20.8 TB** — covers "what did last month look like."
-    - 1 hour, fleet-wide, **365 days**: 365 × 5.8 GB ≈ **2.1 TB** — a full year of per-device hourly trend.
-    - 1 day, fleet-wide, **3 years**: negligible (≈0.26 TB) — long-horizon capacity planning.
-    - Per-customer (2,000 customers) 1-min rollups, kept indefinitely: tens of GB, trivial.
-
-    Total ≈ 4.8 + 20.8 + 2.1 + 0.26 ≈ **28 TB**, leaving ~12 TB of headroom for quantile sketches, indices, and growth.
-
-    **1-year exec chart:** daily fleet or per-customer aggregates from the 1-day layer, not per-device 30 s raw. Carry `sum, count, min, max` (and a quantile sketch if you need p95) through every layer — never collapse to average-only, or you lose the ability to reconstruct a proper percentile later.
-
-    The point of the arithmetic: compression buys you weeks of full fidelity almost for free, but a **year** of per-device full fidelity is the expensive part. Downsampling is what buys back the year — by dropping identity (fleet/customer instead of per-device) or resolution (hour/day instead of second), not by a blanket retention cut.

@@ -299,6 +299,63 @@ Casting `latency_ms` from string on 10 billion rows is a job you will pay daily 
 
 ---
 
+## What happened next { #what-happened-next }
+
+All four, which is what makes it a differential diagnosis rather than a quiz.
+The driver OOM at 03:00 was **A** — `toPandas()` on 50 million distinct
+`customer_id` rows, pulling the whole result into one JVM heap.
+
+The other three were in the same diff, waiting for their turn: a broadcast that
+grew from 8 MB to 900 MB, a `.cache()` holding 2 TB of execution memory
+hostage, and a Python UDF whose `memoryOverhead` was never budgeted. Nothing in
+the diff touched memory settings, and all four are memory incidents.
+
+They share a cause. Each one worked at 20 GB and stopped working at 2 TB
+without changing behaviour — the driver collected a result that used to fit,
+the broadcast crossed a threshold, the cache exceeded the fraction. Scale did
+not introduce new bugs; it removed the headroom that was hiding them.
+
+---
+
+## Check your understanding { #exercise }
+
+The SaaS job below runs 12 minutes on 5 GB and 6 hours (then dies) on 2 TB. `cust_0042` is 38% of 2 TB. 80 executors, DA on, no shuffle service, `speculation=true`, default shuffle partitions 200, default broadcast 10 MB. `customers` is 400 MB.
+
+```python
+@udf("string")
+def kind(ep):
+    return "internal" if ep.startswith("/api") else "external"
+
+raw = spark.read.json("s3://raw/events/")  # 90 days mixed
+raw = raw.withColumn("kind", kind("endpoint")).cache()
+j = raw.join(spark.read.parquet("s3://dims/customers"), "customer_id")
+j.write.partitionBy("date", "region").parquet("s3://lake/events/")
+print(j.count())
+```
+
+1. List **at least six** independent gotchas.
+2. Which kills you first at 2 TB, and what does the UI show?
+3. Rewrite the job (bullet points + key conf) for 2 TB.
+4. After the rewrite, what still requires a **product** decision about `cust_0042`?
+5. Why is `print(j.count())` after `write` a trap even if memory is fine?
+
+??? question "Worked answer"
+    1. JSON inference full 90-day scan; Python UDF; cache of the lake; SMJ of 400 MB (not broadcast at 10 MB) **or** someone raises threshold and broadcasts 400 MB × 80; `partitionBy date,region` small files; DA without shuffle service; speculation + append duplicates; `count` extra job; no date filter; default 200 reducers vs whale.
+    2. **Likely:** full 90-day JSON scan + UDF (SLA), then **whale reducer OOM/spill** on the join shuffle, then FetchFailed from DA. UI: huge scan bytes, `BatchEvalPython`, one task shuffle-read enormous, executors fluctuating.
+    3. Convert JSON→Parquet once; filter `date=`; native `when` for kind; **do not cache** raw; broadcast **projected** customers or AQE skew join; `partitionBy("date")` only; `maxRecordsPerFile` / Iceberg; AQE on; \(R\) from bytes or advisory 128 MB; DA **off** or shuffle service on; speculation off until idempotent table write; schema explicit.
+    4. **Isolate or salt** the tenant. Config will not make 38% of 2 TB fit in one reducer.
+    5. `count()` is another **action** → recomputes the DAG (cache may have spilled/evicted). You pay the job twice. Use write metrics / Iceberg snapshot summary.
+
+---
+
+## Reference
+
+Behaviour at the next orders of magnitude, the trade-offs, the alternatives, and
+what to check when inheriting someone else's version of this — kept here rather
+than in the walkthrough above.
+
+---
+
 ## How to investigate { #debugging }
 
 | Gotcha | Where to look |
@@ -371,31 +428,3 @@ Code-search the repo for `.collect(`, `.toPandas(`, `@udf`, `repartition(`, `cac
 
 ---
 
-## Check your understanding { #exercise }
-
-The SaaS job below runs 12 minutes on 5 GB and 6 hours (then dies) on 2 TB. `cust_0042` is 38% of 2 TB. 80 executors, DA on, no shuffle service, `speculation=true`, default shuffle partitions 200, default broadcast 10 MB. `customers` is 400 MB.
-
-```python
-@udf("string")
-def kind(ep):
-    return "internal" if ep.startswith("/api") else "external"
-
-raw = spark.read.json("s3://raw/events/")  # 90 days mixed
-raw = raw.withColumn("kind", kind("endpoint")).cache()
-j = raw.join(spark.read.parquet("s3://dims/customers"), "customer_id")
-j.write.partitionBy("date", "region").parquet("s3://lake/events/")
-print(j.count())
-```
-
-1. List **at least six** independent gotchas.
-2. Which kills you first at 2 TB, and what does the UI show?
-3. Rewrite the job (bullet points + key conf) for 2 TB.
-4. After the rewrite, what still requires a **product** decision about `cust_0042`?
-5. Why is `print(j.count())` after `write` a trap even if memory is fine?
-
-??? question "Worked answer"
-    1. JSON inference full 90-day scan; Python UDF; cache of the lake; SMJ of 400 MB (not broadcast at 10 MB) **or** someone raises threshold and broadcasts 400 MB × 80; `partitionBy date,region` small files; DA without shuffle service; speculation + append duplicates; `count` extra job; no date filter; default 200 reducers vs whale.
-    2. **Likely:** full 90-day JSON scan + UDF (SLA), then **whale reducer OOM/spill** on the join shuffle, then FetchFailed from DA. UI: huge scan bytes, `BatchEvalPython`, one task shuffle-read enormous, executors fluctuating.
-    3. Convert JSON→Parquet once; filter `date=`; native `when` for kind; **do not cache** raw; broadcast **projected** customers or AQE skew join; `partitionBy("date")` only; `maxRecordsPerFile` / Iceberg; AQE on; \(R\) from bytes or advisory 128 MB; DA **off** or shuffle service on; speculation off until idempotent table write; schema explicit.
-    4. **Isolate or salt** the tenant. Config will not make 38% of 2 TB fit in one reducer.
-    5. `count()` is another **action** → recomputes the DAG (cache may have spilled/evicted). You pay the job twice. Use write metrics / Iceberg snapshot summary.

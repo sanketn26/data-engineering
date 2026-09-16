@@ -4,7 +4,7 @@ description: Why a Spark groupBy stalls at 199 of 200 tasks — hot-key shuffle 
 
 # The Shuffle
 
-02:47 AM page: the `groupBy("customer_id")` stage has been stuck at 199 of 200 tasks for forty minutes. Yesterday's run of the same code, same cluster, finished in twelve minutes. CPU dashboards look idle; the bill does not.
+02:47. Maya's pager: the `groupBy("customer_id")` stage has been stuck at 199 of 200 tasks for forty minutes. Yesterday's run of the same code, same cluster, finished in twelve minutes. CPU dashboards look idle; the bill does not.
 
 A. The network is saturated moving shuffle data.
 B. One reducer owns a single hot key's share of the data, and the other 199 finished long ago.
@@ -26,8 +26,8 @@ events.groupBy("customer_id").agg(F.count("*"), F.sum("bytes"))
 On disk, after a date-partitioned read, each **Spark partition** is a 128 MB Parquet slice with a mix of tenants:
 
 ```text
-Executor A: cust_0042, acme, tiny, cust_0042, ...
-Executor B: acme, cust_0042, ...
+Executor A: cust_0042, small, tiny, cust_0042, ...
+Executor B: small, cust_0042, ...
 Executor C: tiny, ...
 ```
 
@@ -297,6 +297,69 @@ Operationally this is how SaaS platforms survive a new enterprise logo on Tuesda
 
 ---
 
+## Practice the idea
+
+First use the [shuffle visualiser](../simulations/spark-shuffle.html) to compare
+uniform, skewed, and salted keys. Then run the
+[Spark lab](../labs/index.md#spark-labsspark) and find the max-versus-median task
+duration in the Spark UI. The
+[skewed-join incident](../incidents/index.md#incident-2-spark-executor-oom-on-a-skewed-join)
+turns that observation into a diagnosis.
+
+## What happened next { #what-happened-next }
+
+The answer was **B**. Not the network, not too few partitions, not uniform
+spill: 199 reducers finished in four minutes and one owned `cust_0042`'s share
+of the day. Maya finds it in the stage's task-duration histogram rather than in
+a config file — median four minutes, max forty and climbing, on a cluster whose
+CPU graphs looked idle because 199 executors had nothing left to do.
+
+Raising `spark.sql.shuffle.partitions` would not have helped. Every hash of
+`cust_0042` lands in the same bucket no matter how many buckets there are. AQE
+skew join would not have helped either — this is an aggregation, not a join.
+What fixes it is changing the key: salt `customer_id` into sixteen sub-keys,
+aggregate twice, and the whale's 760 GB becomes sixteen reducers of ~48 GB. The
+job is back under twenty minutes.
+
+Nothing about the cluster changed: the same twenty executors, the same memory,
+the same engine. One different key.
+
+Percentiles are the sting in the tail. `count` and `sum` merge cleanly across
+salts; `percentile_approx` needs a mergeable sketch or a separate path for the
+whale — which is why the p95 job stayed slow a week longer than the byte counts
+did.
+
+---
+
+## Check your understanding { #exercise }
+
+Cluster: 50 executors × 4 cores × 16 GB. Day of SaaS events: **2 TB** Parquet. `groupBy("customer_id")` sum/count. AQE off, \(R=200\). `cust_0042` = 38% of rows. Then a join to `customers` (1.2 GB SCD).
+
+1. Approximate shuffle-read of the **median** reducer vs the **whale** reducer for the agg (even other keys).
+2. Is 16 GB enough for the whale task? What UI numbers prove it?
+3. Design a salting factor \(S\) so whale tasks are ~200 MB. What happens to the long tail of tiny customers?
+4. For the join, broadcast or SMJ? Compute broadcast cluster RAM. What AQE settings would you enable?
+5. After fixing, `write` uses the shuffle partition count. How do you avoid 5 000 tiny Parquet files?
+6. Name one **fetch** failure you still need to architect for if you turn on dynamic allocation.
+
+??? question "Worked answer"
+    1. Even remainder \(0.62 \times 2\) TB / 199 ≈ **6 GB** per typical reducer if they split the non-whale (order-of-magnitude; hash is not perfect). Whale reducer ≈ **0.38 × 2 TB ≈ 760 GB** (plus that key’s hash collisions). Median is ~few GB; max is hundreds of GB.
+    2. **No.** 16 GB heap with `spark.memory.fraction` ~0.6 leaves ~8–10 GB execution. 760 GB **must** spill or OOM. UI: one task Shuffle Read ~760 GB, Spill Disk huge, duration hours, maybe `ExecutorLost`.
+    3. \(760\text{ GB}/200\text{ MB} \approx 3800\) — that is \(S\) if you salt **only the whale**. Salting **all** keys by 16 is simpler code but multiplies tiny keys into 16× more partials; prefer `when(customer_id==whale, salt else 0)` or isolate. Long tail: extra partial rows, second agg is still cheap.
+    4. **Do not broadcast 1.2 GB** × 50 ≈ 60 GB + driver collect of 1.2 GB — risky on 16 GB executors (together with fat partitions). Project `customers` to columns you need; if ≤ ~50–100 MB, broadcast. Else SMJ + AQE skew join. Enable `adaptive.enabled`, `skewJoin.enabled`, `coalescePartitions`.
+    5. `coalesce`/`repartition` **after** the tiny final agg (the mart is small — even `coalesce(20)` is fine), or `spark.sql.files.maxRecordsPerFile`, or AQE + `advisoryPartitionSize` on the last exchange. Compaction job if a table format.
+    6. **Map output lost** when idle executors are reclaimed: `FetchFailedException`. External shuffle service + shuffle tracking; or disable DA for this job.
+
+---
+
+## Reference
+
+Behaviour at the next orders of magnitude, the trade-offs, the alternatives, and
+what to check when inheriting someone else's version of this — kept here rather
+than in the walkthrough above.
+
+---
+
 ## How to investigate { #debugging }
 
 **Order of operations on `:4040`:**
@@ -372,30 +435,3 @@ If (3) is 50×, the fix is keys, not `spark.executor.instances+20`.
 
 ---
 
-## Practice the idea
-
-First use the [shuffle visualiser](../simulations/spark-shuffle.html) to compare
-uniform, skewed, and salted keys. Then run the
-[Spark lab](../labs/index.md#spark-labsspark) and find the max-versus-median task
-duration in the Spark UI. The
-[skewed-join incident](../incidents/index.md#incident-2-spark-executor-oom-on-a-skewed-join)
-turns that observation into a diagnosis.
-
-## Check your understanding { #exercise }
-
-Cluster: 50 executors × 4 cores × 16 GB. Day of SaaS events: **2 TB** Parquet. `groupBy("customer_id")` sum/count. AQE off, \(R=200\). `cust_0042` = 38% of rows. Then a join to `customers` (1.2 GB SCD).
-
-1. Approximate shuffle-read of the **median** reducer vs the **whale** reducer for the agg (even other keys).
-2. Is 16 GB enough for the whale task? What UI numbers prove it?
-3. Design a salting factor \(S\) so whale tasks are ~200 MB. What happens to the long tail of tiny customers?
-4. For the join, broadcast or SMJ? Compute broadcast cluster RAM. What AQE settings would you enable?
-5. After fixing, `write` uses the shuffle partition count. How do you avoid 5 000 tiny Parquet files?
-6. Name one **fetch** failure you still need to architect for if you turn on dynamic allocation.
-
-??? question "Worked answer"
-    1. Even remainder \(0.62 \times 2\) TB / 199 ≈ **6 GB** per typical reducer if they split the non-whale (order-of-magnitude; hash is not perfect). Whale reducer ≈ **0.38 × 2 TB ≈ 760 GB** (plus that key’s hash collisions). Median is ~few GB; max is hundreds of GB.
-    2. **No.** 16 GB heap with `spark.memory.fraction` ~0.6 leaves ~8–10 GB execution. 760 GB **must** spill or OOM. UI: one task Shuffle Read ~760 GB, Spill Disk huge, duration hours, maybe `ExecutorLost`.
-    3. \(760\text{ GB}/200\text{ MB} \approx 3800\) — that is \(S\) if you salt **only the whale**. Salting **all** keys by 16 is simpler code but multiplies tiny keys into 16× more partials; prefer `when(customer_id==whale, salt else 0)` or isolate. Long tail: extra partial rows, second agg is still cheap.
-    4. **Do not broadcast 1.2 GB** × 50 ≈ 60 GB + driver collect of 1.2 GB — risky on 16 GB executors (together with fat partitions). Project `customers` to columns you need; if ≤ ~50–100 MB, broadcast. Else SMJ + AQE skew join. Enable `adaptive.enabled`, `skewJoin.enabled`, `coalescePartitions`.
-    5. `coalesce`/`repartition` **after** the tiny final agg (the mart is small — even `coalesce(20)` is fine), or `spark.sql.files.maxRecordsPerFile`, or AQE + `advisoryPartitionSize` on the last exchange. Compaction job if a table format.
-    6. **Map output lost** when idle executors are reclaimed: `FetchFailedException`. External shuffle service + shuffle tracking; or disable DA for this job.

@@ -267,6 +267,47 @@ A 5-minute sliding chart reads 5 of these minute rows, not 10 raw samples × 30 
 
 ---
 
+## What happened next { #what-happened-next }
+
+It was **C**. A SQL window function over 90 days of raw readings from 10
+million devices recomputes the average across the full range for every output
+point, which is why the CPU pinned and the query never returned.
+
+Precomputing 1-minute tumbling windows and sliding over *those* gives the same
+chart from a few thousand rows. The 5-minute rolling average becomes five
+pre-aggregated buckets, and the 30-second refresh reads what is already
+computed rather than rebuilding it.
+
+A bigger cluster (A) and an index on `timestamp` (B) both make the wrong amount
+of work faster. The stream does not end and the chart is finite, so the
+reduction has to happen once, on write — which is the same conclusion
+[downsampling](downsampling.md) reaches from the storage bill.
+
+---
+
+## Check your understanding { #exercise }
+
+10 M devices, temperature every 30 s. Tile: “rolling 5-minute average, updated every 30 s” for **one** device (device page) vs **fleet p95 of those per-device averages** (ops wall).
+
+Can you serve both from raw ClickHouse? What windows and rollups do you build? Why is fleet p95 of averages not p95 of raw samples?
+
+??? success "Answer"
+    **Device page:** raw (or 30 s data) with a sliding SQL window or client-side roll of the last 10 samples. 5 minutes × 1 device × 2 samples/s wait, 30 s interval = 10 points. Trivial. `ORDER BY (device_id, sensor, ts)` + time filter. Do **not** scan the fleet.
+
+    **Ops wall:** do **not** slide on raw 10 M devices. Build 30 s or 1-minute tumbling per device (`avg`/`max`). Fleet tile should use a **further** rollup: e.g. 1-minute `quantile` **across devices** of the per-device mean, stored as a sketch or as a pre-aggregated fleet table. Updating every 30 s means the MV/cagg delay must be ≤ 30 s or you query the last few raw minutes merged with the rollup.
+
+    **p95 of per-device averages ≠ p95 of raw samples.** The first asks “how hot is a typical device’s 5-minute mean.” The second asks “how hot is a typical **sample**” (dominated by devices that report more often, and includes intra-window spikes). Product must pick. Storing only `avg` in the 1-minute table **destroys** raw p95; keep `max` and/or a quantile state if the wall needs spikes.
+
+---
+
+## Reference
+
+Behaviour at the next orders of magnitude, the trade-offs, the alternatives, and
+what to check when inheriting someone else's version of this — kept here rather
+than in the walkthrough above.
+
+---
+
 ## How to investigate { #debugging }
 
 - Compute **expected bucket count**: 6 h × 1-minute × 1 device = 360. If the query returns 360,000, you forgot `device_id` filter or grouped wrong.
@@ -323,15 +364,3 @@ Related stream processing: [Flink windows](../flink/windows.md) if you must clos
 
 ---
 
-## Check your understanding { #exercise }
-
-10 M devices, temperature every 30 s. Tile: “rolling 5-minute average, updated every 30 s” for **one** device (device page) vs **fleet p95 of those per-device averages** (ops wall).
-
-Can you serve both from raw ClickHouse? What windows and rollups do you build? Why is fleet p95 of averages not p95 of raw samples?
-
-??? success "Answer"
-    **Device page:** raw (or 30 s data) with a sliding SQL window or client-side roll of the last 10 samples. 5 minutes × 1 device × 2 samples/s wait, 30 s interval = 10 points. Trivial. `ORDER BY (device_id, sensor, ts)` + time filter. Do **not** scan the fleet.
-
-    **Ops wall:** do **not** slide on raw 10 M devices. Build 30 s or 1-minute tumbling per device (`avg`/`max`). Fleet tile should use a **further** rollup: e.g. 1-minute `quantile` **across devices** of the per-device mean, stored as a sketch or as a pre-aggregated fleet table. Updating every 30 s means the MV/cagg delay must be ≤ 30 s or you query the last few raw minutes merged with the rollup.
-
-    **p95 of per-device averages ≠ p95 of raw samples.** The first asks “how hot is a typical device’s 5-minute mean.” The second asks “how hot is a typical **sample**” (dominated by devices that report more often, and includes intra-window spikes). Product must pick. Storing only `avg` in the 1-minute table **destroys** raw p95; keep `max` and/or a quantile state if the wall needs spikes.

@@ -25,7 +25,7 @@ Queries (almost always filtered to **one tenant**):
 ```sql
 SELECT endpoint, COUNT(*) AS reqs, AVG(latency_ms)
 FROM events
-WHERE customer_id = 'bigcorp'
+WHERE customer_id = 'cust_0042'
   AND timestamp >= ago('15m')
 GROUP BY endpoint
 LIMIT 50;
@@ -117,12 +117,12 @@ Configured dimensions: `customer_id`, `endpoint`, `status_code`. Metrics: `COUNT
 -- Hits star-tree (subset / exact match of dimensions)
 SELECT endpoint, status_code, COUNT(*), AVG(latency_ms)
 FROM events
-WHERE customer_id = 'bigcorp'
+WHERE customer_id = 'cust_0042'
 GROUP BY endpoint, status_code;
 
 -- Misses: dimension not in the tree
 SELECT user_id, COUNT(*) FROM events
-WHERE customer_id = 'bigcorp'
+WHERE customer_id = 'cust_0042'
 GROUP BY user_id;
 ```
 
@@ -210,7 +210,7 @@ Query:
 ```sql
 SELECT service, endpoint, COUNT(*) AS reqs, AVG(latency_ms) AS avg_lat
 FROM events
-WHERE customer_id = 'bigcorp'
+WHERE customer_id = 'cust_0042'
   AND timestamp >= ago('15m')
   AND timestamp < ago('0m')
 GROUP BY service, endpoint
@@ -251,6 +251,51 @@ Always include the tenant predicate. Multi-tenant isolation in Pinot is **query 
 | Segment explosion | Planning 5 s | Flush too aggressive; no merge/minion task |
 | Inconsistent hybrid | Double count at the seam | Time boundary / watermark misconfig between realtime and offline |
 | Noisy neighbour | Small tenants 2 s p95 | Whale tenant + missing `customer_id` index; or one server holds the whale’s segments |
+
+---
+
+## What happened next { #what-happened-next }
+
+It was **D**. Nothing was saturated because the problem was not throughput —
+ten thousand tenants each wanting a different small slice at 09:00 is a
+concurrency shape, and a scan-oriented engine answers each of those by
+scanning.
+
+More shards (A) and replicas (B) spread the scanning without removing it. A
+cache (C) works when tenants ask the same question, and each of these asks
+about their own company and their own last 15 minutes.
+
+The difference is the index. Inverted indexes and star-trees answer a
+tenant-filtered aggregation by lookup rather than by reading a range, which is
+what holds p99 under 100 ms while ten thousand of them arrive at once. Same
+events, same volume, a different question being asked of them.
+
+---
+
+## Check your understanding { #exercise }
+
+You run ClickHouse for internal Grafana (`ORDER BY (service, endpoint, timestamp)`), 300 M events/day, 40 QPS, happy. Product wants in-app analytics: 8,000 QPS peak, `WHERE customer_id = $current_tenant`, 10 s freshness, breakdowns by `endpoint` and `status_code` only. A colleague says “add a projection on `customer_id` and 20 more replicas.”
+
+Do you: (a) projection + replicas, (b) new ClickHouse table `ORDER BY (customer_id, timestamp)` behind a cache, (c) Pinot hybrid with star-tree, (d) Trino on Iceberg? Pick one primary and name the failure mode of each reject.
+
+??? success "Answer"
+    **Primary: (c)** for the in-app path. Closed dimensions, tenant filter, 8k QPS, 10 s freshness is Pinot’s job. Star-tree on `(customer_id, endpoint, status_code)` plus inverted/sorted `customer_id`. Keep ClickHouse for internal Grafana.
+
+    **(a)** Projection helps **scan bytes** for tenant queries; it does not create inverted bitmaps or a broker designed for 8k QPS. 20 replicas of a scan-oriented engine is a very expensive maybe.
+
+    **(b)** Right ClickHouse physical design for tenant scans, plus cache, can work at **hundreds** of QPS if you pre-aggregate. At 8k QPS and 10 s freshness you are building a serving layer anyway (MV rollups, cache invalidation). Possible for a disciplined team; it is Pinot-without-Pinot.
+
+    **(d)** Trino on Iceberg: planning + S3 per request, no 50 ms, no 8k QPS. Wrong SLA.
+
+    Hybrid Pinot failure mode to plan for: double-counting at the realtime/offline seam, and product later grouping by `user_id` (star-tree miss → cluster-shaped incident).
+
+---
+
+## Reference
+
+Behaviour at the next orders of magnitude, the trade-offs, the alternatives, and
+what to check when inheriting someone else's version of this — kept here rather
+than in the walkthrough above.
 
 ---
 
@@ -321,19 +366,3 @@ Capacity sketch: QPS × (segments hit / inverted selectivity) × merge cardinali
 
 ---
 
-## Check your understanding { #exercise }
-
-You run ClickHouse for internal Grafana (`ORDER BY (service, endpoint, timestamp)`), 300 M events/day, 40 QPS, happy. Product wants in-app analytics: 8,000 QPS peak, `WHERE customer_id = $current_tenant`, 10 s freshness, breakdowns by `endpoint` and `status_code` only. A colleague says “add a projection on `customer_id` and 20 more replicas.”
-
-Do you: (a) projection + replicas, (b) new ClickHouse table `ORDER BY (customer_id, timestamp)` behind a cache, (c) Pinot hybrid with star-tree, (d) Trino on Iceberg? Pick one primary and name the failure mode of each reject.
-
-??? success "Answer"
-    **Primary: (c)** for the in-app path. Closed dimensions, tenant filter, 8k QPS, 10 s freshness is Pinot’s job. Star-tree on `(customer_id, endpoint, status_code)` plus inverted/sorted `customer_id`. Keep ClickHouse for internal Grafana.
-
-    **(a)** Projection helps **scan bytes** for tenant queries; it does not create inverted bitmaps or a broker designed for 8k QPS. 20 replicas of a scan-oriented engine is a very expensive maybe.
-
-    **(b)** Right ClickHouse physical design for tenant scans, plus cache, can work at **hundreds** of QPS if you pre-aggregate. At 8k QPS and 10 s freshness you are building a serving layer anyway (MV rollups, cache invalidation). Possible for a disciplined team; it is Pinot-without-Pinot.
-
-    **(d)** Trino on Iceberg: planning + S3 per request, no 50 ms, no 8k QPS. Wrong SLA.
-
-    Hybrid Pinot failure mode to plan for: double-counting at the realtime/offline seam, and product later grouping by `user_id` (star-tree miss → cluster-shaped incident).

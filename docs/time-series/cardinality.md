@@ -235,6 +235,60 @@ print("with users", services * regions * statuses * endpoints * users)
 
 ---
 
+## Practice the idea
+
+Use the [cardinality calculator](../simulations/cardinality-calculator.html) to
+predict the multiplier from adding `user_id`. Then run the
+[time-series lab](../labs/index.md#time-series-labstime-series) and observe
+`prometheus_tsdb_head_series` before and after the label is enabled.
+
+## What happened next { #what-happened-next }
+
+**C**. Friday's `user_id` label multiplied the metric's series count by
+the number of distinct users, and each series is an identity the TSDB keeps in
+an in-memory index. Traffic was unchanged all week — the *number of things being
+counted* was not.
+
+That is why the restart took 40 minutes. WAL replay rebuilds the index, and the
+index is now proportional to users rather than to endpoints, so recovery time
+grew with the same multiplier that caused the OOM.
+
+The label was added "for better debugging," and per-user latency is a
+reasonable thing to want. It is a request for an events store with
+high-cardinality columns, not for another dimension on a metric — the same
+distinction the [TSDB page](tsdbs.md) sorts engines by.
+
+---
+
+## Check your understanding { #exercise }
+
+`http_request_duration_seconds_bucket` has labels `service` (80), `le` (12 buckets), `endpoint` (templated 40), `method` (8). Traffic: 200 M requests/day, 2 M DAU.
+
+Engineer A adds `user_id`. Engineer B adds `customer_id` (2,000 tenants). Engineer C writes requests to ClickHouse with those as columns and keeps Prom without them.
+
+Estimate series for A and B (product bound). Who is right for a “p95 per tenant” product dashboard vs SLO per service?
+
+??? success "Answer"
+    Base Prom series ≤ 80 × 12 × 40 × 8 = **307,200** (if independent). Comfortable.
+
+    **B:** × 2,000 customers → ≤ ~6×10⁸ series **bound**. Reality: not every tenant hits every endpoint, but tens of millions of series is plausible. Too high for one Prometheus; maybe a sharded VM **if** you truly need PromQL per tenant. Prefer `customer_id` as a column or a **recording** path into CH.
+
+    **A:** × 2 M users → 10¹¹–10¹² bound. Invalid. Do not ship.
+
+    **C is right for both:** Prom keeps service SLOs (`histogram_quantile` by `service, endpoint`). ClickHouse `ORDER BY (customer_id, ts)` (or Pinot inverted `customer_id`) serves p95 per tenant from events (`quantile` / histogram columns). 200 M rows/day is a normal CH ingest if batched.
+
+    Product dashboard p95 per tenant: **C** (or B only with a dedicated high-card TSDB and a hard series cap — still worse). SLO per service: Prom **without** A/B labels.
+
+---
+
+## Reference
+
+Behaviour at the next orders of magnitude, the trade-offs, the alternatives, and
+what to check when inheriting someone else's version of this — kept here rather
+than in the walkthrough above.
+
+---
+
 ## How to investigate { #debugging }
 
 1. `topk(20, count by (__name__, user_id)(http_requests_total))` — if this even parses slowly, stop.
@@ -306,28 +360,3 @@ Compare engines once the identity is a column: [TSDBs](tsdbs.md), [ClickHouse](.
 
 ---
 
-## Practice the idea
-
-Use the [cardinality calculator](../simulations/cardinality-calculator.html) to
-predict the multiplier from adding `user_id`. Then run the
-[time-series lab](../labs/index.md#time-series-labstime-series) and observe
-`prometheus_tsdb_head_series` before and after the label is enabled.
-
-## Check your understanding { #exercise }
-
-`http_request_duration_seconds_bucket` has labels `service` (80), `le` (12 buckets), `endpoint` (templated 40), `method` (8). Traffic: 200 M requests/day, 2 M DAU.
-
-Engineer A adds `user_id`. Engineer B adds `customer_id` (2,000 tenants). Engineer C writes requests to ClickHouse with those as columns and keeps Prom without them.
-
-Estimate series for A and B (product bound). Who is right for a “p95 per tenant” product dashboard vs SLO per service?
-
-??? success "Answer"
-    Base Prom series ≤ 80 × 12 × 40 × 8 = **307,200** (if independent). Comfortable.
-
-    **B:** × 2,000 customers → ≤ ~6×10⁸ series **bound**. Reality: not every tenant hits every endpoint, but tens of millions of series is plausible. Too high for one Prometheus; maybe a sharded VM **if** you truly need PromQL per tenant. Prefer `customer_id` as a column or a **recording** path into CH.
-
-    **A:** × 2 M users → 10¹¹–10¹² bound. Invalid. Do not ship.
-
-    **C is right for both:** Prom keeps service SLOs (`histogram_quantile` by `service, endpoint`). ClickHouse `ORDER BY (customer_id, ts)` (or Pinot inverted `customer_id`) serves p95 per tenant from events (`quantile` / histogram columns). 200 M rows/day is a normal CH ingest if batched.
-
-    Product dashboard p95 per tenant: **C** (or B only with a dedicated high-card TSDB and a hard series cap — still worse). SLO per service: Prom **without** A/B labels.

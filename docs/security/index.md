@@ -4,7 +4,7 @@ description: Threat-model a data platform like a bank, not a blog's Postgres —
 
 # Data Security
 
-11:15 AM. An analyst on JupyterHub runs `SELECT email FROM events LIMIT 100` against the "curated" schema in Trino. It returns real emails. No error, no audit ping — just PII on a screen that was supposed to be masked by default.
+11:15. An analyst on Jordan's JupyterHub runs `SELECT email FROM events LIMIT 100` against the "curated" schema in Trino. It returns real emails. No error, no audit ping — just PII on a screen that was supposed to be masked by default, and Jordan owns the platform it happened on.
 
 Predict before you read on: which control was missing?
 
@@ -329,3 +329,22 @@ Pager role: read logs/metrics, restart jobs, **not** SELECT email. Separate `inc
 - Secrets manager
 - Erasure drill
 - Notebook IAM ≠ ETL IAM
+
+---
+
+## What happened next { #what-happened-next }
+
+It was **B**. The masking view existed and worked exactly as designed — and
+`events`, the raw table behind it, was grantable to the same role. The analyst
+did not bypass a control; they queried a table they had been given access to,
+which is why nothing errored and nothing alerted.
+
+Audit logging (C) would have surfaced it eventually, and "eventually" is after
+real emails are on a screen. RBAC (A) was present. The gap was that the default
+path and the privileged path were both open to the same role, which makes the
+default a convention rather than a control.
+
+Jordan's fix is the one that generalises: the masked view is what a normal role
+can reach, the raw table is a break-glass role that is requested, time-bound
+and logged, and the two are never granted together. Defaults only protect
+people when the alternative requires an explicit act.

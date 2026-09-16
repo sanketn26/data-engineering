@@ -1,6 +1,6 @@
 ---
 title: Start Here
-description: What this academy is, who it is for, and the five production systems that run through every module.
+description: What this academy is, who it is for, and the company whose problems run through every module.
 ---
 
 # Start Here
@@ -11,10 +11,14 @@ course keeps returning to that question until the moving parts feel like
 consequences, rather than facts to memorise.
 
 !!! tip "If you have only one hour"
-    Read [Data at Scale](foundations/scale.md) through **Build the mental
-    picture**, try the short check at the end, and then explore the
-    [partitioning simulation](simulations/kafka-partitions.html). That is a
-    complete first session. You do not need to configure a cluster today.
+    Meet [the company you work for](#the-company-you-work-for) below, then read
+    [Data at Scale](foundations/scale.md) through **Build the mental picture**
+    and its **What happened next**. Then explore the
+    [partitioning simulation](simulations/kafka-partitions.html) and read
+    [Partitioning](foundations/partitions.md) the same way. That is a complete
+    first session — the same route as the
+    [gentle first hour](learning-paths.md#a-gentle-first-hour). You do not need
+    to configure a cluster today.
 
 ## What you will learn
 
@@ -65,15 +69,35 @@ Flink was not invented because streaming is fashionable. It was invented because
 
 If you understand *why* these systems exist, you can reason about systems you have never used.
 
-## Five stories you will keep revisiting
+## The company you work for { #the-company-you-work-for }
 
-The same datasets flow through different technologies so each new idea has a
-familiar home. You are not expected to memorise all five now. Pick the one
-closest to your experience; the others will become useful comparisons later.
+One company runs through this course from the first page to the last. You work
+there.
 
-### System A — SaaS analytics platform
+**SaaSCo** sells a SaaS analytics product. When you arrive it moves about
+**40 GB/day** of product events through a pandas script on a laptop. By the end
+it is a lakehouse with streaming ingestion and customer-facing dashboards — and
+every component it acquires along the way is forced by a measured bottleneck,
+never adopted because it was fashionable. That timeline is
+[SaaSCo: The Evolving Company](architectures/saasco-evolution.md), worth reading
+early rather than saving for last.
 
-Millions of users generate product events:
+The people whose problems become your problems:
+
+| | |
+|---|---|
+| **Maya** | Data engineer, on call for the events pipeline. Most 3 AM pages are hers. |
+| **Priya** | Product. Promises dashboards to customers, then needs them to be true. |
+| **Jordan** | Platform lead. Runs the design reviews where "let's just add Kafka" goes to die. |
+| **Elena** | VP Finance. Appears when a number is wrong and nothing is broken. |
+
+And the tenant who causes most of it: **Acme** — `cust_0042` in every code
+sample — the enterprise customer whose contract multiplies SaaSCo's volume
+tenfold and who, on their own, accounts for **38% of all events**. Acme is not
+a villain. They are simply large, and most of this course is about what large
+does to a design that assumed average.
+
+The events look like this, on every page:
 
 ```json
 {
@@ -89,23 +113,25 @@ Millions of users generate product events:
 }
 ```
 
-You will see this workload in Kafka (ingestion), Spark (transformation), Iceberg (historical storage), Trino (ad-hoc querying), and ClickHouse (dashboard queries). The interesting property is **skew**: one enterprise customer can be 40% of volume.
+You will see this same workload in Kafka (ingestion), Spark (transformation), Iceberg (historical storage), Trino (ad-hoc querying), and ClickHouse (dashboard queries).
 
-### System B — Security / observability platform
+### Four other systems, same physics
 
-Billions of events per day: logs, metrics, traces, security events. High ingestion, high cardinality, late events, real-time detection, historical investigation. This is where Kafka partitions, Flink watermarks, ClickHouse `ORDER BY`, and Iceberg's cold path earn their keep.
+SaaSCo is the through-line, but four other workloads appear throughout — as
+costumes rather than separate courses. The access pattern changes; the physics
+does not. You will meet them when a lesson needs the contrast, and you do not
+need to learn them now:
 
-### System C — E-commerce platform
+| System | What it adds | Where it shows up |
+|--------|--------------|-------------------|
+| **Security / observability** | Billions of events/day, high cardinality, late arrivals | Kafka partitions, Flink watermarks, ClickHouse `ORDER BY`, Iceberg's cold path |
+| **E-commerce** | Orders and payments, CDC from OLTP, "bought together" | Change data capture, lakehouse modelling, graph relationships |
+| **IoT** | Millions of devices sending `{timestamp, device_id, sensor, value}` every 30 seconds | Time series, windows, downsampling, retention tiers, cardinality explosions |
+| **Fraud graph** | Users → devices → IPs → transactions → merchants | Traversal, connected components, ring detection, where relational joins get embarrassing |
 
-Orders, payments, users, inventory, clickstream, recommendations. CDC from OLTP, batch plus streaming, lakehouse modelling, graph relationships for fraud and “bought together.”
-
-### System D — IoT platform
-
-Millions of devices sending `{timestamp, device_id, sensor, value}` every 30 seconds. Time series, windows, downsampling, retention tiers. Cardinality explosions live here.
-
-### System E — Fraud graph
-
-Users → Devices → IPs → Transactions → Merchants. Traversal, connected components, fraud-ring detection. Relational joins get embarrassing; graph modelling does not.
+A hot key is a hot key whether it is Acme, `api-gateway`, a flash-sale SKU, or
+a warehouse full of devices on one site. That is the point of keeping five
+workloads instead of one.
 
 ## What a lesson feels like
 
@@ -115,7 +141,12 @@ Every substantial lesson follows the same conversation:
 2. **See the mental picture.** An analogy, diagram, or small example makes the idea predictable.
 3. **Look under the hood.** The implementation explains where the behaviour comes from. This is optional on a first pass.
 4. **Use and operate it.** A worked example connects the model to code, failure, and debugging.
-5. **Check the idea.** A small question, simulation, or lab tells you whether the model has stuck.
+5. **See how it ended.** **What happened next** closes the opening incident and answers the question it asked. Part of a first pass, not a reward for finishing.
+6. **Check the idea.** A small question, simulation, or lab tells you whether the model has stuck.
+
+Reference material — scale factors, trade-offs, alternatives, and how to
+investigate — sits under **Reference** after the exercise. It is there for a
+design review or an incident, not for a first read.
 
 Three levels of understanding, same as the sister academies:
 

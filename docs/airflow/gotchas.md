@@ -333,6 +333,44 @@ Do not start with Spark UI if step 4 says `queued`.
 
 ---
 
+## What happened next { #what-happened-next }
+
+It was **B**. Twelve workers, each parked inside a poke-mode sensor, each
+holding a slot while it slept between pokes. Nothing crashed because nothing
+was running: the UI reported twenty-five tasks "running" and every one of them
+was waiting.
+
+Spark was idle for the honest reason that no job was ever submitted. The slots
+to submit them with were all occupied by tasks whose entire job was to wait,
+which is what `mode="reschedule"` and deferrable operators exist to stop.
+
+Every failure on this page has the same shape — Airflow spending worker slots
+on waiting, parsing, or moving data it should have delegated. When the UI and
+the cluster disagree about whether work is happening, the UI is describing slot
+occupancy, not progress.
+
+---
+
+## Check your understanding { #exercise }
+
+After deploy, `queued` TIs grow, Spark cluster CPU is 0%, 12 Celery workers show Python processes sleeping in `time.sleep`. A new `HttpSensor` for Stripe was added in poke mode to 12 tenant DAGs. `catchup=False`.
+
+??? question "Which gotcha is this, what is not the problem, and what three config changes restore the SLA?"
+    Worker CPU and Spark CPU are clues.
+
+    ??? success "Answer"
+        Unbounded poke sensors (gotcha 3), possibly plus pool starvation. Not catchup (disabled), not Spark, not the executor type. Fix: `mode="reschedule"` (or deferrable), `pool="sensors"` with slots ≪ 12, timeout so Stripe outages fail the wait; keep SparkSubmit on the critical path from a queue that sensors cannot consume. Optional: an Asset when the Stripe dump lands, instead of a sensor mesh.
+
+---
+
+## Reference
+
+Behaviour at the next orders of magnitude, the trade-offs, the alternatives, and
+what to check when inheriting someone else's version of this — kept here rather
+than in the walkthrough above.
+
+---
+
 ## How to investigate { #debugging }
 
 ```bash
@@ -397,13 +435,3 @@ Add a review checklist to DAG PRs (also listed on the [index](index.md)):
 If any answer is "we will monitor it," it is not fixed.
 
 ---
-
-## Check your understanding { #exercise }
-
-After deploy, `queued` TIs grow, Spark cluster CPU is 0%, 12 Celery workers show Python processes sleeping in `time.sleep`. A new `HttpSensor` for Stripe was added in poke mode to 12 tenant DAGs. `catchup=False`.
-
-??? question "Which gotcha is this, what is not the problem, and what three config changes restore the SLA?"
-    Worker CPU and Spark CPU are clues.
-
-    ??? success "Answer"
-        Unbounded poke sensors (gotcha 3), possibly plus pool starvation. Not catchup (disabled), not Spark, not the executor type. Fix: `mode="reschedule"` (or deferrable), `pool="sensors"` with slots ≪ 12, timeout so Stripe outages fail the wait; keep SparkSubmit on the critical path from a queue that sensors cannot consume. Optional: an Asset when the Stripe dump lands, instead of a sensor mesh.

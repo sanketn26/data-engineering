@@ -319,6 +319,51 @@ Airflow: `SparkSubmitOperator` + validate count. Idempotency is the MERGE (or `I
 
 ---
 
+## Practice the idea
+
+Open the [Iceberg manifest explorer](../simulations/iceberg-manifest-explorer.html).
+Commit a second write, select the older snapshot, and then apply a narrow date
+filter. Explain separately how Iceberg chooses a snapshot and how it prunes
+files inside that snapshot.
+
+## What happened next { #what-happened-next }
+
+**C**: the losing writer re-read the new metadata pointer and retried
+its commit against it. Nothing was locked — Spark's MERGE and Flink's CDC
+writer both ran to completion, and the swap of a single atomic pointer decided
+the order between them.
+
+That is why nobody lost data: a commit is a compare-and-swap on the metadata
+location, so the loser learns it lost *before* anything is visible and rebuilds
+against what actually committed. On a raw Parquet prefix the same 90 seconds
+would have produced two sets of files and no answer to which was the table.
+
+Jordan's design-review point holds here: optimistic concurrency is cheap when
+collisions are rare and expensive when they are not. Two writers in a 90-second
+window retry once. Twenty writers on the same table spend the day retrying.
+
+---
+
+## Check your understanding { #exercise }
+
+Table `events` partitioned by `day(ts)`. Flink appends 2 MB files every minute. A daily Spark MERGE for late data rewrites the last three days. Trino p95 jumps from 2s to 40s. Snapshot count is 20,000.
+
+??? question "Name the metadata-tree symptoms (files, manifests, snapshots) and the three maintenance actions, in order, that restore Trino without blocking Flink on today's partition."
+    Use the hierarchy.
+
+    ??? success "Answer"
+        Symptoms: tens of thousands of tiny **data files** in recent day partitions; **manifests** bloated; **snapshots** pin old small files so even "compacted" tables stay large on disk. Actions: (1) `expire_snapshots` retaining a short window so old small files can die. (2) `rewrite_data_files` **on partitions older than a few hours**, not the minute Flink is writing — avoids commit conflicts. (3) `rewrite_manifests` so planning stops reading thousands of manifest files. Optional: raise Flink file size / roll interval. Do not `s3 rm` small files by hand.
+
+---
+
+## Reference
+
+Behaviour at the next orders of magnitude, the trade-offs, the alternatives, and
+what to check when inheriting someone else's version of this — kept here rather
+than in the walkthrough above.
+
+---
+
 ## How to investigate { #debugging }
 
 ```sql
@@ -382,20 +427,3 @@ When adopting Iceberg:
 7. Put MERGE/compaction in Spark jobs scheduled by Airflow, not in workers
 
 ---
-
-## Practice the idea
-
-Open the [Iceberg manifest explorer](../simulations/iceberg-manifest-explorer.html).
-Commit a second write, select the older snapshot, and then apply a narrow date
-filter. Explain separately how Iceberg chooses a snapshot and how it prunes
-files inside that snapshot.
-
-## Check your understanding { #exercise }
-
-Table `events` partitioned by `day(ts)`. Flink appends 2 MB files every minute. A daily Spark MERGE for late data rewrites the last three days. Trino p95 jumps from 2s to 40s. Snapshot count is 20,000.
-
-??? question "Name the metadata-tree symptoms (files, manifests, snapshots) and the three maintenance actions, in order, that restore Trino without blocking Flink on today's partition."
-    Use the hierarchy.
-
-    ??? success "Answer"
-        Symptoms: tens of thousands of tiny **data files** in recent day partitions; **manifests** bloated; **snapshots** pin old small files so even "compacted" tables stay large on disk. Actions: (1) `expire_snapshots` retaining a short window so old small files can die. (2) `rewrite_data_files` **on partitions older than a few hours**, not the minute Flink is writing — avoids commit conflicts. (3) `rewrite_manifests` so planning stops reading thousands of manifest files. Optional: raise Flink file size / roll interval. Do not `s3 rm` small files by hand.

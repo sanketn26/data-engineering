@@ -198,3 +198,24 @@ After the five pages:
 - [NoSQL thinking](../databases/nosql.md) — another query-bound model
 - [Spark](../spark/index.md) — GraphX / large projections
 - [Selection framework](../reference/selection-framework.md)
+
+---
+
+## What happened next { #what-happened-next }
+
+Not the ledger. A 200 ms budget and "a few hops out on tens of millions of
+entities" describe an operational traversal, and the fraud ledger in Postgres
+answers it by multiplying fan-out at every join until the planner gives up —
+the arithmetic worked through in [graph thinking](graph-thinking.md).
+
+Nor is it one system. The ring membership that the 200 ms path reads is
+computed globally, in advance, by an algorithm that has to see the whole graph
+([graph algorithms](graph-algorithms.md)) — run on a schedule, written back as
+a property, never in a request handler.
+
+So the payment path does a bounded lookup, the analyst does an unbounded
+investigation on a different cluster, and the ledger stays in Postgres where
+the writes belong. The module covers each in turn: [when a graph earns its
+keep](graph-vs-relational.md), what to model as a node
+([modelling](graph-modelling.md)), and how to make the traversal bounded in
+[Neo4j](neo4j.md).

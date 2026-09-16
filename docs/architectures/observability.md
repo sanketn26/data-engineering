@@ -4,7 +4,7 @@ description: Designing an observability pipeline where a high-cardinality label 
 
 # Observability Platform Architecture
 
-02:47 AM. Grafana is empty for `checkout-service`. Every other service still shows traffic. Someone on the bridge says "just add a Prometheus label for `user_id` so we can see which customer is affected" — and someone else objects. A. Add the label; Prometheus can take it. B. The label would work but would kill the TSDB at scale — reach for ClickHouse instead. C. The dashboard is empty because of an ingest problem that has nothing to do with labels. D. Restart Flink and see if it comes back. Pick one before reading on.
+02:47 AM. Grafana is empty for `checkout-service`. Every other service still shows traffic. Maya is sitting with observability this quarter. Someone on the bridge says "just add a Prometheus label for `user_id` so we can see which customer is affected" — and she objects. A. Add the label; Prometheus can take it. B. The label would work but would kill the TSDB at scale — reach for ClickHouse instead. C. The dashboard is empty because of an ingest problem that has nothing to do with labels. D. Restart Flink and see if it comes back. Pick one before reading on.
 
 The dashboard being empty is a retention/routing question, and the `user_id`-as-label instinct is the cardinality trap this page exists to prevent. Logs, metrics, traces, and security events share one ingest path here, but the hard problem is not "collect everything" — it is **answering an on-call query in a second while not paying NVMe prices for a year of raw JSON**.
 
@@ -374,3 +374,23 @@ Do not restart Flink as step 1. Restarts rewind checkpoints and duplicate insert
 | 3 | 5M | ~20 brokers, 400–800 p | Flink 20 workers | 20-node CH, sharded | Iceberg + Trino |
 
 Jumping to Stage 3 on day one is how you spend two quarters on Keeper and never ship Grafana. Ship Stage 1 with the **same** `ORDER BY` you will need at Stage 3. Changing `ORDER BY` later is a migration, not a config flag.
+
+---
+
+## What happened next { #what-happened-next }
+
+Maya won the argument on the bridge, and the label was not added. `user_id` on
+an HTTP metric is a new time series per user per label combination — the
+[cardinality](../time-series/cardinality.md) incident, arrived at deliberately
+instead of by Friday deploy.
+
+The question behind the request was still real: *which customer is affected?*
+That is an events question, and it is answered from the log and trace paths
+this architecture already has, where `customer_id` is a column rather than a
+series identity. The empty Grafana panel for `checkout-service` turned out to
+be the metric path working correctly on a service that had genuinely stopped
+reporting.
+
+What this costs is the thing worth naming: two systems, two retention policies,
+and a habit of asking which of them a question belongs to before adding a
+dimension. Metrics answer "is it broken." Events answer "for whom."

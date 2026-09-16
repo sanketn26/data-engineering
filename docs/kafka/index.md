@@ -60,7 +60,7 @@ Reuse this record throughout the module. Serialise it however you like in labs (
 ```json
 {
   "timestamp": "2024-01-15T10:03:45.123Z",
-  "customer_id": "cust_1842",
+  "customer_id": "cust_0042",
   "user_id": "u_99102",
   "service": "auth",
   "endpoint": "/login",
@@ -213,3 +213,25 @@ You are done with Kafka as a *platform* when you can look at a lag graph, an ISR
     - State precisely where Kafka's exactly-once guarantee starts and stops (producer→topic, not topic→external sink) and what makes an end-to-end pipeline exactly-once anyway.
     - Diagnose rising consumer lag from metrics alone: distinguish a hot partition, a slow sink, a rebalance storm, and a genuine capacity shortfall before touching any config.
     - Decide when Kafka is unnecessary — a single consumer, low volume, or no replay requirement is often better served by a simpler queue or direct call.
+
+---
+
+## What happened next { #what-happened-next }
+
+Billing caught up on its own, which is the property worth naming. Five
+consumers read `service-events` at five different speeds, and the slow one did
+not slow the API gateway, did not block fraud or search, and did not lose the
+nine minutes it was behind — because each group owns its offsets and the log
+keeps records until retention says otherwise, not until someone reads them.
+
+The version of this system where billing is a queue that deletes on
+acknowledgement, or a database table five services poll, fails all three ways
+at once: the writer feels the slow reader, the readers compete for the same
+rows, and replay is a restore from backup.
+
+That is what the rest of this module builds out — [the log](log.md) itself,
+[partitions](partitions.md) as the parallelism unit,
+[replication](replication.md) for the broker that loses a disk, and
+[gotchas](gotchas.md) for the morning lag climbs and nothing has crashed.
+SaaSCo arrives here at [Stage
+3](../architectures/saasco-evolution.md#stage-3-4-tbday-kafka-appears-phase-2).

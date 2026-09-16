@@ -257,6 +257,45 @@ Debugging starts by asking: *is the TI even assigned?* Then *is the worker alive
 
 ---
 
+## What happened next { #what-happened-next }
+
+**B**, and the number everyone was staring at was the wrong one.
+`parallelism=32` is a ceiling the scheduler will not exceed; it
+is not a promise that 32 slots exist. Two Celery workers at
+`worker_concurrency=2` is four slots, and four was exactly what was running.
+The other six workers had been gone long enough that nothing remembered them.
+
+Raising `parallelism` would have changed nothing, because the constraint was
+never the number Airflow was being asked about. Three limits stack —
+`parallelism`, per-DAG concurrency, and the pool — and the real ceiling is the
+smallest of them and the number of workers actually alive.
+
+The missing alert is the part worth keeping: a worker that disappears does not
+fail anything. Tasks simply queue, the UI stays green, and the first symptom is
+a dashboard that is late at 07:00.
+
+---
+
+## Check your understanding { #exercise }
+
+SLA: metrics ready 90 minutes after midnight. Critical path: 3 SparkSubmit tasks (each Spark job 20 min) + 1 sensor waiting up to 40 min for Stripe. KubernetesExecutor, pod start 25 s, `parallelism=8`. A new engineer changes the Spark tasks to `PythonOperator` that starts `local[*]` Spark inside the pod with 1 TB shuffle.
+
+??? question "Does the executor change or the operator change dominate the SLA miss? What is the fix?"
+    Separate placement cost from compute cost.
+
+    ??? success "Answer"
+        Operator change dominates. Three extra 25 s pod starts are ~75 s; local Spark on a 4 Gi pod for 1 TB will spill, OOM, or run for hours. The executor was never the compute cluster. Fix: restore SparkSubmit/Databricks to a real cluster, keep K8s pods tiny, sensor in `reschedule` so it does not consume a slot for 40 min, and do not confuse KubernetesExecutor with Spark-on-K8s.
+
+---
+
+## Reference
+
+Behaviour at the next orders of magnitude, the trade-offs, the alternatives, and
+what to check when inheriting someone else's version of this — kept here rather
+than in the walkthrough above.
+
+---
+
 ## How to investigate { #debugging }
 
 ```bash
@@ -323,13 +362,3 @@ Do not replace Celery with Kubernetes to "go faster" if the bottleneck is a 1 TB
 5. For K8s, budget pod start-up in the SLA (30 s × task count on the critical path).
 
 ---
-
-## Check your understanding { #exercise }
-
-SLA: metrics ready 90 minutes after midnight. Critical path: 3 SparkSubmit tasks (each Spark job 20 min) + 1 sensor waiting up to 40 min for Stripe. KubernetesExecutor, pod start 25 s, `parallelism=8`. A new engineer changes the Spark tasks to `PythonOperator` that starts `local[*]` Spark inside the pod with 1 TB shuffle.
-
-??? question "Does the executor change or the operator change dominate the SLA miss? What is the fix?"
-    Separate placement cost from compute cost.
-
-    ??? success "Answer"
-        Operator change dominates. Three extra 25 s pod starts are ~75 s; local Spark on a 4 Gi pod for 1 TB will spill, OOM, or run for hours. The executor was never the compute cluster. Fix: restore SparkSubmit/Databricks to a real cluster, keep K8s pods tiny, sensor in `reschedule` so it does not consume a slot for 40 min, and do not confuse KubernetesExecutor with Spark-on-K8s.

@@ -9,7 +9,7 @@ description: Promote data-platform changes safely across environments with teste
 **Prerequisites:** Git, containers, orchestration, security<br>
 **Outcomes:** design environment promotion; separate infrastructure and data migrations; plan rollback; test disaster recovery.
 
-3:00 AM, cutover window. The engineer running the ClickHouse `ORDER BY` migration flips the table pointer, and dashboards go blank — the old table was already dropped, so there's nothing to roll back to.
+03:00, cutover window. Maya flips the table pointer on the ClickHouse `ORDER BY` migration, and dashboards go blank — the old table was already dropped, so there's nothing to roll back to.
 
 What's the single missing step?
 

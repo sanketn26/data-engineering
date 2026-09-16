@@ -245,6 +245,61 @@ Three actions, **three jobs** (more if AQE or `count` on a computed frame). In a
 
 ---
 
+## What happened next { #what-happened-next }
+
+**Two stages.** The `filter` is narrow and rides along in the first; the
+`groupBy` forces a shuffle, and the shuffle is the stage boundary. The `write`
+adds no third stage — it is the action that makes the other two run at all.
+
+And no, `hourly.collect()` does not cost what `hourly.write()` costs. `write`
+has each executor write its own partition in parallel and nothing returns.
+`collect` pulls every partition through the driver's heap, which is where the
+incident on [gotchas](gotchas.md) comes from.
+
+Which answers all three of the reviewer's questions: the driver holds the plan,
+the executors hold the 5 TB, and line 1 touches S3 only for schema — the read
+happens when the `write` runs, because everything before an action is a
+description of work, not the work.
+
+---
+
+## Check your understanding { #exercise }
+
+```python
+df1 = spark.read.parquet("s3://orders/")          # 200 partitions
+df2 = spark.read.parquet("s3://customers/")        # 50 partitions
+joined = df1.join(df2, "customer_id")
+grouped = joined.groupBy("customer_segment").agg(F.sum("amount"))
+grouped.write.parquet("s3://output/")
+```
+
+AQE off, `spark.sql.shuffle.partitions=200`, `autoBroadcastJoinThreshold` default 10 MB. `customers` is 800 MB. `orders` is 2 TB. One retailer is 25% of orders.
+
+1. How many **jobs**? Minimum **stages**?
+2. Where are the shuffle boundaries?
+3. How many tasks in each stage (order of magnitude)?
+4. Which operator is likely most expensive, and which UI metric confirms it?
+5. What changes if `customers` is 8 MB and you `broadcast` it?
+6. Why is `grouped.toPandas()` on the driver probably fine **here**, but `joined.toPandas()` is not?
+
+??? question "Worked answer"
+    1. **One job** (`write`). Stages: read orders, read customers, join, aggregate+write — typically **three or four** physical stages (two scans can be separate stage trees feeding a join exchange, then a second exchange for `groupBy`). Minimum with SMJ: scan+shuffle each side → join → shuffle-agg.
+    2. Boundaries: **sort-merge join** on `customer_id` (both sides exchange unless broadcast), then **hash aggregate** on `customer_segment`.
+    3. Scan orders ~200 tasks; scan customers ~50; join/agg ~200 shuffle partitions each stage.
+    4. **Join shuffle of 2 TB** (and the whale key). Confirm: SQL `Exchange` bytes, stage shuffle read, task max vs median. The `groupBy customer_segment` is usually tiny after the join *unless* segment is skewed too.
+    5. Broadcast: **no shuffle of orders** for the join; each orders task joins locally. Stages drop. 8 MB × N executors is fine. 800 MB broadcast would **not** be — that is why the original SMJs.
+    6. `grouped` has one row per `customer_segment` (maybe dozens). `toPandas` is a tiny collect. `joined` is ~2 TB of rows — driver death.
+
+---
+
+## Reference
+
+Behaviour at the next orders of magnitude, the trade-offs, the alternatives, and
+what to check when inheriting someone else's version of this — kept here rather
+than in the walkthrough above.
+
+---
+
 ## How to investigate { #debugging }
 
 Spark UI:
@@ -314,29 +369,3 @@ If the author cannot mark those on the code, they do not have a mental model. Th
 
 ---
 
-## Check your understanding { #exercise }
-
-```python
-df1 = spark.read.parquet("s3://orders/")          # 200 partitions
-df2 = spark.read.parquet("s3://customers/")        # 50 partitions
-joined = df1.join(df2, "customer_id")
-grouped = joined.groupBy("customer_segment").agg(F.sum("amount"))
-grouped.write.parquet("s3://output/")
-```
-
-AQE off, `spark.sql.shuffle.partitions=200`, `autoBroadcastJoinThreshold` default 10 MB. `customers` is 800 MB. `orders` is 2 TB. One retailer is 25% of orders.
-
-1. How many **jobs**? Minimum **stages**?
-2. Where are the shuffle boundaries?
-3. How many tasks in each stage (order of magnitude)?
-4. Which operator is likely most expensive, and which UI metric confirms it?
-5. What changes if `customers` is 8 MB and you `broadcast` it?
-6. Why is `grouped.toPandas()` on the driver probably fine **here**, but `joined.toPandas()` is not?
-
-??? question "Worked answer"
-    1. **One job** (`write`). Stages: read orders, read customers, join, aggregate+write — typically **three or four** physical stages (two scans can be separate stage trees feeding a join exchange, then a second exchange for `groupBy`). Minimum with SMJ: scan+shuffle each side → join → shuffle-agg.
-    2. Boundaries: **sort-merge join** on `customer_id` (both sides exchange unless broadcast), then **hash aggregate** on `customer_segment`.
-    3. Scan orders ~200 tasks; scan customers ~50; join/agg ~200 shuffle partitions each stage.
-    4. **Join shuffle of 2 TB** (and the whale key). Confirm: SQL `Exchange` bytes, stage shuffle read, task max vs median. The `groupBy customer_segment` is usually tiny after the join *unless* segment is skewed too.
-    5. Broadcast: **no shuffle of orders** for the join; each orders task joins locally. Stages drop. 8 MB × N executors is fine. 800 MB broadcast would **not** be — that is why the original SMJs.
-    6. `grouped` has one row per `customer_segment` (maybe dozens). `toPandas` is a tiny collect. `joined` is ~2 TB of rows — driver death.

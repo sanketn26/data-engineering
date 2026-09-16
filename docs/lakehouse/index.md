@@ -7,7 +7,7 @@ description: Why a table format like Iceberg, Hudi, or Delta is what turns a pil
 !!! info "Version and source policy"
     Format specifications, protocol features, and engine support evolve independently. Check [Versions & Primary Sources](../reference/version-matrix.md).
 
-03:14 AM. Spark job status: `SUCCESS`. Files written: 13,429. Trino query for yesterday's revenue: **₹0**. You check S3 — the files are all there, sitting in the prefix.
+03:14 AM. Spark job status: `SUCCESS`. Files written: 13,429. Trino query for yesterday's revenue: **$0**. You check S3 — the files are all there, sitting in the prefix.
 
 What happened?
 
@@ -192,6 +192,26 @@ When someone says "it's just Parquet on S3":
 5. Can Trino and Spark commit in the same table?
 
 If (1) is "list the prefix," you are not in production yet. Start at [why table formats](why-table-formats.md).
+
+---
+
+## What happened next { #what-happened-next }
+
+All 13,429 files are on S3 — **B** — and and none of them are in the table,
+because nothing ever named them as such. Spark reported `SUCCESS` for the work
+it did — it wrote files — and Trino reported $0 for the table it could see.
+Both were telling the truth about different things.
+
+A prefix is a location. Without a commit, "yesterday's revenue" has no defined
+answer: a reader that lists the bucket mid-write sees a partial job, and a
+reader that lists it after a failed retry sees two attempts. The $0 is the
+better outcome of the two.
+
+Jordan hits this at [Stage
+6](../architectures/saasco-evolution.md#stage-6-multiple-writers-collide-iceberg-appears-phase-6),
+when Spark, Flink and Trino all touch the same prefix. The rest of this module
+is the answer to one question — **where is the table?** — asked of Iceberg,
+Delta, and Hudi in turn.
 
 ---
 

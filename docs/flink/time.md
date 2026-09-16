@@ -22,7 +22,7 @@ The event already carries the truth:
 ```json
 {
   "timestamp": "2024-01-15T10:03:45.123Z",
-  "customer_id": "cust_1842",
+  "customer_id": "cust_0042",
   "user_id": "u_99102",
   "service": "auth",
   "endpoint": "/login",
@@ -239,6 +239,85 @@ Parse JSON in a `map` and, if you need payload timestamps rather than Kafka time
 
 ---
 
+## Ingestion time in practice
+
+When mobile clocks are fiction, teams stamp **broker append time** (`log.message.timestamp.type=LogAppendTime`) and tell Flink to use the Kafka record timestamp as event time. You have not magically recovered the physical event; you have chosen a clock that is **monotonic per partition** and operated by you.
+
+That is the right call for observability SLIs ("when did we *receive* the span"). It is the wrong call for "user failed login at 10:03" if the laptop was offline until 10:30 — those failures *happened* at 10:03. Fraud and audit want the payload timestamp **and** a bound on how late you will wait, then a late side output into a case-management topic.
+
+Write the choice in the job's README. "We use event time" is not a choice if you never say *which field*.
+
+---
+
+## Watermark heuristics that survive contact with Kafka
+
+1. Measure `now - event_ts` at the source operator for a day. Plot p50/p95/p99/p99.9.
+2. Set bounded out-of-orderness near p99, not p50 (late side output for the tail) and not p99.9 (you will add minutes of latency for folklore).
+3. Set idleness from **Kafka partition silence**, not from event delay. A partition can be silent while other partitions are merely late.
+4. Revisit after a mobile-app release; delay histograms move.
+
+```python
+# Defensive assigner: drop clearly broken clocks before they touch W
+def ts_ms(event, record_ts):
+    t = event["ts_ms"]
+    # record_ts is Kafka timestamp when the strategy has access to it
+    if t < 1_000_000_000_000:  # not millis
+        return record_ts
+    return t
+```
+
+---
+
+## Practice the idea
+
+In the [watermark simulator](../simulations/watermark-simulator.html), freeze one
+source split and predict the downstream minimum before enabling idleness. Then
+run the [Flink lab](../labs/index.md#flink-labsflink) and use
+`stalled_watermark.py` to assert the same rule. Finish with the
+[stalled-watermark incident](../incidents/index.md#incident-3-flink-watermark-stalled-no-output).
+
+## What happened next { #what-happened-next }
+
+It was **B**. Overnight, EU traffic thinned until some of the 12 partitions
+stopped producing entirely. A watermark is the minimum across all partitions,
+so the idle ones held it frozen at their last event — and a window only closes
+when the watermark passes its end.
+
+Lag was zero and stayed zero, honestly: there was nothing waiting to be
+consumed. Every symptom pointed at a healthy pipeline, because by Kafka's
+definition of health it was one.
+
+`withIdleness` is the setting that releases an idle partition from the minimum.
+Until it is configured, the quietest partition in the topic decides how fast
+the fraud dashboard moves — which is a property of event time, not a bug.
+
+---
+
+## Check your understanding { #exercise }
+
+`login-events` has 8 Kafka partitions. Seven receive a steady stream. Partition 7 is used only by a partner integration that sends traffic at 09:00 and 17:00. Watermark = bounded out-of-orderness 15s, **no** idleness. Fraud windows are 5 minutes.
+
+1. What happens to windows between 09:30 and 16:30?
+2. You add `with_idleness(30s)`. What happens to the 17:00 partner burst?
+3. Should partner traffic share this topic?
+
+??? question "Answer"
+    1. Partition 7's watermark generator stays at the 09:00 tail (or never initialises). Downstream min watermark stalls. Five-minute windows **do not close** all afternoon. State grows. SOC sees a frozen dashboard.
+
+    2. After 30s silence, p7 is idle; watermarks follow the other seven partitions; windows close. At 17:00 the partner events arrive with timestamps around 17:00 (or 09:00 if they were queued — read the payload). If they are truly 17:00, they land in open windows. If they were generated at 09:05 and buffered, they are **late** and dropped or side-outputted.
+
+    3. Usually no. A sparse, high-delay source should not share the watermark min with the low-delay fraud path. Separate topic + job, or a union after independent watermarks with a documented idle policy.
+
+---
+
+## Reference
+
+Behaviour at the next orders of magnitude, the trade-offs, the alternatives, and
+what to check when inheriting someone else's version of this — kept here rather
+than in the walkthrough above.
+
+---
+
 ## How to investigate { #debugging }
 
 Flink UI → Task → **watermarks**. Also emit watermark lag as a metric.
@@ -286,35 +365,6 @@ Compare Kafka lag and watermark lag. High Kafka lag + advancing W means you assi
 
 ---
 
-## Ingestion time in practice
-
-When mobile clocks are fiction, teams stamp **broker append time** (`log.message.timestamp.type=LogAppendTime`) and tell Flink to use the Kafka record timestamp as event time. You have not magically recovered the physical event; you have chosen a clock that is **monotonic per partition** and operated by you.
-
-That is the right call for observability SLIs ("when did we *receive* the span"). It is the wrong call for "user failed login at 10:03" if the laptop was offline until 10:30 — those failures *happened* at 10:03. Fraud and audit want the payload timestamp **and** a bound on how late you will wait, then a late side output into a case-management topic.
-
-Write the choice in the job's README. "We use event time" is not a choice if you never say *which field*.
-
----
-
-## Watermark heuristics that survive contact with Kafka
-
-1. Measure `now - event_ts` at the source operator for a day. Plot p50/p95/p99/p99.9.
-2. Set bounded out-of-orderness near p99, not p50 (late side output for the tail) and not p99.9 (you will add minutes of latency for folklore).
-3. Set idleness from **Kafka partition silence**, not from event delay. A partition can be silent while other partitions are merely late.
-4. Revisit after a mobile-app release; delay histograms move.
-
-```python
-# Defensive assigner: drop clearly broken clocks before they touch W
-def ts_ms(event, record_ts):
-    t = event["ts_ms"]
-    # record_ts is Kafka timestamp when the strategy has access to it
-    if t < 1_000_000_000_000:  # not millis
-        return record_ts
-    return t
-```
-
----
-
 ## How to apply this at work
 
 Open the job. Search for `WatermarkStrategy`, `TimeCharacteristic`, `ProcessingTime`. If you cannot find a watermark on a windowed job, you are on processing time even if the JSON has a `timestamp` field.
@@ -323,25 +373,3 @@ Then measure **producer delay** = Flink ingest wall clock − payload timestamp.
 
 ---
 
-## Practice the idea
-
-In the [watermark simulator](../simulations/watermark-simulator.html), freeze one
-source split and predict the downstream minimum before enabling idleness. Then
-run the [Flink lab](../labs/index.md#flink-labsflink) and use
-`stalled_watermark.py` to assert the same rule. Finish with the
-[stalled-watermark incident](../incidents/index.md#incident-3-flink-watermark-stalled-no-output).
-
-## Check your understanding { #exercise }
-
-`login-events` has 8 Kafka partitions. Seven receive a steady stream. Partition 7 is used only by a partner integration that sends traffic at 09:00 and 17:00. Watermark = bounded out-of-orderness 15s, **no** idleness. Fraud windows are 5 minutes.
-
-1. What happens to windows between 09:30 and 16:30?
-2. You add `with_idleness(30s)`. What happens to the 17:00 partner burst?
-3. Should partner traffic share this topic?
-
-??? question "Answer"
-    1. Partition 7's watermark generator stays at the 09:00 tail (or never initialises). Downstream min watermark stalls. Five-minute windows **do not close** all afternoon. State grows. SOC sees a frozen dashboard.
-
-    2. After 30s silence, p7 is idle; watermarks follow the other seven partitions; windows close. At 17:00 the partner events arrive with timestamps around 17:00 (or 09:00 if they were queued — read the payload). If they are truly 17:00, they land in open windows. If they were generated at 09:05 and buffered, they are **late** and dropped or side-outputted.
-
-    3. Usually no. A sparse, high-delay source should not share the watermark min with the low-delay fraud path. Separate topic + job, or a union after independent watermarks with a documented idle policy.

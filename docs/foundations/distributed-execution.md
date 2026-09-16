@@ -4,7 +4,7 @@ description: Reading the Spark UI's jobs, stages, and tasks to find a straggler 
 
 # Distributed Execution
 
-16:03. The Spark UI is open. 199 tasks in this stage finished in under 10 seconds each. One is still running at 25 minutes. On-call is asked: is the cluster undersized, or is something else going on?
+16:03. Maya has the Spark UI open. 199 tasks in this stage finished in under 10 seconds each. One is still running at 25 minutes. Jordan asks her the question the budget depends on: is the cluster undersized, or is something else going on?
 
 Before you answer: does adding 20 more executors fix a straggler task, or does it just add 20 more machines waiting on the same one? And what actually turns `groupBy("service").agg(...)` into "199 fast tasks and one slow one" in the first place?
 
@@ -219,6 +219,66 @@ Retries: Spark retries tasks, then stages (`spark.stage.maxConsecutiveAttempts`)
 
 ---
 
+## What happened next { #what-happened-next }
+
+Twenty more executors would not have helped. The stage cannot finish until its
+slowest task does, so the cluster would have gained twenty machines waiting on
+the same one — more cost, identical wall-clock, and a cheaper-looking CPU graph
+to argue about.
+
+What turned one line of `groupBy("service")` into 199 fast tasks and one slow
+one is the cut in the graph. Spark splits at every point where data must move,
+each side becomes a set of tasks, and the reduce side gets one task per key
+range. `500`s are not spread evenly across services: one service produced most
+of them, its rows all hashed to one range, and that task inherited a share of
+the data the other 199 never saw.
+
+So Maya's answer to Jordan is neither "undersized" nor "something else": 40
+cores were fine, and one of them had twenty-five minutes of work. The fix lives
+at the key, not at the cluster size.
+
+Once you can name the job, the stages, the tasks, and the straggler, the Spark
+UI stops being decorative: sort the stage's tasks by duration, and the gap
+between median and max tells you which of the two problems you have. Flink,
+Trino, and Ray draw the same hierarchy with different nouns.
+
+---
+
+## Check your understanding { #exercise }
+
+A Spark job:
+
+- 400 input partitions
+- one `GROUP BY customer_id`
+- `spark.sql.shuffle.partitions = 200`
+- 10 workers × 4 cores (40 slots)
+- AQE off
+
+1. Minimum number of stages? Where is the shuffle boundary?
+2. Stage 1 average task 30 s, **one** task 300 s. Rough stage 1 wall time?
+3. Stage 2: 200 tasks, 5 s each, even. Minimum elapsed?
+4. What would you change first to improve **elapsed** time (not CPU-hours)?
+5. You add `.count()` before `write` “to log the row count.” What did you do to the execution model?
+6. Same job in Flink batch vs Spark: what is the analogue of the 300 s task?
+
+??? question "Worked answer"
+    1. **Two stages** minimum: map-side read/filter/partial-hash-agg, then reduce-side final agg. Boundary = the `groupBy` shuffle (`Exchange`).
+    2. 400/40 = 10 waves. If the 300 s task is a straggler in one wave, wall ≈ \(9 \times 30 + 300 = 570\) s in a simple model (other waves 30 s). You cannot finish before **300 s** regardless. Measure from the UI; do not use the mean.
+    3. 200/40 = 5 waves × 5 s = **25 s**.
+    4. **Kill the 300 s straggler cause** (skew, fat file, GC). Adding 40 more cores might cut waves but the 300 s task still dominates. Then: AQE, input split sizing, isolate whale customer.
+    5. `count()` is an **extra action** → extra **job** (often two stages again). You pay the shuffle twice unless you `cache` after the agg (and even then you materialise). Log counts from the **write** metrics or a sink side-stat, not a preview action on production DAGs.
+    6. Flink: a **slow subtask** / keyed operator with a hot key-group. Checkpoint barriers wait on it. Same straggler law.
+
+---
+
+## Reference
+
+Behaviour at the next orders of magnitude, the trade-offs, the alternatives, and
+what to check when inheriting someone else's version of this — kept here rather
+than in the walkthrough above.
+
+---
+
 ## How to investigate { #debugging }
 
 **Spark UI** (`:4040` locally, History Server in prod):
@@ -302,27 +362,3 @@ Cross-link when the card is filled: straggler + fat shuffle read → [Shuffle](.
 
 ---
 
-## Check your understanding { #exercise }
-
-A Spark job:
-
-- 400 input partitions
-- one `GROUP BY customer_id`
-- `spark.sql.shuffle.partitions = 200`
-- 10 workers × 4 cores (40 slots)
-- AQE off
-
-1. Minimum number of stages? Where is the shuffle boundary?
-2. Stage 1 average task 30 s, **one** task 300 s. Rough stage 1 wall time?
-3. Stage 2: 200 tasks, 5 s each, even. Minimum elapsed?
-4. What would you change first to improve **elapsed** time (not CPU-hours)?
-5. You add `.count()` before `write` “to log the row count.” What did you do to the execution model?
-6. Same job in Flink batch vs Spark: what is the analogue of the 300 s task?
-
-??? question "Worked answer"
-    1. **Two stages** minimum: map-side read/filter/partial-hash-agg, then reduce-side final agg. Boundary = the `groupBy` shuffle (`Exchange`).
-    2. 400/40 = 10 waves. If the 300 s task is a straggler in one wave, wall ≈ \(9 \times 30 + 300 = 570\) s in a simple model (other waves 30 s). You cannot finish before **300 s** regardless. Measure from the UI; do not use the mean.
-    3. 200/40 = 5 waves × 5 s = **25 s**.
-    4. **Kill the 300 s straggler cause** (skew, fat file, GC). Adding 40 more cores might cut waves but the 300 s task still dominates. Then: AQE, input split sizing, isolate whale customer.
-    5. `count()` is an **extra action** → extra **job** (often two stages again). You pay the shuffle twice unless you `cache` after the agg (and even then you materialise). Log counts from the **write** metrics or a sink side-stat, not a preview action on production DAGs.
-    6. Flink: a **slow subtask** / keyed operator with a hot key-group. Checkpoint barriers wait on it. Same straggler law.

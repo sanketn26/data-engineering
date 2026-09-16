@@ -35,7 +35,7 @@ A feature table will say "yes, yes, yes". Production will not.
 
 ---
 
-## Intuition: three deployment philosophies
+## Intuition: three deployment philosophies { #intuition }
 
 **Flink** — a *cluster* whose job is to run dataflows. You scale TaskManagers independently of the apps that produce events. State lives on those TMs (RocksDB) and in checkpoints on object storage. Best mental model: "stream processor as infrastructure".
 
@@ -246,30 +246,6 @@ Debugging metrics: Flink checkpoint duration + watermark; Kafka Streams `records
 
 ---
 
-## Scale: 10× / 100× / 1000×
-
-| Scale | Typical move |
-|-------|----------------|
-| **10×** | Any of the three works for a single aggregation |
-| **100×** | Kafka Streams needs partition planning; Flink needs RocksDB; Spark needs AQE/shuffle hygiene |
-| **1000×** | Split workloads: Spark/lake for fat ETL, Flink for the few second-level jobs, Kafka Streams for app-local joins. One engine for everything is a religion. |
-
----
-
-## Trade-offs
-
-You are trading **operational surface** (Flink/Spark clusters) against **coupling** (Kafka Streams inside the app) against **latency** (Spark micro-batch).
-
----
-
-## Alternatives
-
-- **ksqlDB** — SQL on Kafka Streams; good for simple filters/joins, less for heavy state.
-- **ClickHouse / Pinot** materialized from Kafka — skip the processor for observability-shaped jobs.
-- **Batch only** — if "5 minutes" can be a 5-minute Airflow DAG. See [batch vs stream](../foundations/batch-vs-stream.md).
-
----
-
 ## Cost and people (the dimension vendors skip)
 
 Flink: a platform team, 24/7 cluster, checkpoint storage, a UI people must learn. Worth it if several jobs share that platform.
@@ -313,9 +289,21 @@ Do not tune Flink parallelism because a Kafka partition is hot. The engines do n
 
 ---
 
-## How to apply this at work
+## What happened next { #what-happened-next }
 
-Write the workload in one paragraph (latency, state size, sink, team). Map it to one of the six workloads above. If it maps to none, you do not understand the workload yet — do not pick an engine to postpone that.
+It was **B**. Micro-batch triggers put Structured Streaming's realistic latency
+in the seconds-to-minutes range, and more executors shorten the batch's
+*compute*, not the interval that governs when the batch begins. A 2-second SLO
+is not reachable by making the same batch faster.
+
+Continuous processing mode (C) is the tempting answer and carries its own
+restrictions, which is why the platform team's "we already run Spark" argument
+survived right up until the SLO was read aloud.
+
+The cluster the fraud team wanted to reuse still runs the lake. The alert path
+is the one workload with a latency class Spark's execution model cannot serve,
+and that is what makes it the first genuine Flink requirement rather than the
+fifth.
 
 ---
 
@@ -333,3 +321,44 @@ Which engine for a, b, c — and what do you *not* unify?
     (c) **Flink** (or Kafka Streams if state stays small and the fraud team is the Java team). Spark is the wrong latency class.
 
     Do **not** unify on one engine. The unification is the **event schema** and Kafka, not the processor.
+
+---
+
+## Reference
+
+Behaviour at the next orders of magnitude, the trade-offs, the alternatives, and
+what to check when inheriting someone else's version of this — kept here rather
+than in the walkthrough above.
+
+---
+
+## Scale: 10× / 100× / 1000×
+
+| Scale | Typical move |
+|-------|----------------|
+| **10×** | Any of the three works for a single aggregation |
+| **100×** | Kafka Streams needs partition planning; Flink needs RocksDB; Spark needs AQE/shuffle hygiene |
+| **1000×** | Split workloads: Spark/lake for fat ETL, Flink for the few second-level jobs, Kafka Streams for app-local joins. One engine for everything is a religion. |
+
+---
+
+## Trade-offs
+
+You are trading **operational surface** (Flink/Spark clusters) against **coupling** (Kafka Streams inside the app) against **latency** (Spark micro-batch).
+
+---
+
+## Alternatives
+
+- **ksqlDB** — SQL on Kafka Streams; good for simple filters/joins, less for heavy state.
+- **ClickHouse / Pinot** materialized from Kafka — skip the processor for observability-shaped jobs.
+- **Batch only** — if "5 minutes" can be a 5-minute Airflow DAG. See [batch vs stream](../foundations/batch-vs-stream.md).
+
+---
+
+## How to apply this at work
+
+Write the workload in one paragraph (latency, state size, sink, team). Map it to one of the six workloads above. If it maps to none, you do not understand the workload yet — do not pick an engine to postpone that.
+
+---
+

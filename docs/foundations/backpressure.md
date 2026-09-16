@@ -154,6 +154,29 @@ Predict the backlog after 20 minutes with arrival at 100k/s and service at
 70k/s, then test two recovery rates. The useful observation is the difference
 between **stopping backlog growth** and **draining the backlog**.
 
+## What happened next { #what-happened-next }
+
+The binding constraint is the sink at 40k/s, not the processor at 70k. Maya's
+backlog grows at 60,000 events per second — the producer's rate minus the
+slowest stage — which is about 3.6 million events a minute and 5 TB of Kafka
+disk before the end of the day.
+
+Kafka is what makes this survivable and also what makes it invisible. The topic
+keeps accepting writes, so the producer never feels the sink, and the first
+symptom is consumer lag rather than a failed write. A bounded in-process queue
+would have pushed back on the producer in milliseconds; a log pushes back when
+retention runs out.
+
+Which of the three responses applies is decided by what the events are worth.
+Autoscaling the processor moves the bottleneck to the sink and changes nothing.
+Admission control protects the sink and makes the producer someone else's
+problem — the trade [Kafka's log](../kafka/log.md) defers rather than removes.
+Load shedding drops events on purpose, which is the right answer for metrics
+and the wrong one for orders — and that is a product decision, not an
+infrastructure one.
+
+---
+
 ## Check your understanding { #exercise }
 
 An ingestion API accepts events at a sustained 100k/s during business hours. It writes to Kafka, which a Flink job consumes at 100k/s in steady state — the pipeline is healthy. A downstream ClickHouse sink hiccups and drops to 40k/s for 20 minutes before recovering.

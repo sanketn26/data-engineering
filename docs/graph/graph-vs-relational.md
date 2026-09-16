@@ -4,7 +4,7 @@ description: Graph databases versus Postgres for multi-hop traversal, when a rec
 
 # Graph vs Relational
 
-Design review, 10 AM. A recursive CTE that finds "users within 3 hops of this IP" ran in 40 ms last quarter, back when the table had 2 million rows. Same query, same indexes, now times out at 30 seconds — the table has grown to 40 million rows. Someone proposes migrating the whole fraud ledger to Neo4j. Someone else says "just tune Postgres."
+Design review, 10 AM. A recursive CTE that finds "users within 3 hops of this IP" ran in 40 ms last quarter, back when the table had 2 million rows. Same query, same indexes, now times out at 30 seconds — the table has grown to 40 million rows. One engineer proposes migrating the whole fraud ledger to Neo4j. Jordan says "just tune Postgres."
 
 What's the right call?
 
@@ -229,28 +229,6 @@ Recommendations: Postgres/Iceberg events → **offline** similarity or two-tower
 
 ---
 
-## Scale: 10× / 100× / 1000×
-
-**10×.** Postgres + nightly pair table often enough. Neo4j if analysts live in 3-hop Browser.
-
-**100×.** Online graph for investigation/risk MATCH; algorithms off-box; OLAP for money; Postgres still ledger.
-
-**1000×.** Ego-net in KV for the API (precomputed 2-hop), graph for investigation subset, Spark for WCC, warehouse for scans. Relational **does not disappear**. Graph **does not hold history forever**.
-
----
-
-## Trade-offs
-
-| Choosing graph OLTP | Choosing Postgres only |
-|---------------------|------------------------|
-| Path queries, Cypher, GDS adjacency | One system of record, SQL, constraints |
-| Extra CDC, supernodes, RAM | 4-hop pain, unofficial NetworkX dumps |
-| Hire/ops for a second store | Recursion and pair tables as crutches |
-
-Neither choice removes ClickHouse for (3).
-
----
-
 ## Cost and operations (the part architecture decks skip)
 
 | | Postgres | Neo4j cluster | Pair table in Postgres |
@@ -282,6 +260,76 @@ Recs care about **top-k** under a latency budget. Relational co-occurrence table
 
 ---
 
+## What happened next { #what-happened-next }
+
+It was **C**. Move the traversal; leave the ledger. The recursive CTE did not
+get slower because the plan went stale — it got slower because 20× the rows
+means 20× the fan-out at every hop, and that is arithmetic, not statistics.
+
+A and B buy a quarter at most. D moves transactions, balances, and every
+reporting query onto an engine chosen for pointer chasing, to fix one query.
+
+So the fraud ledger stays in Postgres, where the writes and the joins belong,
+and the User → Device → IP subgraph is projected into a graph store for the
+traversal that was never a relational access pattern. Two systems, one
+deliberate copy, and a synchronisation cost accepted on purpose.
+
+---
+
+## Check your understanding { #exercise }
+
+??? question "Assign the engine"
+    E-commerce + fraud + recs. Traffic 10× of today.
+
+    1. Checkout write path.
+    2. “Show my orders.”
+    3. “Users sharing a device with this user” on the payment path (50 ms).
+    4. Nightly rings.
+    5. “Fraud rate by category, last 7 days.”
+    6. “Customers who bought A also bought B” for a carousel.
+    7. When would you **not** deploy Neo4j at all?
+
+??? success "Answer"
+    1. Postgres (ACID ledger). Maybe Redis/Dynamo for session, not for the payment row.
+    2. Postgres.
+    3. Neo4j bounded MATCH **or** KV/Postgres pair table if only this 2-hop existence matters. Graph if you will add hops/types next quarter.
+    4. GDS/Spark WCC on a filtered edge list; results to ClickHouse/KV.
+    5. ClickHouse (or warehouse). Not Neo4j, not OLTP Postgres at 100×.
+    6. Offline similarity / co-occurrence job → KV. Not live 3-hop Cypher.
+    7. If (3) is pair-table simple and (4) can run on Spark from Kafka edges without analysts living in Browser — skip online graph. Add Neo4j when path **listing** and interactive investigation are the product.
+
+---
+
+## Reference
+
+Behaviour at the next orders of magnitude, the trade-offs, the alternatives, and
+what to check when inheriting someone else's version of this — kept here rather
+than in the walkthrough above.
+
+---
+
+## Scale: 10× / 100× / 1000×
+
+**10×.** Postgres + nightly pair table often enough. Neo4j if analysts live in 3-hop Browser.
+
+**100×.** Online graph for investigation/risk MATCH; algorithms off-box; OLAP for money; Postgres still ledger.
+
+**1000×.** Ego-net in KV for the API (precomputed 2-hop), graph for investigation subset, Spark for WCC, warehouse for scans. Relational **does not disappear**. Graph **does not hold history forever**.
+
+---
+
+## Trade-offs
+
+| Choosing graph OLTP | Choosing Postgres only |
+|---------------------|------------------------|
+| Path queries, Cypher, GDS adjacency | One system of record, SQL, constraints |
+| Extra CDC, supernodes, RAM | 4-hop pain, unofficial NetworkX dumps |
+| Hire/ops for a second store | Recursion and pair tables as crutches |
+
+Neither choice removes ClickHouse for (3).
+
+---
+
 ## Alternatives
 
 | Option | Role |
@@ -308,24 +356,3 @@ Operational traversal is the graph purchase. Analytic scan is not. Keep those se
 
 ---
 
-## Check your understanding { #exercise }
-
-??? question "Assign the engine"
-    E-commerce + fraud + recs. Traffic 10× of today.
-
-    1. Checkout write path.
-    2. “Show my orders.”
-    3. “Users sharing a device with this user” on the payment path (50 ms).
-    4. Nightly rings.
-    5. “Fraud rate by category, last 7 days.”
-    6. “Customers who bought A also bought B” for a carousel.
-    7. When would you **not** deploy Neo4j at all?
-
-??? success "Answer"
-    1. Postgres (ACID ledger). Maybe Redis/Dynamo for session, not for the payment row.
-    2. Postgres.
-    3. Neo4j bounded MATCH **or** KV/Postgres pair table if only this 2-hop existence matters. Graph if you will add hops/types next quarter.
-    4. GDS/Spark WCC on a filtered edge list; results to ClickHouse/KV.
-    5. ClickHouse (or warehouse). Not Neo4j, not OLTP Postgres at 100×.
-    6. Offline similarity / co-occurrence job → KV. Not live 3-hop Cypher.
-    7. If (3) is pair-table simple and (4) can run on Spark from Kafka edges without analysts living in Browser — skip online graph. Add Neo4j when path **listing** and interactive investigation are the product.

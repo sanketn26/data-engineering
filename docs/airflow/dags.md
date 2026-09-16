@@ -390,6 +390,44 @@ transform = SparkSubmitOperator(
 
 ---
 
+## What happened next { #what-happened-next }
+
+It was **A**. `join_enrich` read a table that another DAG writes, and that
+dependency existed only in someone's memory — no edge, no sensor, no dataset.
+Clearing the task re-ran it against half-written upstream data, and the three
+dashboards that read its output went empty in sympathy.
+
+The graph was not wrong about what it described. It was incomplete, and an
+incomplete graph fails silently: Airflow scheduled exactly what it was told to,
+in exactly the right order, on data that was not ready.
+
+Jordan's rule out of the postmortem is that a dependency you cannot see in the
+DAG is a dependency you cannot clear safely — which is why the next two pages
+are about making reruns survivable ([idempotency](idempotency.md)) rather than
+about making the graph prettier.
+
+---
+
+## Check your understanding { #exercise }
+
+A team adds `expand` over every S3 object in `s3://events/dt={{ ds }}/` (≈ 40,000 part files). Each mapped task is a `PythonOperator` that reads one Parquet file with pandas and appends to a warehouse table. `catchup` was left default; `start_date` is 90 days ago.
+
+??? question "Name three independent incidents this DAG will cause, in the order they appear after deploy."
+    Think scheduler, metadata, and data.
+
+    ??? success "Answer"
+        1. **Catchup fan-out**: 90 days × 40,000 mapped TIs queued; scheduler and metadata DB melt before any useful load. 2. **Worker-side processing**: pandas on Airflow workers OOM / slot starvation — orchestration used as compute. 3. **Non-idempotent appends**: retries and overlapping days duplicate rows; clearing a TI makes it worse. The correct shape is one Spark/Databricks job per `ds` (or per large tenant), `catchup=False`, partition overwrite, and mapping only if you have tens of tenants not tens of thousands of files.
+
+---
+
+## Reference
+
+Behaviour at the next orders of magnitude, the trade-offs, the alternatives, and
+what to check when inheriting someone else's version of this — kept here rather
+than in the walkthrough above.
+
+---
+
 ## How to investigate { #debugging }
 
 1. **Parse**: `airflow dags list-import-errors`. If the file imports Spark, you already lost.
@@ -458,13 +496,3 @@ When you open a DAG PR:
 If the answer to (4) is no, stop and fix [idempotency](idempotency.md) before adding tasks.
 
 ---
-
-## Check your understanding { #exercise }
-
-A team adds `expand` over every S3 object in `s3://events/dt={{ ds }}/` (≈ 40,000 part files). Each mapped task is a `PythonOperator` that reads one Parquet file with pandas and appends to a warehouse table. `catchup` was left default; `start_date` is 90 days ago.
-
-??? question "Name three independent incidents this DAG will cause, in the order they appear after deploy."
-    Think scheduler, metadata, and data.
-
-    ??? success "Answer"
-        1. **Catchup fan-out**: 90 days × 40,000 mapped TIs queued; scheduler and metadata DB melt before any useful load. 2. **Worker-side processing**: pandas on Airflow workers OOM / slot starvation — orchestration used as compute. 3. **Non-idempotent appends**: retries and overlapping days duplicate rows; clearing a TI makes it worse. The correct shape is one Spark/Databricks job per `ds` (or per large tenant), `catchup=False`, partition overwrite, and mapping only if you have tens of tenants not tens of thousands of files.

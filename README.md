@@ -54,7 +54,7 @@ terms are introduced through the foundations route and linked glossary.
 
 Plus end-to-end **architectures**, **comparisons**, **labs**, **incident drills**, **cost engineering**, **simulations**, and a scored **capstone**.
 
-Five running production systems (SaaS analytics, observability, e-commerce, IoT, fraud graph) reappear throughout so the same workload is seen from each engine.
+Five running production systems (SaaS analytics, observability, e-commerce, IoT, fraud graph) reappear throughout so the same workload is seen from each engine. One of them — SaaSCo, the SaaS analytics company — is the through-line from the first page to the last; the other four are the same physics in a different costume.
 
 ---
 

@@ -10,8 +10,8 @@ reading session can be 25–40 minutes; a lab can be a separate session. Optiona
 depth never blocks progress.
 
 !!! note "How to use a path"
-    On the first visit, read the opening and **Build the mental picture**, then
-    attempt the exit criterion. Return for internals and operations when the
+    On the first visit, read the opening, **Build the mental picture**, and
+    **What happened next**, then attempt the exit criterion. Return for internals and operations when the
     route calls for them. Use the [three-pass rhythm](how-to-study.md#the-three-pass-rhythm)
     instead of forcing every page into one sitting.
 
@@ -19,12 +19,15 @@ depth never blocks progress.
 
 If every route still looks large, begin here:
 
-1. Read the story and mental picture in [Data at Scale](foundations/scale.md).
-2. Open the [Kafka partition simulator](simulations/kafka-partitions.html). Keep
-   the defaults, then make one key receive 80% of events.
-3. Read only the opening and mental picture in
+1. Meet [the company you work for](start-here.md#the-company-you-work-for) —
+   SaaSCo, the people, and Acme at 38% of events. Two minutes.
+2. Read the opening, **Build the mental picture**, and **What happened next**
+   in [Data at Scale](foundations/scale.md).
+3. Open the [Kafka partition simulator](simulations/kafka-partitions.html). Keep
+   the defaults, then make one key receive 80% of events — that key is Acme.
+4. Read the opening, mental picture, and close in
    [Partitioning](foundations/partitions.md).
-4. Finish this sentence in your own words: “We partition data because …, but a
+5. Finish this sentence in your own words: “We partition data because …, but a
    poor key causes …”.
 
 That is a complete session. The next session starts with distributed execution;

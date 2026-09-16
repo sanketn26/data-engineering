@@ -325,6 +325,56 @@ A production ML platform often uses **both**: Spark (or Flink) writes the featur
 
 ---
 
+## What happened next { #what-happened-next }
+
+**B and D together**, which is why the reviewer's question was fair. The win is
+not that Ray tasks are lighter than Spark UDF invocations — it is that the
+model is loaded once into an actor and the data reaches it through a
+shared-memory object store, instead of being serialized on every call.
+
+Tuning `spark.sql.shuffle.partitions` cannot reach that. The cost in the
+original pipeline was per-invocation serialization of a model that never
+changed, and no amount of partition sizing removes a cost that is paid inside
+each task.
+
+C was the answer to reject. The events still arrive through Kafka, the rollups
+are still [Spark](../spark/index.md)'s, and Ray owns the scoring and the
+simulation — the part with long-lived Python state that a batch engine was
+never shaped for.
+
+---
+
+## Check your understanding { #exercise }
+
+??? question "Design the feature job"
+    40 million users. Feature function is 40 ms of pandas plus a 200 MB sklearn model. Inputs are Iceberg Parquet partitioned by `dt`, already shuffled to `user_id` files (~8k files). SLO is 30 minutes on a 200-core cluster.
+
+    1. Tasks or actors? Where does the model live?
+    2. What do you `ray.get`, and what do you never bring to the driver?
+    3. What happens when a worker OOM-kills 40 minutes of actor state you *did not* use — and when you *did* use actors instead of tasks?
+    4. Why is this the wrong job for Spark SQL, and why is a 5 TB `GROUP BY country` the wrong job for Ray?
+
+??? success "Answer"
+    1. **Tasks**, not actors. Each user is independent. `ray.put` the model (or load once per worker process in a warmup). Actors would pin cores while idle and lose the model on restart for no benefit.
+
+    2. Driver lists files or, better, a handful of mapper tasks list prefixes. Each task reads one file, writes features to S3/Parquet, returns a **small** metadata struct (path, row count). Never `ray.get` 40 million feature dicts. Bound in-flight tasks so the object store does not fill with unconsumed returns.
+
+    3. With tasks: the failed file’s task retries; completed files are already on S3. With actors holding per-user state for 40 minutes: that RAM is gone; you replay from the last snapshot you wrote — if you wrote none, you replay everything assigned to that actor.
+
+    4. Spark SQL cannot see the pandas function; a UDF pays JVM↔Python and still will not nest a Python call graph. A 5 TB `GROUP BY country` is a shuffle + columnar aggregation — Spark/ClickHouse. Ray would copy rows through the object store without Catalyst and lose.
+
+    Extra: 200 cores × 1800 s = 360k core-seconds. 40e6 × 0.04 s = 1.6e6 core-seconds if you naively run 40 ms sequentially per user on one core — you need ~4.4× more cores **or** you batch many users per task to amortise scheduling (you will). Object store must hold the model replica per node plus in-flight batch returns, not the full feature table.
+
+---
+
+## Reference
+
+Behaviour at the next orders of magnitude, the trade-offs, the alternatives, and
+what to check when inheriting someone else's version of this — kept here rather
+than in the walkthrough above.
+
+---
+
 ## How to investigate { #debugging }
 
 | Symptom | Where to look | Likely cause |
@@ -395,23 +445,3 @@ Ask: **is the bottleneck a relational shuffle or a Python call graph?** Only the
 
 ---
 
-## Check your understanding { #exercise }
-
-??? question "Design the feature job"
-    40 million users. Feature function is 40 ms of pandas plus a 200 MB sklearn model. Inputs are Iceberg Parquet partitioned by `dt`, already shuffled to `user_id` files (~8k files). SLO is 30 minutes on a 200-core cluster.
-
-    1. Tasks or actors? Where does the model live?
-    2. What do you `ray.get`, and what do you never bring to the driver?
-    3. What happens when a worker OOM-kills 40 minutes of actor state you *did not* use — and when you *did* use actors instead of tasks?
-    4. Why is this the wrong job for Spark SQL, and why is a 5 TB `GROUP BY country` the wrong job for Ray?
-
-??? success "Answer"
-    1. **Tasks**, not actors. Each user is independent. `ray.put` the model (or load once per worker process in a warmup). Actors would pin cores while idle and lose the model on restart for no benefit.
-
-    2. Driver lists files or, better, a handful of mapper tasks list prefixes. Each task reads one file, writes features to S3/Parquet, returns a **small** metadata struct (path, row count). Never `ray.get` 40 million feature dicts. Bound in-flight tasks so the object store does not fill with unconsumed returns.
-
-    3. With tasks: the failed file’s task retries; completed files are already on S3. With actors holding per-user state for 40 minutes: that RAM is gone; you replay from the last snapshot you wrote — if you wrote none, you replay everything assigned to that actor.
-
-    4. Spark SQL cannot see the pandas function; a UDF pays JVM↔Python and still will not nest a Python call graph. A 5 TB `GROUP BY country` is a shuffle + columnar aggregation — Spark/ClickHouse. Ray would copy rows through the object store without Catalyst and lose.
-
-    Extra: 200 cores × 1800 s = 360k core-seconds. 40e6 × 0.04 s = 1.6e6 core-seconds if you naively run 40 ms sequentially per user on one core — you need ~4.4× more cores **or** you batch many users per task to amortise scheduling (you will). Object store must hold the model replica per node plus in-flight batch returns, not the full feature table.

@@ -7,7 +7,7 @@ description: Choosing key-value and wide-column NoSQL stores by access pattern i
 !!! info "Version and source policy"
     Limits and billing models change. Verify service-specific numbers against primary documentation; see [Versions & Primary Sources](../reference/version-matrix.md).
 
-Capacity review, two weeks before Black Friday. The single Postgres primary that serves checkout sessions, observability writes, and the IoT device registry is projected to blow past its connection limit and WAL throughput at 100× today's traffic. Someone proposes bigger hardware. Someone else proposes read replicas. Someone else says "just move it to NoSQL" without saying which store or why.
+Capacity review, two weeks before Black Friday. The single Postgres primary that serves checkout sessions, observability writes, and the IoT device registry is projected to blow past its connection limit and WAL throughput at 100× today's traffic. Maya proposes bigger hardware. Priya's team proposes read replicas. A third voice says "just move it to NoSQL" without saying which store or why, and Jordan asks them which query they mean.
 
 What actually fixes each workload?
 
@@ -190,3 +190,25 @@ Vertical scaling still wins more arguments than Twitter-era folklore. The counte
 - [Time series](../time-series/index.md) — when the write path is actually a TSDB, not Cassandra
 - [OLAP](../olap/index.md) — where the analytical queries go instead
 - [Selection framework](../reference/selection-framework.md)
+
+---
+
+## What happened next { #what-happened-next }
+
+Jordan's question ended the meeting faster than the proposals did: the three
+workloads on that Postgres primary are not one problem. Checkout sessions are
+key-value reads and writes with a TTL. Observability writes are a firehose of
+appends queried by time range. The device registry is a small, mostly-static
+table that happens to live in the same place.
+
+Bigger hardware buys a quarter for all three and fixes none. Read replicas help
+the registry and do nothing for the write paths, because the constraint is WAL
+throughput and connections rather than read capacity. And "move it to NoSQL"
+had no answer to the only question that decides anything — what is the primary
+key of the hottest query.
+
+Splitting by access pattern is what the rest of this module is for: [what NoSQL
+actually trades away](nosql.md), then [Cassandra](cassandra.md) for the
+append-heavy time-range workload and [DynamoDB](dynamodb.md) for the session
+store. Postgres keeps what is actually relational, which is more than the
+one-pager assumed.

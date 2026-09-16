@@ -4,7 +4,7 @@ description: Why an append-only CDC lake fails GDPR erasure requests, and how up
 
 # E-Commerce Platform Architecture
 
-A GDPR erasure request lands for a customer who checked out eleven months ago. Legal wants confirmation within 30 days that the record is gone from every system — not just Postgres. The on-call engineer opens the lakehouse and finds the customer's order rows sitting in twenty different Parquet files across as many partitions, written by a CDC pipeline that only ever appends. Predict before you read on: is this pipeline's *append-only* design a reasonable trade-off here, or is it the root cause of the incident?
+A GDPR erasure request lands for a customer who checked out eleven months ago. Legal wants confirmation within 30 days that the record is gone from every system — not just Postgres. Maya, on loan to e-commerce this quarter, opens the lakehouse and finds the customer's order rows sitting in twenty different Parquet files across as many partitions, written by a CDC pipeline that only ever appends. Predict before you read on: is this pipeline's *append-only* design a reasonable trade-off here, or is it the root cause of the incident?
 
 It is the root cause: orders, payments, inventory, users, clickstream, and (later) recommendations all flow through this platform, and the dominant constraint is **correctness of mutable facts**, not dashboard milliseconds. An order goes `PENDING → PAID → SHIPPED → DELIVERED` and may be cancelled, refunded, or GDPR-erased. If your lake cannot upsert and delete, you do not have a commerce platform — you have a log of rumours.
 
@@ -370,3 +370,25 @@ V1: CDC only `orders`, `payments`, `order_items`. Users via nightly dump if they
 ## GDPR drill (tabletop)
 
 Pick user `U`. List every copy: PG, Kafka (retention days), Iceberg files, CH, Neo4j, S3 exports, notebooks. Time-box a staging delete. If Kafka retention is 14 days, erasure is **not** instant there — document it. If Iceberg expire is 30 days, time travel still sees `U` — [security](../security/index.md).
+
+---
+
+## What happened next { #what-happened-next }
+
+Thirty days was enough, but only because the lake had table formats and not
+because anyone had planned for erasure. Twenty Parquet files across as many
+partitions is a rewrite job, and a rewrite job is only safe when something can
+name the table before and after — which is the
+[Iceberg](../lakehouse/iceberg.md) argument arriving as a legal deadline rather
+than a design review.
+
+The part that took the time was not the delete. It was enumerating where the
+customer's rows actually were: the lake, the ClickHouse serving table, the
+Kafka topic still inside its retention window, three derived marts, and a
+backup nobody had scoped. Lineage would have answered in minutes what took days
+of asking people.
+
+Erasure is also why CDC deletes matter more here than anywhere else in this
+academy. A tombstone that is dropped by a connector, or a soft delete that
+never propagates, is a compliance gap that looks exactly like a working
+pipeline.

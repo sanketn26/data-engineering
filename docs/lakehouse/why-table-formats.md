@@ -222,6 +222,70 @@ Debugging starts at **current snapshot id**, not at S3 console.
 
 ---
 
+## Catalog Failures Are Table Failures
+
+The format can be perfect and production still down:
+
+- Glue eventual consistency on the pointer (rare, ugly)
+- Two catalogs registered for one S3 prefix
+- Permissions: Spark can write metadata, Trino cannot read it
+- Rest catalog outage: engines fail open or stale depending on cache
+
+Treat catalog HA like metadata-DB HA in [Airflow](../airflow/index.md): it is on the commit path.
+
+---
+
+## The Three Formats
+
+All three major table formats solve the same problem with different trade-offs:
+
+| Format | Primary Strength | Primary Use Case |
+|--------|-----------------|-----------------|
+| [Apache Iceberg](iceberg.md) | Engine-agnostic, partition evolution, strong consistency | Multi-engine lakehouse |
+| [Apache Hudi](hudi.md) | CDC, upserts, incremental processing | CDC-heavy workloads, frequent updates |
+| [Delta Lake](delta.md) | Spark integration, simplicity | Spark-centric workloads |
+
+See the [detailed comparison](comparison.md) for workload-based guidance.
+
+---
+
+## What happened next { #what-happened-next }
+
+It was **C**. The retry was idempotent in the sense the author meant — it
+computed the same rows — and that was never the problem. It wrote those rows to
+a new set of files beside the first attempt's, and nothing in a directory says
+which files are the table.
+
+Support saw two rows per order because both attempts' files are "in the
+prefix," and `s3://orders/dt=2024-01-15/` is a location, not a table. There is
+no commit to fail, so there is nothing for the second attempt to supersede.
+
+Every failure mode above collapses into that one question — concurrent readers,
+mid-write crashes, schema changes, updates. Ask **where is the table**; if the
+answer is a prefix, the answer is that there isn't one.
+
+---
+
+## Check your understanding { #exercise }
+
+Two Spark jobs write to `s3://orders/`. Job A overwrites `dt=2024-01-15` (full day recompute). Job B streams CDC upserts into the same prefix as extra Parquet files. Trino lists the directory.
+
+??? question "List three concrete corruptions this design allows, and which table-format property kills each one."
+    Think isolation, identity, and commits.
+
+    ??? success "Answer"
+        1. **Partial/overlapping files**: Trino lists A's rewrite plus B's extras → double orders. Snapshot commit would expose either A's new file set *or* B's commit, not a directory union. 2. **Mid-rewrite read**: A deletes then writes; Trino sees a hole. Snapshot isolation keeps the previous file set until A's commit. 3. **CDC updates as extra files**: two rows for one `order_id`. Record-level MERGE/upsert (Hudi MoR, Iceberg MERGE, Delta MERGE) plus a primary key, not extra parts in a prefix. Bonus: schema drift in B's files vs A's — schema-on-commit rejects or evolves by column id.
+
+---
+
+## Reference
+
+Behaviour at the next orders of magnitude, the trade-offs, the alternatives, and
+what to check when inheriting someone else's version of this — kept here rather
+than in the walkthrough above.
+
+---
+
 ## How to investigate { #debugging }
 
 1. Print current snapshot/version (`SHOW SNAPSHOTS` / `DESCRIBE HISTORY`).
@@ -242,19 +306,6 @@ current snapshot / version
     → min/max stats vs your predicate
       → only then open Parquet
 ```
-
----
-
-## Catalog Failures Are Table Failures
-
-The format can be perfect and production still down:
-
-- Glue eventual consistency on the pointer (rare, ugly)
-- Two catalogs registered for one S3 prefix
-- Permissions: Spark can write metadata, Trino cannot read it
-- Rest catalog outage: engines fail open or stale depending on cache
-
-Treat catalog HA like metadata-DB HA in [Airflow](../airflow/index.md): it is on the commit path.
 
 ---
 
@@ -294,20 +345,6 @@ Single-writer, single-engine, append-only, and you still delete by prefix on fai
 
 ---
 
-## The Three Formats
-
-All three major table formats solve the same problem with different trade-offs:
-
-| Format | Primary Strength | Primary Use Case |
-|--------|-----------------|-----------------|
-| [Apache Iceberg](iceberg.md) | Engine-agnostic, partition evolution, strong consistency | Multi-engine lakehouse |
-| [Apache Hudi](hudi.md) | CDC, upserts, incremental processing | CDC-heavy workloads, frequent updates |
-| [Delta Lake](delta.md) | Spark integration, simplicity | Spark-centric workloads |
-
-See the [detailed comparison](comparison.md) for workload-based guidance.
-
----
-
 ## How to Apply This at Work
 
 Walk a production prefix with the team:
@@ -321,13 +358,3 @@ Walk a production prefix with the team:
 If (1) is blank, you are on raw Parquet. Do not add a second writer until a format is in place.
 
 ---
-
-## Check your understanding { #exercise }
-
-Two Spark jobs write to `s3://orders/`. Job A overwrites `dt=2024-01-15` (full day recompute). Job B streams CDC upserts into the same prefix as extra Parquet files. Trino lists the directory.
-
-??? question "List three concrete corruptions this design allows, and which table-format property kills each one."
-    Think isolation, identity, and commits.
-
-    ??? success "Answer"
-        1. **Partial/overlapping files**: Trino lists A's rewrite plus B's extras → double orders. Snapshot commit would expose either A's new file set *or* B's commit, not a directory union. 2. **Mid-rewrite read**: A deletes then writes; Trino sees a hole. Snapshot isolation keeps the previous file set until A's commit. 3. **CDC updates as extra files**: two rows for one `order_id`. Record-level MERGE/upsert (Hudi MoR, Iceberg MERGE, Delta MERGE) plus a primary key, not extra parts in a prefix. Bonus: schema drift in B's files vs A's — schema-on-commit rejects or evolves by column id.

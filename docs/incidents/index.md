@@ -4,7 +4,7 @@ description: Practice diagnosing Kafka hot partitions, Spark skew, and Flink wat
 
 # Production Incidents
 
-02:47 AM. `P1 consumer_lag_seconds{topic="product-events"} > 180`. Three teams' dashboards go stale in the next ten minutes and you have not opened a terminal yet.
+02:47. Maya's pager: `P1 consumer_lag_seconds{topic="product-events"} > 180`. Three teams' dashboards go stale in the next ten minutes and she has not opened a terminal yet. You are Maya for the next twenty minutes.
 
 A. Restart the consumer group. B. Add more processing slots. C. Check per-partition lag before touching anything else. D. Page the on-call lead and wait for guidance.
 
@@ -72,7 +72,7 @@ Sustainable keying:
 - Alert **lag max / lag p50 ratio** per group, not only sum lag.
 - Dashboards: produce bytes **per partition**.
 - Tenant quotas.
-- Capacity: if one customer is 40% of traffic, they are an architecture, not a row. See [Kafka partition sim](../simulations/kafka-partitions.html).
+- Capacity: if one customer is 38% of traffic, they are an architecture, not a row. See [Kafka partition sim](../simulations/kafka-partitions.html).
 - Lab: [Kafka lab](../labs/index.md) hot-key exercise.
 
 </details>

@@ -8,7 +8,7 @@ Before you read a single one of these five pages: what is the first box you woul
 
 These pages are design drills, not catalogues of boxes. Each system starts from **requirements**, not from a favourite stack. The stack is the last thing you write down.
 
-Reading these five as independent case studies is useful; reading them as one company's timeline is more useful. [SaaSCo: The Evolving Company](saasco-evolution.md) walks a single SaaS-analytics business through six growth stages, and every new component in that story — Spark, Kafka, Iceberg, ClickHouse, contracts and lineage — is forced by a measured bottleneck in the stage before it, never adopted ahead of need.
+Reading these five as independent case studies is useful; reading them as one company's timeline is more useful. [SaaSCo: The Evolving Company](saasco-evolution.md) walks a single SaaS-analytics business through eight growth stages, plus a ninth as an exercise, and every new component in that story — Spark, Kafka, Iceberg, ClickHouse, contracts and lineage — is forced by a measured bottleneck in the stage before it, never adopted ahead of need.
 
 The five running use cases in this academy share event shapes, but they do not share latency, retention, or failure budgets. That is the point: the same Kafka topic can feed a 50 ms fraud score, a 7-day observability dashboard, and a 2-year lakehouse table, and those three jobs should not share an engine.
 
@@ -362,3 +362,22 @@ Airflow orchestrating the whole thing
 | [Columnar](../olap/columnar-storage.md) | Why CH is the tile store |
 | [Cardinality](../time-series/cardinality.md) | Prom vs CH |
 | [Graph modelling](../graph/graph-modelling.md) | Fraud rings vs SQL |
+
+---
+
+## What happened next { #what-happened-next }
+
+The exercise is worth doing before reading on, because the five pages that
+follow all demonstrate the same failure: components drawn before numbers were
+written down.
+
+The three sentences do most of the work. The one query that must be fast tells
+you the latency class and therefore the serving engine. The one unacceptable
+failure tells you where durability and replay have to exist. The one component
+you refuse to add yet is the honest one — it is how Stage 1 stays a laptop and
+Stage 3 gets Kafka for a measured reason rather than a fashionable one.
+
+Read the [SaaSCo timeline](saasco-evolution.md) for what that discipline looks
+like over eight stages of one company, then the five case studies for the same
+reasoning under different constraints. If a box on your diagram cannot be
+traced to a number, it is a pager rotation with no workload behind it.

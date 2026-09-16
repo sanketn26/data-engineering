@@ -241,6 +241,81 @@ NoSQL for sessions **in front of** Postgres for orders is a normal hybrid. Repla
 
 ---
 
+## Document vs wide-column vs KV — same query list, different physical bet
+
+**KV (Redis, Dynamo GetItem).** The value is opaque. You will not range-scan inside it. Sessions and device profiles that are always read whole belong here.
+
+**Document (Mongo, Dynamo item with nested maps).** You occasionally project a path (`cart.items[0]`). You still **start from `_id`**. Nested arrays that grow without bound (append every click into the session document) recreate the wide-row problem inside JSON.
+
+**Wide-column (Cassandra).** You explicitly range-scan **clustering keys** in one partition: last 15 minutes of spans, latest 50 events for a user. That is not “documents,” it is a sorted slice. If you never range-scan, you wanted KV.
+
+The e-commerce **order** document (header + lines) is a reasonable Mongo/Dynamo item if the API always loads the whole order and the line count is bounded. The observability **stream** is a wide-column (or not a NoSQL OLTP store at all). Mixing those instincts — dumping spans into a Mongo document per service — produces 16 MB documents and a pager.
+
+!!! tip "Postgres is a document store too"
+    `JSONB` with a GIN index is how many teams should have stayed. Use it until the write rate or the tail latency says otherwise — then you still need a key, not a vibe.
+
+---
+
+## Dual-write and the outbox
+
+Denormalised tables (session + user→sessions, device + region GSI) fail in the gap between two puts. Patterns that Staff are expected to name:
+
+1. **Single item / single partition** as the atomic unit (Dynamo item, Cassandra partition).
+2. **Outbox** in Postgres: commit order + outbox row, async projector to Dynamo/Cassandra.
+3. **Stream as truth** for the derived table (Kafka → projector), ledger stays Postgres.
+
+Do not “retry until both caches look right” without idempotency keys. Query-bound modelling **increases** the number of writes per business event.
+
+---
+
+## What happened next { #what-happened-next }
+
+Jordan's question was not rhetorical, and the answer is **C**: each of the
+three tables has a different hot query, and the key has to make that query
+touch exactly one partition. `session_id` for the session store, `(service,
+time bucket)` for spans, `device_id` for devices.
+
+The one-pager proposed keeping the Postgres primary keys and changing the
+vendor, which is the move that produces a slower Postgres with fewer features.
+Nothing in a NoSQL store recovers a query whose access pattern the key does not
+match — there is no planner coming to rescue it.
+
+Three problems that looked identical in a slide deck ended up on three
+different engines — [Cassandra](cassandra.md), [DynamoDB](dynamodb.md), and the
+Postgres they started on, for reasons that came entirely from the access
+pattern and not at all from the logo.
+
+---
+
+## Check your understanding { #exercise }
+
+??? question "Query-bind the three stores"
+    For each workload (sessions, observability spans, device registry):
+
+    1. Write the allowed queries (key, QPS, latency).
+    2. Name a query you will **reject** and where it should run instead.
+    3. Postgres, Redis, Cassandra, or Dynamo — pick one per workload at 10× and at 100×, and say what key you would hash on.
+    4. Product adds “show me all carts that contain SKU X right now.” What do you build, and what do you not do?
+
+??? success "Answer"
+    1. Sessions: get/put/delete by `session_id`, ~200k QPS, 3 ms, TTL. Spans: write by `(service, time bucket)`, read last 15 min per service. Devices: get/put `device_id`; optional low-QPS `(region, firmware)` via a second table/GSI.
+
+    2. Reject: session analytics (warehouse), span full-text (search/ClickHouse), “all devices with battery < 10%” on the registry hot table (fleet index or time-series, not the PK table).
+
+    3. 10×: sessions Redis or Postgres; spans Cassandra/ClickHouse ingest path (Postgres no); devices Postgres. 100×: sessions Redis/Dynamo PK=`session_id`; spans Cassandra/Scylla or a TSDB/OLAP write path, PK=`(service, hour)`; devices Dynamo/Cassandra PK=`device_id` plus a sparse GSI for fleet if QPS stays low.
+
+    4. Do **not** scan sessions. Build an inverted index table PK=`SKU#X` SK=`SESS#id` updated on cart mutation (dual write), or stream cart events to a search/OLAP system for “right now” approximations. The session store stays query-bound to `session_id`.
+
+---
+
+## Reference
+
+Behaviour at the next orders of magnitude, the trade-offs, the alternatives, and
+what to check when inheriting someone else's version of this — kept here rather
+than in the walkthrough above.
+
+---
+
 ## How to investigate { #debugging }
 
 Ask, in order:
@@ -304,48 +379,3 @@ Write the query list with QPS. If you cannot, you are not ready to pick a store.
 
 ---
 
-## Document vs wide-column vs KV — same query list, different physical bet
-
-**KV (Redis, Dynamo GetItem).** The value is opaque. You will not range-scan inside it. Sessions and device profiles that are always read whole belong here.
-
-**Document (Mongo, Dynamo item with nested maps).** You occasionally project a path (`cart.items[0]`). You still **start from `_id`**. Nested arrays that grow without bound (append every click into the session document) recreate the wide-row problem inside JSON.
-
-**Wide-column (Cassandra).** You explicitly range-scan **clustering keys** in one partition: last 15 minutes of spans, latest 50 events for a user. That is not “documents,” it is a sorted slice. If you never range-scan, you wanted KV.
-
-The e-commerce **order** document (header + lines) is a reasonable Mongo/Dynamo item if the API always loads the whole order and the line count is bounded. The observability **stream** is a wide-column (or not a NoSQL OLTP store at all). Mixing those instincts — dumping spans into a Mongo document per service — produces 16 MB documents and a pager.
-
-!!! tip "Postgres is a document store too"
-    `JSONB` with a GIN index is how many teams should have stayed. Use it until the write rate or the tail latency says otherwise — then you still need a key, not a vibe.
-
----
-
-## Dual-write and the outbox
-
-Denormalised tables (session + user→sessions, device + region GSI) fail in the gap between two puts. Patterns that Staff are expected to name:
-
-1. **Single item / single partition** as the atomic unit (Dynamo item, Cassandra partition).
-2. **Outbox** in Postgres: commit order + outbox row, async projector to Dynamo/Cassandra.
-3. **Stream as truth** for the derived table (Kafka → projector), ledger stays Postgres.
-
-Do not “retry until both caches look right” without idempotency keys. Query-bound modelling **increases** the number of writes per business event.
-
----
-
-## Check your understanding { #exercise }
-
-??? question "Query-bind the three stores"
-    For each workload (sessions, observability spans, device registry):
-
-    1. Write the allowed queries (key, QPS, latency).
-    2. Name a query you will **reject** and where it should run instead.
-    3. Postgres, Redis, Cassandra, or Dynamo — pick one per workload at 10× and at 100×, and say what key you would hash on.
-    4. Product adds “show me all carts that contain SKU X right now.” What do you build, and what do you not do?
-
-??? success "Answer"
-    1. Sessions: get/put/delete by `session_id`, ~200k QPS, 3 ms, TTL. Spans: write by `(service, time bucket)`, read last 15 min per service. Devices: get/put `device_id`; optional low-QPS `(region, firmware)` via a second table/GSI.
-
-    2. Reject: session analytics (warehouse), span full-text (search/ClickHouse), “all devices with battery < 10%” on the registry hot table (fleet index or time-series, not the PK table).
-
-    3. 10×: sessions Redis or Postgres; spans Cassandra/ClickHouse ingest path (Postgres no); devices Postgres. 100×: sessions Redis/Dynamo PK=`session_id`; spans Cassandra/Scylla or a TSDB/OLAP write path, PK=`(service, hour)`; devices Dynamo/Cassandra PK=`device_id` plus a sparse GSI for fleet if QPS stays low.
-
-    4. Do **not** scan sessions. Build an inverted index table PK=`SKU#X` SK=`SESS#id` updated on cart mutation (dual write), or stream cart events to a search/OLAP system for “right now” approximations. The session store stays query-bound to `session_id`.

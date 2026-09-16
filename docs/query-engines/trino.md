@@ -4,7 +4,7 @@ description: Why Trino partition pruning silently fails on a wrapped column, and
 
 # Trino
 
-10:41 AM. `WHERE ds = DATE '2024-06-12'` should prune to a single day of a 400 TB Iceberg table. `EXPLAIN` shows Trino scanning all 400 days instead. The analyst who wrote the query swears the `WHERE` clause is right there.
+10:41. Maya is pulled in on a query that is not hers. `WHERE ds = DATE '2024-06-12'` should prune to a single day of a 400 TB Iceberg table. `EXPLAIN` shows Trino scanning all 400 days instead. The analyst who wrote the query swears the `WHERE` clause is right there.
 
 What broke the prune?
 
@@ -301,7 +301,7 @@ You just **paid federation once** and stored the answer. Dashboards should hit t
 
 | Failure | What it looks like | Root |
 |---------|--------------------|------|
-| **Coordinator OOM** | Coordinator JVM dies; all queries fail; workers look idle | See next section |
+| **Coordinator OOM** | Coordinator JVM dies; all queries fail; workers look idle | See [How to investigate](#debugging) |
 | **Worker OOM** | One node gone, query aborted `Query exceeded per-node memory` | Broadcast too large, agg hash table, skew |
 | **Query timeout / queue** | Cluster up, nothing starts | Too many concurrent queries, planning stuck on LIST |
 | **Wrong results from stale snapshot** | Iceberg time travel vs “I just inserted” | You queried a snapshot committed before the write |
@@ -309,6 +309,62 @@ You just **paid federation once** and stored the answer. Dashboards should hit t
 | **S3 throttling** | 503 / slow GET | Split storm after partition explosion |
 
 Federation **cost** is a failure mode of the budget, not the JVM: a “cheap” ad-hoc JOIN that scans 80 TB of Iceberg plus 200 GB of Postgres every hour is a six-figure cloud bill. The engine did what you asked.
+
+---
+
+## What happened next { #what-happened-next }
+
+It was **B**. The `WHERE` clause really was right there — wrapped in
+`date_trunc`. A function on the partition column means Trino can no longer
+match the predicate against Iceberg's manifests, so it stops pruning and reads
+all 400 days. Nothing errors. The query returns the correct answer, eventually,
+having scanned 400 TB to produce one day of rows.
+
+Filtering on the typed partition column directly brings the same query back to
+a single day's manifests. `CAST(ds AS varchar) = '2024-06-12'` breaks it the
+same way, for the same reason.
+
+The query was correct throughout. It returned the right rows before the fix and
+after it; only the time and the bill differed, and neither is visible in a
+result set. `EXPLAIN` is where the difference shows up — files or splits
+selected against the table's total.
+
+The analyst had no symptom to go on. The clock and the bill arrive at Maya's
+desk instead.
+
+---
+
+## Check your understanding { #exercise }
+
+`events` is Iceberg, partitioned by `ds`, 400 TB, 80 columns. `customers` is Postgres, 120 million rows, ~40 GB on disk. Cluster: 1 coordinator (32 GB heap), 30 workers (64 GB heap each). Query:
+
+```sql
+SELECT e.*, c.plan, c.region
+FROM iceberg.analytics.events e
+JOIN postgres.app.customers c ON e.customer_id = c.id
+WHERE date_trunc('month', e.ds) = DATE '2024-06-01';
+```
+
+A BI tool runs this at 09:05. Ten minutes later the coordinator is in GC thrash and two workers are dead. Name **three** independent defects in this SQL/plan, and what you would change first. Would you broadcast `customers`?
+
+??? success "Answer"
+    Defects:
+
+    1. **`date_trunc` on `ds`** — partition pruning is dead. You scan every `ds` in the table (or far more than June), 400 TB-class planning and IO.
+    2. **`e.*`** — no column pruning. Nested/debug columns come along for the ride.
+    3. **Unbounded gather of the join** — the result is on the order of a month of events (billions of rows) streamed through the output stage. Coordinator buffers + BI fetch pattern → coordinator GC / OOM. Workers die if the optimizer **broadcasts** 40 GB+ of customers (uncompressed pages are larger than on-disk Postgres).
+
+    First change: replace the predicate with `e.ds >= DATE '2024-06-01' AND e.ds < DATE '2024-07-01'`, project only needed columns, and **aggregate or write to a table** instead of returning `e.*`. Put the BI tool on a CTAS result.
+
+    Broadcast `customers`? **Not at 40 GB on disk.** That is tens of GB of pages times every worker if replicated — a worker OOM. Partitioned join, or better: export `customers` to Iceberg nightly and join in the lake with stats. Do not run this against the primary at 09:05.
+
+---
+
+## Reference
+
+Behaviour at the next orders of magnitude, the trade-offs, the alternatives, and
+what to check when inheriting someone else's version of this — kept here rather
+than in the walkthrough above.
 
 ---
 
@@ -417,26 +473,3 @@ Related: [Iceberg](../lakehouse/iceberg.md), [columnar storage](../olap/columnar
 
 ---
 
-## Check your understanding { #exercise }
-
-`events` is Iceberg, partitioned by `ds`, 400 TB, 80 columns. `customers` is Postgres, 120 million rows, ~40 GB on disk. Cluster: 1 coordinator (32 GB heap), 30 workers (64 GB heap each). Query:
-
-```sql
-SELECT e.*, c.plan, c.region
-FROM iceberg.analytics.events e
-JOIN postgres.app.customers c ON e.customer_id = c.id
-WHERE date_trunc('month', e.ds) = DATE '2024-06-01';
-```
-
-A BI tool runs this at 09:05. Ten minutes later the coordinator is in GC thrash and two workers are dead. Name **three** independent defects in this SQL/plan, and what you would change first. Would you broadcast `customers`?
-
-??? success "Answer"
-    Defects:
-
-    1. **`date_trunc` on `ds`** — partition pruning is dead. You scan every `ds` in the table (or far more than June), 400 TB-class planning and IO.
-    2. **`e.*`** — no column pruning. Nested/debug columns come along for the ride.
-    3. **Unbounded gather of the join** — the result is on the order of a month of events (billions of rows) streamed through the output stage. Coordinator buffers + BI fetch pattern → coordinator GC / OOM. Workers die if the optimizer **broadcasts** 40 GB+ of customers (uncompressed pages are larger than on-disk Postgres).
-
-    First change: replace the predicate with `e.ds >= DATE '2024-06-01' AND e.ds < DATE '2024-07-01'`, project only needed columns, and **aggregate or write to a table** instead of returning `e.*`. Put the BI tool on a CTAS result.
-
-    Broadcast `customers`? **Not at 40 GB on disk.** That is tens of GB of pages times every worker if replicated — a worker OOM. Partitioned join, or better: export `customers` to Iceberg nightly and join in the lake with stats. Do not run this against the primary at 09:05.

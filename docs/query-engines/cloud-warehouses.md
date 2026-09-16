@@ -199,6 +199,41 @@ WHERE query = pg_last_query_id();
 
 ---
 
+## What happened next { #what-happened-next }
+
+All three, one per vendor, from the same SQL. **A** is BigQuery — bytes scanned
+is the bill, so a query that stopped pruning costs more without running
+differently. **B** is Snowflake — the warehouse was busy with Friday's load and
+the analyst queued behind it. **C** is Redshift — a table outgrew the node's
+memory and the join started spilling.
+
+The same query, the same data, three unrelated failures, because each product
+charges for and constrains a different resource: scanned bytes, warehouse-time,
+and cluster memory. None of those is visible in the SQL.
+
+Which is what makes the vendor comparison a workload question rather than a
+feature question — the right answer depends on whether the analyst's Monday
+query is unpredictable in bytes, in concurrency, or in join size.
+
+---
+
+## Check your understanding { #exercise }
+
+A 12-person company has two data engineers, 20 TB in the warehouse, spiky weekday BI traffic (idle nights/weekends), and no ML engine requirement. Compare a managed warehouse with Trino + Iceberg. Then decide **which** managed warehouse fits best and name the first metric you'd watch to know you chose wrong.
+
+??? success "Exit check"
+    A managed warehouse is the defensible V1 — two engineers cannot also operate Iceberg compaction, a catalog, and a Trino cluster. Given **spiky, idle-at-night** traffic, prefer BigQuery on-demand or Snowflake with auto-suspend over a warehouse that bills for idle nodes around the clock (a classic Redshift dense-compute trap); watch **bytes billed per query** (BigQuery) or **credits consumed while idle vs active** (Snowflake) in the first month. Revisit the choice when a second engine (ML training, streaming) needs the same bytes, when data crosses roughly 100 TB, or when the bill's trend line stops matching the traffic's — not because an architecture diagram looks more modern.
+
+---
+
+## Reference
+
+Behaviour at the next orders of magnitude, the trade-offs, the alternatives, and
+what to check when inheriting someone else's version of this — kept here rather
+than in the walkthrough above.
+
+---
+
 ## How to investigate { #debugging }
 
 The three vendors expose the same three questions through different system views — learn the question, not just the syntax.
@@ -264,9 +299,3 @@ Related: [Trino](trino.md), [columnar storage](../olap/columnar-storage.md), [co
 
 ---
 
-## Check your understanding { #exercise }
-
-A 12-person company has two data engineers, 20 TB in the warehouse, spiky weekday BI traffic (idle nights/weekends), and no ML engine requirement. Compare a managed warehouse with Trino + Iceberg. Then decide **which** managed warehouse fits best and name the first metric you'd watch to know you chose wrong.
-
-??? success "Exit check"
-    A managed warehouse is the defensible V1 — two engineers cannot also operate Iceberg compaction, a catalog, and a Trino cluster. Given **spiky, idle-at-night** traffic, prefer BigQuery on-demand or Snowflake with auto-suspend over a warehouse that bills for idle nodes around the clock (a classic Redshift dense-compute trap); watch **bytes billed per query** (BigQuery) or **credits consumed while idle vs active** (Snowflake) in the first month. Revisit the choice when a second engine (ML training, streaming) needs the same bytes, when data crosses roughly 100 TB, or when the bill's trend line stops matching the traffic's — not because an architecture diagram looks more modern.

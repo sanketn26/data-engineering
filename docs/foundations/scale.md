@@ -4,15 +4,15 @@ description: "What actually changes when a pipeline crosses from gigabytes to te
 
 # Data at Scale
 
-07:58 AM. The daily p95-by-customer job that finished in twelve minutes every morning last quarter just died at `read_parquet` with an OOM, on events shaped like this:
+07:58. Maya is still holding coffee. The daily p95-by-customer job that finished in twelve minutes every morning last quarter just died at `read_parquet` with an OOM, on events shaped like this:
 
 ```text
 {timestamp, customer_id, user_id, service, endpoint, region, latency_ms, status_code, bytes}
 ```
 
-Nobody touched `pandas.groupby(["customer_id","hour"]).latency_ms.quantile(0.95)`. Last quarter this pipeline moved ~40 GB/day through a 32 GB notebook. This quarter a single enterprise tenant signed, volume is 400 GB/day, and product still wants the p95 by 07:00.
+Nobody touched `pandas.groupby(["customer_id","hour"]).latency_ms.quantile(0.95)`. Last quarter this pipeline moved ~40 GB/day through a 32 GB notebook. This quarter a single enterprise tenant signed — `cust_0042`, 38% of events on their own — volume is 400 GB/day, and Priya has already promised that tenant's CSMs their dashboard by 07:00. The script did not change. The company did.
 
-Before you read on: is this a RAM problem, a disk-format problem, or a code problem? Would a 128 GB notebook buy you another quarter, or has something more fundamental changed?
+Before you read on: is this a RAM problem, a disk-format problem, or a code problem? Would a 128 GB notebook buy Maya another quarter, or has something more fundamental changed?
 
 Nothing about the SQL changed. The **order of magnitude** did — scale is not “big data,” it is the moment a resource that was invisible (RAM, a single SSD, a single NIC, a single process, a single region) becomes the critical path.
 
@@ -236,6 +236,59 @@ Observability analogue: cardinality of labels turns a 2 TB TSDB into a 40 TB TSD
 
 ---
 
+## What happened next { #what-happened-next }
+
+Maya does not buy the 128 GB notebook. She writes three numbers in the incident
+channel first — 400 GB/day in, ~400 GB scanned, ~400 GB shuffled — and they
+settle the argument: the scan is survivable on one machine, the `groupBy` is
+not, and `cust_0042` at 38% of events means one reducer owns 38% of the shuffle
+no matter how much RAM she buys. A bigger box relocates the OOM; it does not
+remove the hot key.
+
+So the job moves to ten executors, Parquet, partitioned by `date`, shuffle
+partitions sized from bytes rather than the 2014 default. The p95 tile is back
+before 07:00 the next morning, and Priya's CSMs never learn there was an
+incident.
+
+What she has bought is one order of magnitude. The next 10× — 4 TB/day — breaks
+something she has not touched yet: the whale still hashes to a single reducer,
+and no amount of executors fixes a key that is 38% of the bytes. That is [The
+Shuffle](../spark/shuffle.md), and it is the mechanism this page kept
+promising.
+
+This is [SaaSCo Stage 1 → Stage
+2](../architectures/saasco-evolution.md#stage-2-400-gbday-spark-appears-phase-0-phase-3):
+the deal, not the calendar, is what forced Spark.
+
+---
+
+## Check your understanding { #exercise }
+
+You process SaaS events on a **single** Spark executor (one machine). The job takes **2 hours for 50 GB**. Data grows **20% per month**. The output is p95 latency per customer per hour, written to S3. One customer is 5% of volume today; a deal in month 4 will make them **40%**.
+
+1. In 6 months, how large is a day’s data? (compound, not linear.)
+2. At what month does the single-machine approach miss an 8-hour overnight window, assuming runtime scales with bytes (first-order)?
+3. What is the first bottleneck you expect — CPU, memory, or disk — and why, given the job is a `groupBy` + `percentile_approx`?
+4. Sketch the *simplest* distributed architecture that handles 500 GB/day **and** the 40% tenant. Name partition keys and one skew mitigation.
+5. Would you introduce Kafka at 500 GB/day? Justify with a number (writers, latency, or replay), not a slogan.
+
+??? question "Worked answer"
+    1. \(50 \times 1.2^6 \approx 149\) GB/day (about **3×**).
+    2. 8 h / 2 h = 4× headroom. \(1.2^n = 4 \Rightarrow n \approx 8\) months if runtime is linear in bytes. In practice shuffle + spill make it **super-linear**, so you miss earlier — plan around month 5–6.
+    3. **Memory then disk**: `percentile_approx` and the shuffle hold per-key state; 50 GB in will expand in-memory. CPU is rarely first while you still fit. After spill starts, **disk** becomes the clock.
+    4. Date-partitioned Parquet/Iceberg on S3; Spark with AQE; shuffle partitions sized to ~128 MB; **salt** or two-phase aggregate the whale tenant; optional broadcast of a tiny customer dimension. Ten executors × 4 cores is plenty at 500 GB if files are compacted.
+    5. **Only if** many producers need a durable log, or you need < few-minute freshness / replay. 500 GB/day is ~6 MB/s average — Postgres or S3 landing can still win. Kafka is justified by *fan-out and replay*, not by 6 MB/s.
+
+---
+
+## Reference
+
+Behaviour at the next orders of magnitude, the trade-offs, the alternatives, and
+what to check when inheriting someone else's version of this — kept here rather
+than in the walkthrough above.
+
+---
+
 ## How to investigate { #debugging }
 
 Start with **bytes and time**, not with “add executors.”
@@ -321,19 +374,3 @@ A job that “runs fine” at 1 GB/day can fail *silently* at 100 GB/day: timeou
 
 ---
 
-## Check your understanding { #exercise }
-
-You process SaaS events on a **single** Spark executor (one machine). The job takes **2 hours for 50 GB**. Data grows **20% per month**. The output is p95 latency per customer per hour, written to S3. One customer is 5% of volume today; a deal in month 4 will make them **40%**.
-
-1. In 6 months, how large is a day’s data? (compound, not linear.)
-2. At what month does the single-machine approach miss an 8-hour overnight window, assuming runtime scales with bytes (first-order)?
-3. What is the first bottleneck you expect — CPU, memory, or disk — and why, given the job is a `groupBy` + `percentile_approx`?
-4. Sketch the *simplest* distributed architecture that handles 500 GB/day **and** the 40% tenant. Name partition keys and one skew mitigation.
-5. Would you introduce Kafka at 500 GB/day? Justify with a number (writers, latency, or replay), not a slogan.
-
-??? question "Worked answer"
-    1. \(50 \times 1.2^6 \approx 149\) GB/day (about **3×**).
-    2. 8 h / 2 h = 4× headroom. \(1.2^n = 4 \Rightarrow n \approx 8\) months if runtime is linear in bytes. In practice shuffle + spill make it **super-linear**, so you miss earlier — plan around month 5–6.
-    3. **Memory then disk**: `percentile_approx` and the shuffle hold per-key state; 50 GB in will expand in-memory. CPU is rarely first while you still fit. After spill starts, **disk** becomes the clock.
-    4. Date-partitioned Parquet/Iceberg on S3; Spark with AQE; shuffle partitions sized to ~128 MB; **salt** or two-phase aggregate the whale tenant; optional broadcast of a tiny customer dimension. Ten executors × 4 cores is plenty at 500 GB if files are compacted.
-    5. **Only if** many producers need a durable log, or you need < few-minute freshness / replay. 500 GB/day is ~6 MB/s average — Postgres or S3 landing can still win. Kafka is justified by *fan-out and replay*, not by 6 MB/s.

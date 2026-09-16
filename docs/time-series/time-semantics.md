@@ -247,6 +247,56 @@ WITH FILL STEP 3600;   -- ClickHouse: show gaps as defaults
 
 ---
 
+## What happened next { #what-happened-next }
+
+The chart was drawn on the wrong clock — **B**. The reading was bucketed by the
+time it arrived rather than the time the sensor took it, so a buffered batch
+delivered at 10:06 drew a fleet-wide spike at 10:06 that never happened. The
+sensor's own timestamp said `10:02:03Z`.
+
+Nothing alerted, because nothing was wrong by any check that was running. The
+values were real, the devices were healthy, the pipeline was current — the
+chart was a true statement about the wrong clock.
+
+Storing event time fixes the chart and creates the question every streaming
+system inherits: how long to wait for stragglers before closing a bucket. Wait
+too briefly and reconnecting devices land after their window has closed; wait
+too long and the dashboard lags. That is [watermarks](../flink/time.md),
+arrived at from the storage side.
+
+---
+
+## Check your understanding { #exercise }
+
+Gateway sends:
+
+```json
+{"device_id":"d-9","sensor":"temperature","value":95,"ts":"2024-06-12T10:02:03Z"}
+```
+
+It arrives at 10:06:10Z after a buffer. Prometheus also scrapes a gauge `last_temperature{device_id="d-9"}` at 10:06:15. A user looks at 10:00–10:05. An alert is `avg_over_time(last_temperature[5m]) > 90` evaluated at 10:06:20.
+
+Where does the 95 appear in (1) ClickHouse `GROUP BY toStartOfFiveMinutes(ts)` on payload `ts`, (2) the same on `ingested_at`, (3) the Prom alert? Which is correct for “overheating at the machine”?
+
+??? success "Answer"
+    **(1)** Bucket `10:00–10:05` (or `10:00` start). Correct for physics: the machine was 95 at 10:02.
+
+    **(2)** Bucket `10:05–10:10`. False: looks like overheating after 10:05. Fleet reconnects make a fake heat wave.
+
+    **(3)** Gauge `last_temperature` sampled at 10:06:15 is 95. `avg_over_time[5m]` at 10:06:20 averages scrapes from ~10:01:20–10:06:20. If the gateway exposed **last pushed value** even while the device was offline, Prom may have been scraping 95 **during the outage** (stale last value) or stale-marking. If the gauge only updates on push, Prom sees 95 from 10:06:15 — the alert fires at **evaluation time**, not at 10:02. Prom is scraping **gateway state**, not event time.
+
+    For “overheating at the machine,” (1) is the source of truth. Use Prom only if the exporter’s timestamps/values mean event time (usually they don’t). Alert from the event-time store or a stream job with watermarks if the SLA is physics, not scrape.
+
+---
+
+## Reference
+
+Behaviour at the next orders of magnitude, the trade-offs, the alternatives, and
+what to check when inheriting someone else's version of this — kept here rather
+than in the walkthrough above.
+
+---
+
 ## How to investigate { #debugging }
 
 1. **Print three timestamps** for one sample: payload, Kafka, insert. If they differ by minutes, pick one for the product and log the others.
@@ -318,23 +368,3 @@ This is the same discipline as [Flink time](../flink/time.md), applied to storag
 
 ---
 
-## Check your understanding { #exercise }
-
-Gateway sends:
-
-```json
-{"device_id":"d-9","sensor":"temperature","value":95,"ts":"2024-06-12T10:02:03Z"}
-```
-
-It arrives at 10:06:10Z after a buffer. Prometheus also scrapes a gauge `last_temperature{device_id="d-9"}` at 10:06:15. A user looks at 10:00–10:05. An alert is `avg_over_time(last_temperature[5m]) > 90` evaluated at 10:06:20.
-
-Where does the 95 appear in (1) ClickHouse `GROUP BY toStartOfFiveMinutes(ts)` on payload `ts`, (2) the same on `ingested_at`, (3) the Prom alert? Which is correct for “overheating at the machine”?
-
-??? success "Answer"
-    **(1)** Bucket `10:00–10:05` (or `10:00` start). Correct for physics: the machine was 95 at 10:02.
-
-    **(2)** Bucket `10:05–10:10`. False: looks like overheating after 10:05. Fleet reconnects make a fake heat wave.
-
-    **(3)** Gauge `last_temperature` sampled at 10:06:15 is 95. `avg_over_time[5m]` at 10:06:20 averages scrapes from ~10:01:20–10:06:20. If the gateway exposed **last pushed value** even while the device was offline, Prom may have been scraping 95 **during the outage** (stale last value) or stale-marking. If the gauge only updates on push, Prom sees 95 from 10:06:15 — the alert fires at **evaluation time**, not at 10:02. Prom is scraping **gateway state**, not event time.
-
-    For “overheating at the machine,” (1) is the source of truth. Use Prom only if the exporter’s timestamps/values mean event time (usually they don’t). Alert from the event-time store or a stream job with watermarks if the SLA is physics, not scrape.

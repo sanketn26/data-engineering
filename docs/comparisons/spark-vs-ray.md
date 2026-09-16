@@ -302,3 +302,23 @@ Iceberg feature table
 ```
 
 If this contract is missing, ML and DE will fight over a moving Parquet path. [Metadata](../metadata/index.md). Pin the Iceberg snapshot in the training job's run config so "the data moved" is a reproducible ID, not a Slack argument.
+
+---
+
+## What happened next { #what-happened-next }
+
+No, and the shape of the mismatch is worth more than the verdict. Spark's model
+is a partitioned dataset transformed by stages: work is described as operations
+on rows, and the scheduler's job is to move partitions to executors.
+
+The sweep is 200 independent training runs, each holding a model in memory
+across epochs, each reporting back to a scheduler that may stop it early. None
+of that is a row transformation. Expressed in Spark it becomes 200 tasks that
+happen to ignore their partitions, with the early-stopping logic smuggled into
+a driver that was never meant to coordinate, and a model re-serialized on every
+epoch boundary.
+
+The 40-node cluster still does the ETL — the features these runs consume come
+from it. The handoff is the boundary worth drawing explicitly: Spark produces
+the training data, [Ray](../distributed-python/ray.md) runs the search, and
+nothing tries to be both.

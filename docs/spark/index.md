@@ -204,3 +204,22 @@ When you can explain why `groupBy("customer_id")` on this schema produces one 40
 **Suggested order:** [mental model](mental-model.md) → [shuffle](shuffle.md) (do not skip) → [optimizer](optimizer.md) → [gotchas](gotchas.md) → [labs](labs.md) last, with the UI open.
 
 Next: [The Spark Mental Model](mental-model.md).
+
+---
+
+## What happened next { #what-happened-next }
+
+Thirty-nine idle executors and one pegged core is skew, and it is the shape
+every page in this module returns to. Nothing crashed and nothing logged an
+error because nothing was wrong in the sense Spark reports on: 39 tasks
+finished, one did not, and a stage is not done until its slowest task is.
+
+Three hours against a normal eleven minutes is the cost of a key that was fine
+until one tenant grew. The job, the cluster, and the SQL are unchanged from the
+night it took eleven minutes — Acme is what changed.
+
+So the module reads in the order the incident forces: the [mental
+model](mental-model.md) to know what a stage is, [the shuffle](shuffle.md) for
+why rows must meet, the [optimizer](optimizer.md) for the plan that decides how
+much is read, and [gotchas](gotchas.md) for the four memory failures that look
+identical at 03:00.

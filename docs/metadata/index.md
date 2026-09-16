@@ -4,7 +4,7 @@ description: Why a data catalog without an ownership, freshness, and lineage ope
 
 # Metadata & Data Catalogues
 
-09:40, design review. An engineer asks whether `gold.events_agg` already exists or needs to be built. Ten people shrug. It turns out someone built it eleven months ago under a different name — the owner left, nobody renamed it, and a dashboard has been reading it ever since without anyone able to vouch for it.
+09:40, design review. Maya asks whether `gold.events_agg` already exists or needs to be built. Ten people shrug, Jordan included. It turns out someone built it eleven months ago under a different name — the owner left, nobody renamed it, and a dashboard has been reading it ever since without anyone able to vouch for it.
 
 What actually failed?
 
@@ -335,3 +335,24 @@ consumers: [grafana:product, ch:tiles_1m]
 ```
 
 Five gold files like this beat an empty DataHub. Tooling comes after the files exist in git.
+
+---
+
+## What happened next { #what-happened-next }
+
+**C**, and the tool everyone reached for was the wrong instinct. A catalogue
+would have listed `gold.events_agg` and still not
+told Maya whether to trust it; lineage would have shown where it came from and
+not who is accountable for it now. The table existed, was queryable, and was
+feeding a dashboard — what was missing was any statement of who owned it, how
+fresh it should be, and what it was called.
+
+That is why A is the expensive wrong answer. A tool populated by nobody
+produces a searchable list of tables nobody can vouch for, which is the same
+design review with better autocomplete.
+
+The operating model is the part that has to exist first: every dataset has an
+owner who can be paged, a declared freshness, and a name that follows a
+convention. Tooling makes that searchable. Jordan's version of the fix is that
+a table with no owner is a table scheduled for deletion, which is uncomfortable
+and ends the shrugging.

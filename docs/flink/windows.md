@@ -244,6 +244,85 @@ Pre-aggregate in Flink, sink to ClickHouse/Pinot. Do not slide by 1s at 2M event
 
 ---
 
+## Incremental aggregation versus buffering
+
+`ProcessWindowFunction` that does `for event in elements` stores **every record** until fire. At 2M/s and a 1-minute window that is 120 million objects of window state.
+
+`ReduceFunction` / `AggregateFunction` keep a **fixed-size accumulator** per window per key (count, sum, sketch). This is the only acceptable default at scale.
+
+Approximate p95: use a histogram/T-digest in the accumulator, not `list.sort()[int(0.95*n)]`. Observability p95 of `latency_ms` is why people cheat with a 100-bucket histogram — 100 ints per key per window, not 100k samples.
+
+```python
+class ErrorRateAcc(AggregateFunction):
+    def create_accumulator(self):
+        return (0, 0)  # errors, total
+
+    def add(self, event, acc):
+        err, tot = acc
+        tot += 1
+        if event["status_code"] >= 500:
+            err += 1
+        return (err, tot)
+
+    def get_result(self, acc):
+        err, tot = acc
+        return err / tot if tot else 0.0
+
+    def merge(self, a, b):
+        return (a[0] + b[0], a[1] + b[1])
+```
+
+Session windows still need merge: two in-progress sessions become one when a late event fills the gap. If your accumulator cannot merge, you cannot sessionise.
+
+---
+
+## What happened next { #what-happened-next }
+
+Thirteen failed logins inside six minutes, split by a tumbling boundary at
+11:55 into six and seven — **B**. No single window ever saw more than seven, so
+nothing crossed ten, so nothing fired. The watermark was fine; the count was
+fine; the *shape* was wrong.
+
+A sliding window of 5 minutes evaluated every 30 seconds would have caught it,
+at the cost of every event belonging to ten windows instead of one. That is the
+trade being made — tumbling is cheap and has edges, sliding has no edges and
+multiplies state.
+
+The same shapes appear over stored data in [time-series
+windows](../time-series/windows.md). Fraud thresholds phrased as "N in M
+minutes" almost always mean a sliding window, and almost always get built as a
+tumbling one, because tumbling is what `window(...)` does by default.
+
+---
+
+## Check your understanding { #exercise }
+
+You compute a **1-hour** sliding window with a **5-minute** slide on event time. Watermark bound = 2 minutes. Events can be 5 minutes late (p99). 10 million events/hour, keyed by `customer_id` (50k keys).
+
+1. How many windows does an event at 10:23:15 belong to?
+2. When does `[10:00, 11:00)` close (no allowed lateness)?
+3. What watermark bound should you use given 5-minute late p99?
+4. How does memory scale versus tumbling 1-hour?
+
+??? question "Answer"
+    1. Size/slide = 60/5 = **12** windows. (The event is in every 1-hour window whose start is in `(10:23:15 − 1h, 10:23:15]` aligned to 5-minute grid — 12 of them.)
+
+    2. Window end is 11:00. Close when W ≥ 11:00. With a 2-minute bound, that is when max event time ≈ 11:02. Plus Kafka lag.
+
+    3. A 2-minute bound will mark most 5-minute-late events **late**. Use ≥ 5 minutes (plus margin), or 2 minutes **and** a side output / allowed lateness of 5 minutes. Allowed lateness keeps 1-hour window state extra time — expensive. Better to set the watermark bound from the delay histogram.
+
+    4. Tumbling 1-hour: each key has **one** open window (plus maybe the previous if W has not closed it). Sliding 5-minute: **12** open windows per key. Memory and CPU ~12× for incremental aggregates. At 50k keys that may still fit; at 50M IoT devices it will not.
+
+---
+
+## Reference
+
+Behaviour at the next orders of magnitude, the trade-offs, the alternatives, and
+what to check when inheriting someone else's version of this — kept here rather
+than in the walkthrough above.
+
+---
+
 ## How to investigate { #debugging }
 
 | Metric / UI | Meaning |
@@ -290,38 +369,6 @@ IoT session windows at 1000× (100M devices) need aggressive [state TTL](state.m
 
 ---
 
-## Incremental aggregation versus buffering
-
-`ProcessWindowFunction` that does `for event in elements` stores **every record** until fire. At 2M/s and a 1-minute window that is 120 million objects of window state.
-
-`ReduceFunction` / `AggregateFunction` keep a **fixed-size accumulator** per window per key (count, sum, sketch). This is the only acceptable default at scale.
-
-Approximate p95: use a histogram/T-digest in the accumulator, not `list.sort()[int(0.95*n)]`. Observability p95 of `latency_ms` is why people cheat with a 100-bucket histogram — 100 ints per key per window, not 100k samples.
-
-```python
-class ErrorRateAcc(AggregateFunction):
-    def create_accumulator(self):
-        return (0, 0)  # errors, total
-
-    def add(self, event, acc):
-        err, tot = acc
-        tot += 1
-        if event["status_code"] >= 500:
-            err += 1
-        return (err, tot)
-
-    def get_result(self, acc):
-        err, tot = acc
-        return err / tot if tot else 0.0
-
-    def merge(self, a, b):
-        return (a[0] + b[0], a[1] + b[1])
-```
-
-Session windows still need merge: two in-progress sessions become one when a late event fills the gap. If your accumulator cannot merge, you cannot sessionise.
-
----
-
 ## How to apply this at work
 
 For every windowed job, write one line:
@@ -339,20 +386,3 @@ If you cannot fill `accumulator`, you are buffering whole windows and you will d
 
 ---
 
-## Check your understanding { #exercise }
-
-You compute a **1-hour** sliding window with a **5-minute** slide on event time. Watermark bound = 2 minutes. Events can be 5 minutes late (p99). 10 million events/hour, keyed by `customer_id` (50k keys).
-
-1. How many windows does an event at 10:23:15 belong to?
-2. When does `[10:00, 11:00)` close (no allowed lateness)?
-3. What watermark bound should you use given 5-minute late p99?
-4. How does memory scale versus tumbling 1-hour?
-
-??? question "Answer"
-    1. Size/slide = 60/5 = **12** windows. (The event is in every 1-hour window whose start is in `(10:23:15 − 1h, 10:23:15]` aligned to 5-minute grid — 12 of them.)
-
-    2. Window end is 11:00. Close when W ≥ 11:00. With a 2-minute bound, that is when max event time ≈ 11:02. Plus Kafka lag.
-
-    3. A 2-minute bound will mark most 5-minute-late events **late**. Use ≥ 5 minutes (plus margin), or 2 minutes **and** a side output / allowed lateness of 5 minutes. Allowed lateness keeps 1-hour window state extra time — expensive. Better to set the watermark bound from the delay histogram.
-
-    4. Tumbling 1-hour: each key has **one** open window (plus maybe the previous if W has not closed it). Sliding 5-minute: **12** open windows per key. Memory and CPU ~12× for incremental aggregates. At 50k keys that may still fit; at 50M IoT devices it will not.

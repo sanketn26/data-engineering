@@ -303,6 +303,43 @@ Debugging duplicates almost always starts with `COUNT(*) GROUP BY dt` and `MAX(i
 
 ---
 
+## What happened next { #what-happened-next }
+
+**C**, 140%. The first attempt wrote 40% of the day and died; the retry
+appended a full day beside it. Airflow did nothing wrong — it called the same
+function with the same `ds`, which is the entire contract it offers.
+
+Which answer you get was decided in the task body, long before the failure:
+`INSERT` gives you C, `INSERT OVERWRITE` for the partition gives you B. That is
+the whole difference, and it does not appear anywhere in the DAG file, the
+retry settings, or the UI.
+
+The number nobody noticed is that the run was **green**. A retry that succeeds
+reports success, so the only trace of a 140% day is in the row counts — which
+is why the check after the publish matters more than the alert on the failure.
+
+---
+
+## Check your understanding { #exercise }
+
+`load_orders` DELETE+INSERT for `dt={{ ds }}` in two statements, autocommit on. `retries=5`. Spark job (correctly outside Airflow) writes to `s3://stg/dt={{ ds }}/` with overwrite, then the PythonOperator copies files into the warehouse with `COPY`. A worker OOM hits during `COPY`.
+
+??? question "What is the table state after retries succeed, and how do you fix the operator without processing 1 TB in Airflow?"
+    Track transactions and which process holds the data.
+
+    ??? success "Answer"
+        First DELETE committed; COPY died; retry DELETE on a half-loaded day then COPY again — you may land correct *or* empty-if-COPY reads a non-overwritten stage. Worse: overlapping retries. Fix: Spark (or the warehouse) should `INSERT OVERWRITE` / Iceberg `overwritePartitions` directly from `s3://stg/dt=ds/` in **one atomic commit**. Airflow only SparkSubmits and validates counts. Staging overwrite is already idempotent; the warehouse load must be one transaction, not DELETE then COPY from a Python worker.
+
+---
+
+## Reference
+
+Behaviour at the next orders of magnitude, the trade-offs, the alternatives, and
+what to check when inheriting someone else's version of this — kept here rather
+than in the walkthrough above.
+
+---
+
 ## How to investigate { #debugging }
 
 ```sql
@@ -365,13 +402,3 @@ When reviewing a DAG:
 5. If the task is not idempotent, **retries must be 0** and you must say that out loud — then go make it idempotent anyway.
 
 ---
-
-## Check your understanding { #exercise }
-
-`load_orders` DELETE+INSERT for `dt={{ ds }}` in two statements, autocommit on. `retries=5`. Spark job (correctly outside Airflow) writes to `s3://stg/dt={{ ds }}/` with overwrite, then the PythonOperator copies files into the warehouse with `COPY`. A worker OOM hits during `COPY`.
-
-??? question "What is the table state after retries succeed, and how do you fix the operator without processing 1 TB in Airflow?"
-    Track transactions and which process holds the data.
-
-    ??? success "Answer"
-        First DELETE committed; COPY died; retry DELETE on a half-loaded day then COPY again — you may land correct *or* empty-if-COPY reads a non-overwritten stage. Worse: overlapping retries. Fix: Spark (or the warehouse) should `INSERT OVERWRITE` / Iceberg `overwritePartitions` directly from `s3://stg/dt=ds/` in **one atomic commit**. Airflow only SparkSubmits and validates counts. Staging overwrite is already idempotent; the warehouse load must be one transaction, not DELETE then COPY from a Python worker.

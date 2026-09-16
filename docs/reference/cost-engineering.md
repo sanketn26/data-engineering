@@ -109,6 +109,27 @@ Once these are named per system, "$ / TB processed," "$ / million events," and "
 - Shared infrastructure hides tenant unit cost.
 - “Open source” is counted as zero while two engineers operate it.
 
+## What happened next { #what-happened-next }
+
+**E** — which is the finding rather than a dodge. Traffic rose 20% and
+the bill tripled, so the driver is not volume — it is some combination of
+replication factor, cross-AZ fetches, retention creep and partition count, in
+proportions nobody had measured.
+
+The reason nobody could explain it in one sentence is that the bill arrives as
+one number and the cost is four. A cluster's dollars decompose into bytes
+stored × replication × retention, plus bytes moved × the AZ crossings they
+make, plus a per-partition overhead that is invisible until partition count
+doubles.
+
+Elena does not need the bill to be lower on the spot. She needs a unit —
+dollars per million events, or per tenant, per month — because a unit cost that
+holds steady while volume grows is a platform working correctly, and a unit
+cost that climbs is the thing worth a quarter of engineering time. This page is
+how to compute that number before the next review.
+
+---
+
 ## Check your understanding { #exercise }
 
 Compare ClickHouse serving with Trino repeatedly scanning Iceberg for a 200 QPS dashboard. State rows/day, compressed bytes, bytes read/query, cache assumption, replicas, and operator time. Find the break-even variable rather than inventing a universal winner.

@@ -4,19 +4,19 @@ description: Why Kafka models a topic as an append-only log instead of a databas
 
 # The log abstraction
 
-10:04 AM: a parser bug dropped 40 minutes of production logs last Tuesday. Someone asks, "can we just replay them?" The honest answer depends entirely on what durable thing sits between the producers and every consumer — and whether that thing deletes a record the moment one reader finishes with it.
+10:04. A parser bug dropped 40 minutes of production logs last Tuesday. Priya asks Maya the question that decides how bad the week is: "can we just replay them?" The honest answer depends entirely on what durable thing sits between the producers and every consumer — and whether that thing deletes a record the moment one reader finishes with it.
 
 Predict before you read on: if you built that store as a database table (insert, `SELECT ... FOR UPDATE`, delete), what breaks first at 2.5 million records a second — the write path, the fan-out to multiple readers, or the replay story? All three fail, for three different reasons; this page is the one abstraction that fixes all three at once.
 
 ## Start with the situation { #use-case }
 
-The observability platform writes every request as an event:
+Every request SaaSCo serves is written as an event:
 
 ```json
-{"timestamp":"2024-01-15T10:03:45.123Z","customer_id":"cust_1842","user_id":"u_99102","service":"api","endpoint":"/orders","region":"eu-west-1","latency_ms":87,"status_code":200,"bytes":4096}
+{"timestamp":"2024-01-15T10:03:45.123Z","customer_id":"cust_0042","user_id":"u_99102","service":"api","endpoint":"/orders","region":"eu-west-1","latency_ms":87,"status_code":200,"bytes":4096}
 ```
 
-Alerting wants them in seconds. The warehouse wants them tonight. Fraud wants a second copy with a different processor. Last Tuesday a parser bug dropped 40 minutes of logs; you need to *replay* those 40 minutes without asking 400 services to re-emit.
+Five teams want the same events at five different speeds. Alerting wants them in seconds. The warehouse wants them tonight. The new fraud service wants its own copy with a different processor. Last Tuesday a parser bug dropped 40 minutes of them, and Maya has to *replay* those 40 minutes without asking 400 services to re-emit.
 
 You need a store that is cheap to append, cheap to read sequentially, and that does not delete a record just because one consumer finished it.
 
@@ -125,7 +125,7 @@ producer = KafkaProducer(
 
 event = {
     "timestamp": "2024-01-15T10:03:45.123Z",
-    "customer_id": "cust_1842",
+    "customer_id": "cust_0042",
     "user_id": "u_99102",
     "service": "auth",
     "endpoint": "/login",
@@ -258,6 +258,57 @@ A compacted topic with unique keys (raw `service-events` keyed by UUID) **never 
 
 ---
 
+## What happened next { #what-happened-next }
+
+Maya's answer is **yes, and it costs nothing** — but only because of a decision
+made months earlier, by someone who is no longer on the team. The 40 minutes are still on
+disk. They were never "consumed": the alerting consumer read them, committed an
+offset, and the bytes stayed exactly where they were, because a log deletes by
+**retention**, not by acknowledgement. She reprocesses with `kafka-consumer-groups
+--reset-offsets --to-datetime` on the parser's group alone. The warehouse and
+the fraud consumer never notice; their offsets are their own.
+
+Had that store been the obvious database table — insert, `SELECT ... FOR
+UPDATE`, delete — the rows would have been gone at 10:05 last Tuesday, and the
+only remaining option would be asking 400 services to re-emit.
+
+So the replay window is not a feature you turn on during an incident. It is
+`log.retention.hours`, decided in advance, and a bug discovered on day eight of
+a seven-day retention is unrecoverable no matter how good the tooling is.
+
+Next week the constraint moves: five consumers now read this topic at five
+different speeds, and the slowest one is what decides whether retention is
+enough. That is [SaaSCo Stage
+3](../architectures/saasco-evolution.md#stage-3-4-tbday-kafka-appears-phase-2),
+where the log stops being a buffer and becomes the system of record.
+
+---
+
+## Check your understanding { #exercise }
+
+A compacted topic `user-profile` (key = `user_id`) has 50 million unique users. Producers send a full profile snapshot on every change, ~2 updates/user/day. The topic is 1.2 TB and growing. Product wants "rebuild any service from Kafka in 20 minutes".
+
+1. Why is compaction not shrinking the topic much?
+2. What config or design change bounds disk without breaking rebuild?
+3. Why is `service-events` the wrong topic to compact?
+
+??? question "Answer"
+    1. Fifty million unique keys means the compacted baseline is "one record per user". If snapshots are large (JSON with nested prefs), 50e6 × ~20 KB is already ~1 TB *after* compaction. The cleaner only removes *older versions*. Growth is payload size × cardinality, not "compaction is broken". Also the tail is not compacted, so a high-rate changelog always has a dirty head.
+
+    2. Shrink the value (Avro/Protobuf, only changed fields, or store blob in object storage and keep a pointer). Raise cleaner parallelism if the dirty ratio stays high. Optionally `compact,delete` with a retention if you do **not** need ancient keys — but then a rebuild cannot resurrect users who never updated inside the window. A better rebuild story is: compacted Kafka for hot profiles **plus** a snapshot in the lake.
+
+    3. `service-events` keys by `customer_id` or not at all; records are not "latest state". Compacting them would drop history alerting and fraud need, and would not even shrink much if keys are high-cardinality (`user_id` + timestamp uniqueness). Raw events use **delete** retention; changelogs use **compact**.
+
+---
+
+## Reference
+
+Behaviour at the next orders of magnitude, the trade-offs, the alternatives, and
+what to check when inheriting someone else's version of this — kept here rather
+than in the walkthrough above.
+
+---
+
 ## How to investigate { #debugging }
 
 Start with disk and offsets, not with "is Kafka up".
@@ -340,17 +391,3 @@ If the answer to (2) is "forever" and the answer to (4) is "raw events", you wan
 
 ---
 
-## Check your understanding { #exercise }
-
-A compacted topic `user-profile` (key = `user_id`) has 50 million unique users. Producers send a full profile snapshot on every change, ~2 updates/user/day. The topic is 1.2 TB and growing. Product wants "rebuild any service from Kafka in 20 minutes".
-
-1. Why is compaction not shrinking the topic much?
-2. What config or design change bounds disk without breaking rebuild?
-3. Why is `service-events` the wrong topic to compact?
-
-??? question "Answer"
-    1. Fifty million unique keys means the compacted baseline is "one record per user". If snapshots are large (JSON with nested prefs), 50e6 × ~20 KB is already ~1 TB *after* compaction. The cleaner only removes *older versions*. Growth is payload size × cardinality, not "compaction is broken". Also the tail is not compacted, so a high-rate changelog always has a dirty head.
-
-    2. Shrink the value (Avro/Protobuf, only changed fields, or store blob in object storage and keep a pointer). Raise cleaner parallelism if the dirty ratio stays high. Optionally `compact,delete` with a retention if you do **not** need ancient keys — but then a rebuild cannot resurrect users who never updated inside the window. A better rebuild story is: compacted Kafka for hot profiles **plus** a snapshot in the lake.
-
-    3. `service-events` keys by `customer_id` or not at all; records are not "latest state". Compacting them would drop history alerting and fraud need, and would not even shrink much if keys are high-cardinality (`user_id` + timestamp uniqueness). Raw events use **delete** retention; changelogs use **compact**.

@@ -256,6 +256,52 @@ Idempotency: same `txn_id` replayed must not create a second `:Transaction`. Tha
 
 ---
 
+## What happened next { #what-happened-next }
+
+**C**. The corporate VPN's IP node with five million edges is a supernode, and every 2-hop query through it fans out across all of them before
+filtering. The model was not wrong about IP being a node — it was missing any
+way to route around entities that everyone shares.
+
+B is the fix that looks right and removes the query. Inlining IP as a
+relationship property makes "other users sharing this IP" unanswerable by
+traversal, which is the one question the graph exists for.
+
+`Transaction` stays a node, because three things reach it. The supernode gets
+handled where supernodes are handled: excluded by degree threshold, or split by
+time bucket, so a shared VPN stops being a hub that every investigation runs
+through.
+
+---
+
+## Check your understanding { #exercise }
+
+??? question "Pick the model"
+    Queries: (a) 2-hop users sharing a device; (b) merchants in that neighbourhood; (c) nightly components; (d) co-purchased products for recs.
+
+    1. Draw relationship types and directions for fraud serving.
+    2. What do you **not** put as a node?
+    3. Where does `USES` come from, and what happens if you skip it?
+    4. How do recs attach without wrecking fraud MATCH?
+
+??? success "Answer"
+    1. User-[:MADE]->Transaction-[:ON]->Device, -[:FROM]->IP, -[:AT]->Merchant; User-[:USES]->Device/IP with last_seen. Direction: action outward from User/Transaction.
+
+    2. Country, currency, status, “the internet,” payment rails. Merchant *is* a node (query b) but flag marketplace supernodes.
+
+    3. CDC upsert on each txn. Without it, (a) expands all MADE edges to discover devices — fine at 5 txns, death at 5k.
+
+    4. Separate type `BOUGHT` / `ALSO_BOUGHT` on Product nodes, or a separate rec graph. Do not ask the payment path to `MATCH (u)-[:MADE]->()-[:AT]->()<-[:AT]-()-[:MADE]-(other)` for a carousel. Precompute (d) with GDS similarity or Spark; store results as edges or in KV.
+
+---
+
+## Reference
+
+Behaviour at the next orders of magnitude, the trade-offs, the alternatives, and
+what to check when inheriting someone else's version of this — kept here rather
+than in the walkthrough above.
+
+---
+
 ## How to investigate { #debugging }
 
 1. Degree histogram:
@@ -311,21 +357,3 @@ In reviews, force two sketches: transaction-as-node vs transaction-as-edge. Walk
 
 ---
 
-## Check your understanding { #exercise }
-
-??? question "Pick the model"
-    Queries: (a) 2-hop users sharing a device; (b) merchants in that neighbourhood; (c) nightly components; (d) co-purchased products for recs.
-
-    1. Draw relationship types and directions for fraud serving.
-    2. What do you **not** put as a node?
-    3. Where does `USES` come from, and what happens if you skip it?
-    4. How do recs attach without wrecking fraud MATCH?
-
-??? success "Answer"
-    1. User-[:MADE]->Transaction-[:ON]->Device, -[:FROM]->IP, -[:AT]->Merchant; User-[:USES]->Device/IP with last_seen. Direction: action outward from User/Transaction.
-
-    2. Country, currency, status, “the internet,” payment rails. Merchant *is* a node (query b) but flag marketplace supernodes.
-
-    3. CDC upsert on each txn. Without it, (a) expands all MADE edges to discover devices — fine at 5 txns, death at 5k.
-
-    4. Separate type `BOUGHT` / `ALSO_BOUGHT` on Product nodes, or a separate rec graph. Do not ask the payment path to `MATCH (u)-[:MADE]->()-[:AT]->()<-[:AT]-()-[:MADE]-(other)` for a carousel. Precompute (d) with GDS similarity or Spark; store results as edges or in KV.

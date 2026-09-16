@@ -65,6 +65,27 @@ Use the [Parquet row-group explorer](../simulations/parquet-row-group-explorer.h
 Run the same customer filter on sorted and unsorted data. Before toggling, write
 down how many row groups you expect the footer statistics to eliminate.
 
+## What happened next { #what-happened-next }
+
+The 8 TB was real, and so was the 40 GB. Column projection worked exactly as
+advertised — four columns out of eighty — but projection only decides which
+column chunks to read *within* the row groups the engine has already decided it
+cannot skip.
+
+Nothing could be skipped because the footer statistics were useless. Rows
+arrived in event order and the filter was on `customer_id`, so almost every row
+group's min/max spanned nearly every customer, and a predicate that matches
+"somewhere in this range" matches all of them. The engine read 8 TB to return
+40 GB, and every decision it made along the way was correct.
+
+Sorting or clustering on the filtered column is what makes the statistics
+selective, and partition pruning is what removes whole directories before
+statistics are consulted at all. They are three different mechanisms operating
+at three different levels of the file, which is why "Parquet is columnar" does
+not answer the code review comment.
+
+---
+
 ## Check your understanding { #exercise }
 
 A Spark job runs `spark.read.parquet("s3://lake/events/").filter("customer_id = 'cust_0042'").select("customer_id", "latency_ms")`. The table is partitioned by `date` only (not by `customer_id`), and files are written by a nightly job with **no explicit sort** before write, at ~256 MB each.

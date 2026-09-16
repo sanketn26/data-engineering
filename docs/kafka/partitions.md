@@ -17,7 +17,7 @@ Pick one before reading on. `service-events` is one logical stream, and how part
 
 `service-events` is one logical stream. At 50k records/s the warehouse loader is fine on one thread. At 500k records/s — SaaS analytics on a launch day, or observability in a busy region — one process cannot parse JSON, enrich, and write ClickHouse.
 
-You also care about order: all events for `customer_id=cust_1842` should be seen in the order they were appended, so "upgrade then downgrade" does not flip. You do **not** need a global order of every tenant in the fleet.
+You also care about order: all events for `customer_id=cust_0042` should be seen in the order they were appended, so "upgrade then downgrade" does not flip. You do **not** need a global order of every tenant in the fleet.
 
 Partitions are how Kafka turns one topic into many parallel logs without throwing away per-key order.
 
@@ -32,9 +32,9 @@ A single partition is:
 
 Throughput is then `min(leader disk, network, that consumer's CPU)`. For the observability number (~2.5M records/s) that is not enough.
 
-If you naively add partitions later, **keys move**. `hash(cust_1842) % 12` is not `hash(cust_1842) % 48`. Per-customer order is preserved *within the new partition going forward*, but a consumer that was in the middle of a sequence now sees a split history. Increasing partitions is a compatibility event, not a slider.
+If you naively add partitions later, **keys move**. `hash(cust_0042) % 12` is not `hash(cust_0042) % 48`. Per-customer order is preserved *within the new partition going forward*, but a consumer that was in the middle of a sequence now sees a split history. Increasing partitions is a compatibility event, not a slider.
 
-If you partition on the wrong key, one tenant (or one `region`, or one `device_id` firmware bug) owns 40% of traffic and you have a **hot partition**: 47 idle consumers and one on fire.
+If you partition on the wrong key, one tenant (or one `region`, or one `device_id` firmware bug) owns 38% of traffic and you have a **hot partition**: 47 idle consumers and one on fire.
 
 ---
 
@@ -105,7 +105,7 @@ producer = KafkaProducer(
 
 event = {
     "timestamp": "2024-01-15T10:03:45.123Z",
-    "customer_id": "cust_1842",
+    "customer_id": "cust_0042",
     "user_id": "u_99102",
     "service": "checkout",
     "endpoint": "/pay",
@@ -239,7 +239,7 @@ Lag that approaches retention is not a latency problem; it is impending **data l
 Partition by `customer_id` in SaaS analytics. One enterprise tenant emits 40% of events.
 
 ```
-P0 BigCorp: 40_000/s
+P0 Acme: 40_000/s
 P1 SmallCo:  1_000/s
 P2 MidCorp:  5_000/s
 ```
@@ -303,6 +303,57 @@ For independent processors, **new group id**, same topic. Do not "share a group 
 | Coordinator broker dies | Group cannot commit / rebalance until a new coordinator is elected |
 | Hot key | One partition's lag → retention risk on that partition only |
 | Increase partitions mid-flight | Key mapping changes; stateful jobs shuffle state poorly |
+
+---
+
+## Practice the idea
+
+Start with the [partition simulator](../simulations/kafka-partitions.html): make
+one customer own 70% of traffic and predict which consumers idle. Then run the
+[Kafka lab](../labs/index.md#kafka-labskafka) and verify the same imbalance from
+real per-partition counts. Finish with the
+[Kafka lag incident](../incidents/index.md#incident-1-kafka-lag-on-one-partition).
+
+## What happened next { #what-happened-next }
+
+`service-events` has 12 partitions — **B** — so 12 partitions, so 12 consumers
+in the group can be assigned work and the other 40 pods sit idle holding
+nothing. The rebalance happened, quickly and correctly, and assigned 12 of 52.
+
+Partition count is the parallelism ceiling for a consumer group, and it is set
+on the topic, not on the deployment. Scaling past it costs money and changes
+nothing — which is why the ten minutes of waiting produced exactly the lag it
+started with.
+
+Raising partitions is the real lever and it is not a slider: `hash(key) % 12`
+is not `hash(key) % 48`, so per-key order splits at the moment of the change.
+That is a compatibility event to plan, and it is also why C matters — if one
+`customer_id` is hot, more partitions will not split it either.
+
+---
+
+## Check your understanding { #exercise }
+
+`login-events` has 24 partitions, keyed by `user_id`. Group `fraud-scorer` has 24 pods. p99 latency is 40ms except during deploys, when lag spikes to 8 minutes and fraud misses brute-force bursts. `max.poll.interval.ms=300000`. A second group, `audit-writer`, shares **the same `group_id`** "to save connections".
+
+1. Why do deploys stall fraud detection?
+2. What does sharing `group_id` do to audit versus fraud?
+3. A single `user_id` is 15% of login traffic. What happens, and what is the fix if fraud **requires** per-user order?
+
+??? question "Answer"
+    1. Without static membership, each pod stop/start is a group membership change. Eager assignors stop the world; even cooperative assignors move some partitions. If revoke/processing is slow, `max.poll.interval.ms` kicks members and you get a rebalance storm. Fix: `group.instance.id` per ordinal, cooperative sticky, faster revoke, rolling one pod at a time.
+
+    2. Same `group_id` means they are **one** group. Partitions are split between fraud pods and audit pods. Each record is processed by *either* fraud *or* audit, not both. Fan-out requires **two group ids**.
+
+    3. ~15% of traffic hashes to one partition (or a few, if you are unlucky with other keys). One fraud pod saturates; lag is on that partition only. You cannot add a 25th pod usefully. If per-user order is mandatory, you must make *that user* faster (optimise the scorer, batch, local cache) or isolate the user onto a dedicated topic/pipeline. Sharding `user_id + n` breaks order and can miss "10 failed logins in 5 minutes" unless you aggregate shards in [Flink](../flink/windows.md).
+
+---
+
+## Reference
+
+Behaviour at the next orders of magnitude, the trade-offs, the alternatives, and
+what to check when inheriting someone else's version of this — kept here rather
+than in the walkthrough above.
 
 ---
 
@@ -376,25 +427,3 @@ If (3) is > ~5–10% of traffic into one partition, you have a design problem, n
 
 ---
 
-## Practice the idea
-
-Start with the [partition simulator](../simulations/kafka-partitions.html): make
-one customer own 70% of traffic and predict which consumers idle. Then run the
-[Kafka lab](../labs/index.md#kafka-labskafka) and verify the same imbalance from
-real per-partition counts. Finish with the
-[Kafka lag incident](../incidents/index.md#incident-1-kafka-lag-on-one-partition).
-
-## Check your understanding { #exercise }
-
-`login-events` has 24 partitions, keyed by `user_id`. Group `fraud-scorer` has 24 pods. p99 latency is 40ms except during deploys, when lag spikes to 8 minutes and fraud misses brute-force bursts. `max.poll.interval.ms=300000`. A second group, `audit-writer`, shares **the same `group_id`** "to save connections".
-
-1. Why do deploys stall fraud detection?
-2. What does sharing `group_id` do to audit versus fraud?
-3. A single `user_id` is 15% of login traffic. What happens, and what is the fix if fraud **requires** per-user order?
-
-??? question "Answer"
-    1. Without static membership, each pod stop/start is a group membership change. Eager assignors stop the world; even cooperative assignors move some partitions. If revoke/processing is slow, `max.poll.interval.ms` kicks members and you get a rebalance storm. Fix: `group.instance.id` per ordinal, cooperative sticky, faster revoke, rolling one pod at a time.
-
-    2. Same `group_id` means they are **one** group. Partitions are split between fraud pods and audit pods. Each record is processed by *either* fraud *or* audit, not both. Fan-out requires **two group ids**.
-
-    3. ~15% of traffic hashes to one partition (or a few, if you are unlucky with other keys). One fraud pod saturates; lag is on that partition only. You cannot add a 25th pod usefully. If per-user order is mandatory, you must make *that user* faster (optimise the scorer, batch, local cache) or isolate the user onto a dedicated topic/pipeline. Sharding `user_id + n` breaks order and can miss "10 failed logins in 5 minutes" unless you aggregate shards in [Flink](../flink/windows.md).

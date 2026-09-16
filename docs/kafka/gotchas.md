@@ -336,6 +336,57 @@ Broker JMX / Prometheus names vary by exporter; the *ideas* are URP, ISR shrink,
 
 ---
 
+## Worked incident: IoT reconnect storm
+
+Firmware bug: 2 million devices reconnect, each sending a 50 KB snapshot keyed by `device_id` that all hash into a **few** partitions (IDs were sequential). Brokers leading those partitions hit disk 100%. URP flaps. Other topics on the same brokers stall (page cache gone). Fraud lag on an unrelated topic pages first.
+
+You debug fraud, then notice `BytesInPerSec` on `device-state` is 40× normal on three partitions. Fix is key design + partition isolation + producer quota, not "scale the fraud consumer group".
+
+---
+
+## What happened next { #what-happened-next }
+
+It was **D**. The alert database had slowed down, the consumer was blocking on
+writes, and Kafka lag rose as a faithful mirror of a problem that was not
+Kafka's. Nothing crashed, no broker was down, and the single PagerDuty alert
+was pointing at the symptom.
+
+The other three produce the same lag curve with different fingerprints: an
+ingest spike moves bytes-in first, a hot key leaves 47 partitions healthy and
+one behind, and a rebalance storm shows in group coordinator logs with
+throughput that stops and restarts. Lag alone separates none of them.
+
+Which is the argument for the metric set on this page over a single lag alert —
+bytes-in, per-partition lag, rebalance rate, and sink latency, because the four
+incidents are only distinguishable before they all look like "lag is up."
+
+---
+
+## Check your understanding { #exercise }
+
+SaaS analytics, 48 partitions, key `customer_id`. Group `warehouse-loader` lag is 2 hours on partitions 0–47 **except** partition 12, which is 18 hours. Retention is 24 hours. A new field `bytes` was added to JSON yesterday. The Java warehouse job is fine; a Python side consumer in the **same group** `warehouse-loader` started this morning "to debug".
+
+1. Why is partition 12 special?
+2. What is the Python debugger doing to the warehouse?
+3. What happens in 6 hours if nobody acts?
+
+??? question "Answer"
+    1. Either the leader of p12 is sick (check URP, that broker's disk) **or** a hot `customer_id` hashes to 12 **or** the member assigned p12 is the Python process (slow, or crashing on the new field). The Java job being "fine" globally does not mean every partition is assigned to Java.
+
+    2. Same `group_id` → the debugger is a **member**. It stole some partitions (maybe including 12). Records it consumes are **not** seen by the warehouse. Debug consumers need their own group id, or better `assign` a replica cluster / a copy topic.
+
+    3. Retention will delete unread segments on p12. The warehouse will get `OffsetOutOfRange` and, with `auto_offset_reset=latest`, **skip** the rest of that tenant's day. Restore from the lake if you have it; otherwise that partition's data is gone. Act by stopping the debugger, reassigning, and (if needed) resetting offsets to a timestamp still inside retention.
+
+---
+
+## Reference
+
+Behaviour at the next orders of magnitude, the trade-offs, the alternatives, and
+what to check when inheriting someone else's version of this — kept here rather
+than in the walkthrough above.
+
+---
+
 ## Trade-offs
 
 Aggressive DLQ (availability of the partition) versus halt-on-poison (order). Long retention (replay) versus disk. Cooperative rebalance (deploy smoothness) versus simple assignors. There is no cluster-wide default that fits checkout and logs.
@@ -378,25 +429,3 @@ A useful weekly habit: pick one topic, dump `--describe` for every group, and as
 
 ---
 
-## Worked incident: IoT reconnect storm
-
-Firmware bug: 2 million devices reconnect, each sending a 50 KB snapshot keyed by `device_id` that all hash into a **few** partitions (IDs were sequential). Brokers leading those partitions hit disk 100%. URP flaps. Other topics on the same brokers stall (page cache gone). Fraud lag on an unrelated topic pages first.
-
-You debug fraud, then notice `BytesInPerSec` on `device-state` is 40× normal on three partitions. Fix is key design + partition isolation + producer quota, not "scale the fraud consumer group".
-
----
-
-## Check your understanding { #exercise }
-
-SaaS analytics, 48 partitions, key `customer_id`. Group `warehouse-loader` lag is 2 hours on partitions 0–47 **except** partition 12, which is 18 hours. Retention is 24 hours. A new field `bytes` was added to JSON yesterday. The Java warehouse job is fine; a Python side consumer in the **same group** `warehouse-loader` started this morning "to debug".
-
-1. Why is partition 12 special?
-2. What is the Python debugger doing to the warehouse?
-3. What happens in 6 hours if nobody acts?
-
-??? question "Answer"
-    1. Either the leader of p12 is sick (check URP, that broker's disk) **or** a hot `customer_id` hashes to 12 **or** the member assigned p12 is the Python process (slow, or crashing on the new field). The Java job being "fine" globally does not mean every partition is assigned to Java.
-
-    2. Same `group_id` → the debugger is a **member**. It stole some partitions (maybe including 12). Records it consumes are **not** seen by the warehouse. Debug consumers need their own group id, or better `assign` a replica cluster / a copy topic.
-
-    3. Retention will delete unread segments on p12. The warehouse will get `OffsetOutOfRange` and, with `auto_offset_reset=latest`, **skip** the rest of that tenant's day. Restore from the lake if you have it; otherwise that partition's data is gone. Act by stopping the debugger, reassigning, and (if needed) resetting offsets to a timestamp still inside retention.
