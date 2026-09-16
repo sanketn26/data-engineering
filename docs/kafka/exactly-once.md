@@ -271,6 +271,31 @@ Retries may call `execute` twice; the Postgres unique key makes the *effect* onc
 
 ---
 
+## Check your understanding { #exercise }
+
+Pipeline: `login-events` → worker → (1) Redis `INCR user:{id}:failures` (2) produce `fraud-alerts` if count ≥ 10 in 5 minutes. Product asks for "exactly-once so we don't page twice".
+
+1. What does a Kafka transaction cover here?
+2. Will `INCR` double-count on a worker crash? How do you fix it without Redis transactions spanning Kafka?
+3. Is "page twice" a Kafka EOS problem?
+
+??? question "Answer"
+    1. A Kafka transaction can atomically write `fraud-alerts` and commit the `login-events` offset. Redis `INCR` is **not** in the transaction. `read_committed` consumers of `fraud-alerts` will not see aborted alerts.
+
+    2. Yes. Crash after `INCR` before commit → replay → `INCR` again. Fix: store the last processed `event_id` or offset per user in Redis (`SET processed:{event_id}`) and skip, or drive the count from a Flink keyed window ([windows](../flink/windows.md)) whose state is checkpointed with the Kafka offsets. Do not expect Kafka EOS to include Redis.
+
+    3. Mostly no. Duplicate pages are usually: at-least-once alerts, missing dedup in PagerDuty, or sliding windows emitting overlapping alerts. Dedup pages on `(user_id, window_start)`. Kafka EOS does not debounce a 5-minute rule by itself.
+
+---
+
+## Reference
+
+Behaviour at the next orders of magnitude, the trade-offs, the alternatives, and
+what to check when inheriting someone else's version of this — kept here rather
+than in the walkthrough above.
+
+---
+
 ## How to investigate { #debugging }
 
 | Metric / signal | What it tells you |
@@ -327,17 +352,3 @@ If a design doc says "exactly-once" and the sink is ClickHouse, send it back wit
 
 ---
 
-## Check your understanding { #exercise }
-
-Pipeline: `login-events` → worker → (1) Redis `INCR user:{id}:failures` (2) produce `fraud-alerts` if count ≥ 10 in 5 minutes. Product asks for "exactly-once so we don't page twice".
-
-1. What does a Kafka transaction cover here?
-2. Will `INCR` double-count on a worker crash? How do you fix it without Redis transactions spanning Kafka?
-3. Is "page twice" a Kafka EOS problem?
-
-??? question "Answer"
-    1. A Kafka transaction can atomically write `fraud-alerts` and commit the `login-events` offset. Redis `INCR` is **not** in the transaction. `read_committed` consumers of `fraud-alerts` will not see aborted alerts.
-
-    2. Yes. Crash after `INCR` before commit → replay → `INCR` again. Fix: store the last processed `event_id` or offset per user in Redis (`SET processed:{event_id}`) and skip, or drive the count from a Flink keyed window ([windows](../flink/windows.md)) whose state is checkpointed with the Kafka offsets. Do not expect Kafka EOS to include Redis.
-
-    3. Mostly no. Duplicate pages are usually: at-least-once alerts, missing dedup in PagerDuty, or sliding windows emitting overlapping alerts. Dedup pages on `(user_id, window_start)`. Kafka EOS does not debounce a 5-minute rule by itself.

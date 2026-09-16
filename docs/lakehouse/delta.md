@@ -307,6 +307,26 @@ Not "which is best" — [choose by workload](comparison.md).
 
 ---
 
+## Check your understanding { #exercise }
+
+Streaming job appends 1 MB files for 48 hours. OPTIMIZE runs once. An engineer sets `retentionHours=0` to "clean S3" while a 3-hour Trino-on-Spark query is reading `versionAsOf` 12 hours ago. CDF consumers cursor at version 4000.
+
+??? question "What breaks for the long query, the CDF consumer, and the table's time travel? What should VACUUM and OPTIMIZE have been?"
+    Pin versions to files.
+
+    ??? success "Answer"
+        VACUUM 0 deletes all non-current Parquet. The long query's version still references those files → read failures. Time travel to 12 hours ago is gone. CDF at 4000 may still work if 4000 is current, but historical change versions are gone if their files were vacuumed. OPTIMIZE once after 48h left a mountain of tiny files until then — should have been hourly on **old** partitions. VACUUM should stay ≥ 7 days (or ≥ longest query + streaming checkpoint + CDF lag). Never 0.
+
+---
+
+## Reference
+
+Behaviour at the next orders of magnitude, the trade-offs, the alternatives, and
+what to check when inheriting someone else's version of this — kept here rather
+than in the walkthrough above.
+
+---
+
 ## How to investigate { #debugging }
 
 ```sql
@@ -365,13 +385,3 @@ At 1000×, JSON replay without checkpoints would be unusable — same reason Ice
 5. Before enabling DVs, inventory every reader engine's protocol.
 
 ---
-
-## Check your understanding { #exercise }
-
-Streaming job appends 1 MB files for 48 hours. OPTIMIZE runs once. An engineer sets `retentionHours=0` to "clean S3" while a 3-hour Trino-on-Spark query is reading `versionAsOf` 12 hours ago. CDF consumers cursor at version 4000.
-
-??? question "What breaks for the long query, the CDF consumer, and the table's time travel? What should VACUUM and OPTIMIZE have been?"
-    Pin versions to files.
-
-    ??? success "Answer"
-        VACUUM 0 deletes all non-current Parquet. The long query's version still references those files → read failures. Time travel to 12 hours ago is gone. CDF at 4000 may still work if 4000 is current, but historical change versions are gone if their files were vacuumed. OPTIMIZE once after 48h left a mountain of tiny files until then — should have been hourly on **old** partitions. VACUUM should stay ≥ 7 days (or ≥ longest query + streaming checkpoint + CDF lag). Never 0.

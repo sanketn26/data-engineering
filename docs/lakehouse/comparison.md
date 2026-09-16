@@ -207,18 +207,6 @@ Debugging "the format is slow" almost always means **small files, wrong write pa
 
 ---
 
-## Scale: 10× / 100× / 1000×
-
-| Scale | Choice advice |
-|-------|----------------|
-| **10×** | Pick the format your engines already speak. Run compaction. |
-| **100×** | Write pattern dominates: CDC → Hudi/MERGE design; multi-engine → Iceberg; Databricks → Delta. |
-| **1000×** | You will run a **maintenance platform** (compact, expire, orphan delete) regardless of logo. Format differences are isolation and incremental APIs. Mixing engines without a catalog strategy fails first. |
-
-At 1000×, teams sometimes run **Iceberg for the lake + an OLAP serving store** (ClickHouse/Pinot). That is not a format defeat; it is workload split (scan vs millisecond dashboards).
-
----
-
 ## Catalog and Governance Constraints
 
 Format choice is often actually catalog choice:
@@ -254,6 +242,55 @@ A CDC table with 128 MB files and 1% of rows updated per hour is a CoW tax. That
 4. Keep the old table until time-travel SLOs expire.
 
 Never `distcp` Parquet without replaying a log. You will copy orphans and miss deletes.
+
+---
+
+## One-Paragraph Decision Records
+
+Copy these into an ADR; replace the nouns.
+
+- "Events are append-only, Spark writes, Trino reads, we will evolve from day to hour partitions → **Iceberg**."
+- "Orders have `order_id`, 2k upserts/s, Elasticsearch needs a 5-minute incremental cursor → **Hudi MoR** (or Delta CDF if we stay on Databricks)."
+- "Dimension MERGE nightly, all jobs on Databricks SQL → **Delta**, OPTIMIZE weekly, VACUUM 7d."
+- "Logs at 5M events/s, last-15-minute dashboards in ClickHouse, lake is historical → **Iceberg** in the lake, not Hudi."
+
+If you cannot write one of those sentences, you are not ready to create the table.
+
+---
+
+## Check your understanding { #exercise }
+
+Team A: SaaS events, Spark+Trino, append, 20 TB, hidden `day(event_time)` desired.  
+Team B: orders CDC 2k updates/s, Spark only, incremental to Elasticsearch.  
+Team C: Databricks, MERGE dimensions nightly, no Trino.
+
+A platform lead wants **one format for all three** "for simplicity."
+
+??? question "What does each team lose if you force Iceberg-only, Delta-only, or Hudi-only? What is a defensible platform policy that is not 'one winner'?"
+    Workload over uniformity.
+
+    ??? success "Answer"
+        Iceberg-only: A is happy; B must build MERGE/Flink+delete-file compaction and a snapshot-diff incremental; C loses Databricks-native DX. Delta-only: C is happy; A fights Trino/hidden partitions; B uses MERGE+CDF (viable) but not MoR file groups. Hudi-only: B is happy; A pays CoW/MoR and weak hidden partitioning for append; C is non-idiomatic on Databricks. Defensible policy: **Iceberg default for multi-engine append lakes; Hudi (or Delta CDF) allowed for keyed CDC tables; Delta allowed in Databricks workspaces**; shared rules (no prefix listing, compaction SLO, catalog per domain, Airflow submits Spark). Uniformity of *operations* beats uniformity of *logo*.
+
+---
+
+## Reference
+
+Behaviour at the next orders of magnitude, the trade-offs, the alternatives, and
+what to check when inheriting someone else's version of this — kept here rather
+than in the walkthrough above.
+
+---
+
+## Scale: 10× / 100× / 1000×
+
+| Scale | Choice advice |
+|-------|----------------|
+| **10×** | Pick the format your engines already speak. Run compaction. |
+| **100×** | Write pattern dominates: CDC → Hudi/MERGE design; multi-engine → Iceberg; Databricks → Delta. |
+| **1000×** | You will run a **maintenance platform** (compact, expire, orphan delete) regardless of logo. Format differences are isolation and incremental APIs. Mixing engines without a catalog strategy fails first. |
+
+At 1000×, teams sometimes run **Iceberg for the lake + an OLAP serving store** (ClickHouse/Pinot). That is not a format defeat; it is workload split (scan vs millisecond dashboards).
 
 ---
 
@@ -301,30 +338,3 @@ If the table is blank, you are choosing a brand. If two rows conflict (CDC *and*
 Staff-level output is not a winner. It is a **workload → properties → format** sentence you can defend in six months when CDC QPS 10×s.
 
 ---
-
-## One-Paragraph Decision Records
-
-Copy these into an ADR; replace the nouns.
-
-- "Events are append-only, Spark writes, Trino reads, we will evolve from day to hour partitions → **Iceberg**."
-- "Orders have `order_id`, 2k upserts/s, Elasticsearch needs a 5-minute incremental cursor → **Hudi MoR** (or Delta CDF if we stay on Databricks)."
-- "Dimension MERGE nightly, all jobs on Databricks SQL → **Delta**, OPTIMIZE weekly, VACUUM 7d."
-- "Logs at 5M events/s, last-15-minute dashboards in ClickHouse, lake is historical → **Iceberg** in the lake, not Hudi."
-
-If you cannot write one of those sentences, you are not ready to create the table.
-
----
-
-## Check your understanding { #exercise }
-
-Team A: SaaS events, Spark+Trino, append, 20 TB, hidden `day(event_time)` desired.  
-Team B: orders CDC 2k updates/s, Spark only, incremental to Elasticsearch.  
-Team C: Databricks, MERGE dimensions nightly, no Trino.
-
-A platform lead wants **one format for all three** "for simplicity."
-
-??? question "What does each team lose if you force Iceberg-only, Delta-only, or Hudi-only? What is a defensible platform policy that is not 'one winner'?"
-    Workload over uniformity.
-
-    ??? success "Answer"
-        Iceberg-only: A is happy; B must build MERGE/Flink+delete-file compaction and a snapshot-diff incremental; C loses Databricks-native DX. Delta-only: C is happy; A fights Trino/hidden partitions; B uses MERGE+CDF (viable) but not MoR file groups. Hudi-only: B is happy; A pays CoW/MoR and weak hidden partitioning for append; C is non-idiomatic on Databricks. Defensible policy: **Iceberg default for multi-engine append lakes; Hudi (or Delta CDF) allowed for keyed CDC tables; Delta allowed in Databricks workspaces**; shared rules (no prefix listing, compaction SLO, catalog per domain, Airflow submits Spark). Uniformity of *operations* beats uniformity of *logo*.

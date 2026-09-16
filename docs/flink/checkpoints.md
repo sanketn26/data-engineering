@@ -200,6 +200,84 @@ RTO ≈ restart + state download + catch-up of the rewind. Incremental checkpoin
 
 ---
 
+## Two-phase commit, in one paragraph
+
+For Kafka EOS sinks, Flink's `TwoPhaseCommitSinkFunction` (and the Kafka 2.x/3.x sink) does:
+
+1. On element: `producer.send` inside an open transaction.
+2. On checkpoint: `flush` and **pre-commit** (transaction in flight, not visible to `read_committed`).
+3. On checkpoint **success** (JobManager notified all acks): **commit** the transaction.
+4. On restore: **abort** any transaction that did not reach step 3.
+
+If step 3 happens and then the sink crashes before the next elements, downstream already has the records; restore will not send them again. If step 3 does **not** happen, downstream `read_committed` never saw them; restore will reproduce them in a new transaction. That is the handshake [Kafka transactions](../kafka/exactly-once.md) described, triggered by barriers instead of `commit_transaction()` in your poll loop.
+
+File sinks use `pending/` → `finished/` rename (or Iceberg commit) as the same two phases. HTTP sinks do not have a phase 3 that can be aborted. Stop claiming they do.
+
+---
+
+## Backpressure, in operational order
+
+1. Look at the UI badge: which operator is RED?
+2. If sink: sink p99, ClickHouse/Kafka produce time, DNS, thread pools.
+3. If keyed operator: hot key (`customer_id` whale) — not "needs more parallelism".
+4. If source: Kafka fetch, deserializer (JSON at 2M/s on PyFlink).
+5. Check `lastCheckpointDuration` and failed checkpoints **during** the backpressure, not after.
+
+Credit-based flow control means you will **not** see unbounded heap in Flink from a slow sink the way you see unbounded queues in a naive Python consumer. You will see throughput collapse and checkpoints die. That is a feature. Treat it as the alarm.
+
+If the sink is Kafka and produce p99 is high, you may be looking at [ISR / URP](../kafka/replication.md) on the *output* cluster, not at Flink. Always split "Flink is slow" from "the sink cluster is degraded".
+
+---
+
+## Savepoint procedure (the boring runbook)
+
+1. Job healthy, last checkpoint successful, watermark advancing.
+2. `flink savepoint <jobId> s3://.../savepoints`
+3. Wait for a path in the log. Do not Ctrl-C the job first.
+4. Stop with savepoint if you want a terminal consistent cut (`flink stop --savepointPath ...`).
+5. Deploy new JAR/Py with the **same UIDs**.
+6. Start from the savepoint. Compare: records in/out, watermark, state size, sink uniqueness of `event_id`.
+7. Keep the savepoint until you trust the deploy; then delete to save S3.
+
+If step 6 shows empty keyed state, you changed UIDs or `maxParallelism`. Roll back to the old JAR from the same savepoint.
+
+Never take the first savepoint in production on the deploy day. Practise the path in staging with a copy of state size (or a scaled-down but structurally identical job). Restore time is part of RTO; S3 download of 40 GB to a new pod is not free.
+
+---
+
+## Unaligned checkpoints — when to turn them on
+
+Turn on when **alignment time** in the UI is most of `lastCheckpointDuration` and the job is backpressured. Leave off when the job is healthy: aligned checkpoints are simpler and smaller.
+
+Unaligned snapshots include in-flight buffers. A job with large network buffers and a huge fan-in can produce surprisingly fat checkpoints. Measure.
+
+---
+
+## Check your understanding { #exercise }
+
+Job checkpoints every 60s to S3. RocksDB state 40 GB, incremental. Sink is Kafka `EXACTLY_ONCE`. A downstream warehouse consumer uses default isolation. You kill a TM. Then you notice duplicate rows in the warehouse for a 2-minute window.
+
+1. Did Flink "lose" exactly-once?
+2. Where are the duplicates from?
+3. What two metrics confirm the story?
+
+??? question "Answer"
+    1. Flink likely kept **processing** EOS: state + source offsets restored together; the Kafka sink committed transactions only on completed checkpoints. Internally consistent.
+
+    2. The warehouse read `read_uncommitted` (client default) and ingested records from **aborted** transactions (the in-flight txn of the dead TM) **and** the later committed txn of the restarted job. Alternatively, the warehouse is not keyed by `event_id` and you used `AT_LEAST_ONCE` by mistake. The isolation-level bug is the one this module exists to catch.
+
+    3. Flink `lastCheckpointDuration` / successful CP around the kill; Kafka consumer of the sink topic showing transactional markers; warehouse row counts vs `count distinct event_id`. Also Kafka URP if the sink cluster was unhealthy — but duplicates with extra rows that share ids point at isolation, not ISR.
+
+---
+
+## Reference
+
+Behaviour at the next orders of magnitude, the trade-offs, the alternatives, and
+what to check when inheriting someone else's version of this — kept here rather
+than in the walkthrough above.
+
+---
+
 ## How to investigate { #debugging }
 
 | Metric | Meaning |
@@ -259,59 +337,6 @@ A 50 GB RocksDB state uploaded fully at 100 MB/s is ~8 minutes — the number fr
 
 ---
 
-## Two-phase commit, in one paragraph
-
-For Kafka EOS sinks, Flink's `TwoPhaseCommitSinkFunction` (and the Kafka 2.x/3.x sink) does:
-
-1. On element: `producer.send` inside an open transaction.
-2. On checkpoint: `flush` and **pre-commit** (transaction in flight, not visible to `read_committed`).
-3. On checkpoint **success** (JobManager notified all acks): **commit** the transaction.
-4. On restore: **abort** any transaction that did not reach step 3.
-
-If step 3 happens and then the sink crashes before the next elements, downstream already has the records; restore will not send them again. If step 3 does **not** happen, downstream `read_committed` never saw them; restore will reproduce them in a new transaction. That is the handshake [Kafka transactions](../kafka/exactly-once.md) described, triggered by barriers instead of `commit_transaction()` in your poll loop.
-
-File sinks use `pending/` → `finished/` rename (or Iceberg commit) as the same two phases. HTTP sinks do not have a phase 3 that can be aborted. Stop claiming they do.
-
----
-
-## Backpressure, in operational order
-
-1. Look at the UI badge: which operator is RED?
-2. If sink: sink p99, ClickHouse/Kafka produce time, DNS, thread pools.
-3. If keyed operator: hot key (`customer_id` whale) — not "needs more parallelism".
-4. If source: Kafka fetch, deserializer (JSON at 2M/s on PyFlink).
-5. Check `lastCheckpointDuration` and failed checkpoints **during** the backpressure, not after.
-
-Credit-based flow control means you will **not** see unbounded heap in Flink from a slow sink the way you see unbounded queues in a naive Python consumer. You will see throughput collapse and checkpoints die. That is a feature. Treat it as the alarm.
-
-If the sink is Kafka and produce p99 is high, you may be looking at [ISR / URP](../kafka/replication.md) on the *output* cluster, not at Flink. Always split "Flink is slow" from "the sink cluster is degraded".
-
----
-
-## Savepoint procedure (the boring runbook)
-
-1. Job healthy, last checkpoint successful, watermark advancing.
-2. `flink savepoint <jobId> s3://.../savepoints`
-3. Wait for a path in the log. Do not Ctrl-C the job first.
-4. Stop with savepoint if you want a terminal consistent cut (`flink stop --savepointPath ...`).
-5. Deploy new JAR/Py with the **same UIDs**.
-6. Start from the savepoint. Compare: records in/out, watermark, state size, sink uniqueness of `event_id`.
-7. Keep the savepoint until you trust the deploy; then delete to save S3.
-
-If step 6 shows empty keyed state, you changed UIDs or `maxParallelism`. Roll back to the old JAR from the same savepoint.
-
-Never take the first savepoint in production on the deploy day. Practise the path in staging with a copy of state size (or a scaled-down but structurally identical job). Restore time is part of RTO; S3 download of 40 GB to a new pod is not free.
-
----
-
-## Unaligned checkpoints — when to turn them on
-
-Turn on when **alignment time** in the UI is most of `lastCheckpointDuration` and the job is backpressured. Leave off when the job is healthy: aligned checkpoints are simpler and smaller.
-
-Unaligned snapshots include in-flight buffers. A job with large network buffers and a huge fan-in can produce surprisingly fat checkpoints. Measure.
-
----
-
 ## How to apply this at work
 
 Dashboard (minimum):
@@ -327,17 +352,3 @@ Alert: no successful checkpoint in 3× interval. Practise a TM kill in staging (
 
 ---
 
-## Check your understanding { #exercise }
-
-Job checkpoints every 60s to S3. RocksDB state 40 GB, incremental. Sink is Kafka `EXACTLY_ONCE`. A downstream warehouse consumer uses default isolation. You kill a TM. Then you notice duplicate rows in the warehouse for a 2-minute window.
-
-1. Did Flink "lose" exactly-once?
-2. Where are the duplicates from?
-3. What two metrics confirm the story?
-
-??? question "Answer"
-    1. Flink likely kept **processing** EOS: state + source offsets restored together; the Kafka sink committed transactions only on completed checkpoints. Internally consistent.
-
-    2. The warehouse read `read_uncommitted` (client default) and ingested records from **aborted** transactions (the in-flight txn of the dead TM) **and** the later committed txn of the restarted job. Alternatively, the warehouse is not keyed by `event_id` and you used `AT_LEAST_ONCE` by mistake. The isolation-level bug is the one this module exists to catch.
-
-    3. Flink `lastCheckpointDuration` / successful CP around the kill; Kafka consumer of the sink topic showing transactional markers; warehouse row counts vs `count distinct event_id`. Also Kafka URP if the sink cluster was unhealthy — but duplicates with extra rows that share ids point at isolation, not ISR.

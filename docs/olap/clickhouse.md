@@ -375,6 +375,76 @@ Query the rollup for “last 30 days” charts; raw for last few hours.
 
 ---
 
+## Practice the idea
+
+Compare two sort keys in the
+[ClickHouse ORDER BY explorer](../simulations/clickhouse-order-by.html), then run
+the [ClickHouse lab](../labs/index.md#clickhouse-labsclickhouse) against two real
+tables. Use rows or marks read—not elapsed time alone—to explain the result.
+The [slow-query incident](../incidents/index.md#incident-4-clickhouse-query-10-slower)
+is the final diagnostic pass.
+
+## What happened next { #what-happened-next }
+
+The answer was **B**. `service` is in the `ORDER BY` — it is just not first.
+The table was created as `ORDER BY (customer_id, timestamp, service)` back when
+the only dashboard was per tenant, and a filter on the third column cannot
+binary-search anything. ClickHouse read every granule in the partition and did
+the filtering afterwards, which is a full scan wearing an index's clothes. The
+`EXPLAIN indexes = 1` output said so plainly: granules selected ≈ granules
+total.
+
+The fix is not a skip index, and it is definitely not `FINAL`. It is a second
+sort order for the query that lost — a projection ordered
+`(service, timestamp)`, or a second table fed by the same materialized view.
+The tile answers in a few hundred milliseconds again by the next morning.
+
+What could not be changed at 03:14 was the sort order itself. `ORDER BY` is the
+index, and its first column is fixed at table creation. Q1 and Q2 want different
+first columns, so each additional query shape costs a projection or a second
+table, plus the merge CPU to keep it current.
+
+This is [SaaSCo Stage 7](../architectures/saasco-evolution.md#stage-7-customer-dashboards-need-sub-second-clickhouse-appears-phase-8):
+ClickHouse is here because a dashboard needs sub-second answers, and the cost
+of that latency class is paid in sort orders.
+
+---
+
+## Check your understanding { #exercise }
+
+Observability cluster, 500 million events/day, queries:
+
+1. Service owners: `WHERE service = ? AND timestamp > now()-1h GROUP BY endpoint` (90% of QPS).
+2. Support: `WHERE customer_id = ? AND timestamp > now()-1d` (9%).
+3. Exec wall: `WHERE timestamp > now()-1h GROUP BY service` (1%).
+
+Shard count will be 4 in six months. Pick `PARTITION BY`, `ORDER BY`, sharding key, and what you do for (2). Say what happens to BigCorp (8% of events) and what `EXPLAIN indexes = 1` should show for (1).
+
+??? success "Answer"
+    **`PARTITION BY toYYYYMMDD(timestamp)`** (or weekly/monthly if 500 M/day still makes daily partitions huge but countable). Not `toYYYYMMDDhh` — too many parts.
+
+    **`ORDER BY (service, endpoint, timestamp)`** — matches (1), the 90% path. Granules for other services skipped.
+
+    **(3)** is a time filter without service: daily partition prune + scan of **all** services for that hour. Acceptable at 1% QPS. Do not switch the primary key to `(timestamp)` and destroy (1).
+
+    **(2)** is the mismatch. Options: projection `ORDER BY (customer_id, timestamp)`; second table populated by the same MV; skip index on `customer_id` as a band-aid (helps some, not like a prefix). Do not use `FINAL`.
+
+    **Sharding:** `cityHash64(service)` keeps (1) often on fewer shards **if** you filter by service **and** the Distributed engine can prune (do not assume it always does). `cityHash64(customer_id)` makes (2) local and (1) fan-out. Given 90% QPS is (1), shard by `service` (or `sipHash64(service, endpoint)`), and accept (2) hitting all shards until a tenant table exists. **Do not** shard by `rand()`.
+
+    **BigCorp 8%:** if you sharded by `customer_id`, one shard is permanently hot. If you sharded by `service`, BigCorp is spread; their support query scans every shard’s day.
+
+    **`EXPLAIN indexes = 1` for (1):** primary index used, granules selected ≪ granules total (roughly checkout’s share of the hour, not 100%). If selected ≈ total, you used a function on `service` or queried the Distributed table in a way that scanned extra, or the table was actually ordered by time.
+
+---
+
+## Reference
+
+Behaviour at the next orders of magnitude, the trade-offs, the alternatives, and
+what to check when inheriting someone else's version of this — kept here rather
+than in the walkthrough above.
+
+---
+
 ## How to investigate { #debugging }
 
 Parts and merges:
@@ -482,36 +552,3 @@ At work you will recognise this problem when Grafana is slow **and** `read_bytes
 
 ---
 
-## Practice the idea
-
-Compare two sort keys in the
-[ClickHouse ORDER BY explorer](../simulations/clickhouse-order-by.html), then run
-the [ClickHouse lab](../labs/index.md#clickhouse-labsclickhouse) against two real
-tables. Use rows or marks read—not elapsed time alone—to explain the result.
-The [slow-query incident](../incidents/index.md#incident-4-clickhouse-query-10-slower)
-is the final diagnostic pass.
-
-## Check your understanding { #exercise }
-
-Observability cluster, 500 million events/day, queries:
-
-1. Service owners: `WHERE service = ? AND timestamp > now()-1h GROUP BY endpoint` (90% of QPS).
-2. Support: `WHERE customer_id = ? AND timestamp > now()-1d` (9%).
-3. Exec wall: `WHERE timestamp > now()-1h GROUP BY service` (1%).
-
-Shard count will be 4 in six months. Pick `PARTITION BY`, `ORDER BY`, sharding key, and what you do for (2). Say what happens to BigCorp (8% of events) and what `EXPLAIN indexes = 1` should show for (1).
-
-??? success "Answer"
-    **`PARTITION BY toYYYYMMDD(timestamp)`** (or weekly/monthly if 500 M/day still makes daily partitions huge but countable). Not `toYYYYMMDDhh` — too many parts.
-
-    **`ORDER BY (service, endpoint, timestamp)`** — matches (1), the 90% path. Granules for other services skipped.
-
-    **(3)** is a time filter without service: daily partition prune + scan of **all** services for that hour. Acceptable at 1% QPS. Do not switch the primary key to `(timestamp)` and destroy (1).
-
-    **(2)** is the mismatch. Options: projection `ORDER BY (customer_id, timestamp)`; second table populated by the same MV; skip index on `customer_id` as a band-aid (helps some, not like a prefix). Do not use `FINAL`.
-
-    **Sharding:** `cityHash64(service)` keeps (1) often on fewer shards **if** you filter by service **and** the Distributed engine can prune (do not assume it always does). `cityHash64(customer_id)` makes (2) local and (1) fan-out. Given 90% QPS is (1), shard by `service` (or `sipHash64(service, endpoint)`), and accept (2) hitting all shards until a tenant table exists. **Do not** shard by `rand()`.
-
-    **BigCorp 8%:** if you sharded by `customer_id`, one shard is permanently hot. If you sharded by `service`, BigCorp is spread; their support query scans every shard’s day.
-
-    **`EXPLAIN indexes = 1` for (1):** primary index used, granules selected ≪ granules total (roughly checkout’s share of the hour, not 100%). If selected ≈ total, you used a function on `service` or queried the Distributed table in a way that scanned extra, or the table was actually ordered by time.

@@ -306,6 +306,39 @@ For independent processors, **new group id**, same topic. Do not "share a group 
 
 ---
 
+## Practice the idea
+
+Start with the [partition simulator](../simulations/kafka-partitions.html): make
+one customer own 70% of traffic and predict which consumers idle. Then run the
+[Kafka lab](../labs/index.md#kafka-labskafka) and verify the same imbalance from
+real per-partition counts. Finish with the
+[Kafka lag incident](../incidents/index.md#incident-1-kafka-lag-on-one-partition).
+
+## Check your understanding { #exercise }
+
+`login-events` has 24 partitions, keyed by `user_id`. Group `fraud-scorer` has 24 pods. p99 latency is 40ms except during deploys, when lag spikes to 8 minutes and fraud misses brute-force bursts. `max.poll.interval.ms=300000`. A second group, `audit-writer`, shares **the same `group_id`** "to save connections".
+
+1. Why do deploys stall fraud detection?
+2. What does sharing `group_id` do to audit versus fraud?
+3. A single `user_id` is 15% of login traffic. What happens, and what is the fix if fraud **requires** per-user order?
+
+??? question "Answer"
+    1. Without static membership, each pod stop/start is a group membership change. Eager assignors stop the world; even cooperative assignors move some partitions. If revoke/processing is slow, `max.poll.interval.ms` kicks members and you get a rebalance storm. Fix: `group.instance.id` per ordinal, cooperative sticky, faster revoke, rolling one pod at a time.
+
+    2. Same `group_id` means they are **one** group. Partitions are split between fraud pods and audit pods. Each record is processed by *either* fraud *or* audit, not both. Fan-out requires **two group ids**.
+
+    3. ~15% of traffic hashes to one partition (or a few, if you are unlucky with other keys). One fraud pod saturates; lag is on that partition only. You cannot add a 25th pod usefully. If per-user order is mandatory, you must make *that user* faster (optimise the scorer, batch, local cache) or isolate the user onto a dedicated topic/pipeline. Sharding `user_id + n` breaks order and can miss "10 failed logins in 5 minutes" unless you aggregate shards in [Flink](../flink/windows.md).
+
+---
+
+## Reference
+
+Behaviour at the next orders of magnitude, the trade-offs, the alternatives, and
+what to check when inheriting someone else's version of this — kept here rather
+than in the walkthrough above.
+
+---
+
 ## How to investigate { #debugging }
 
 Always split lag **by partition**. Then split CPU **by consumer instance**. Then check which broker leads the hot partitions.
@@ -376,25 +409,3 @@ If (3) is > ~5–10% of traffic into one partition, you have a design problem, n
 
 ---
 
-## Practice the idea
-
-Start with the [partition simulator](../simulations/kafka-partitions.html): make
-one customer own 70% of traffic and predict which consumers idle. Then run the
-[Kafka lab](../labs/index.md#kafka-labskafka) and verify the same imbalance from
-real per-partition counts. Finish with the
-[Kafka lag incident](../incidents/index.md#incident-1-kafka-lag-on-one-partition).
-
-## Check your understanding { #exercise }
-
-`login-events` has 24 partitions, keyed by `user_id`. Group `fraud-scorer` has 24 pods. p99 latency is 40ms except during deploys, when lag spikes to 8 minutes and fraud misses brute-force bursts. `max.poll.interval.ms=300000`. A second group, `audit-writer`, shares **the same `group_id`** "to save connections".
-
-1. Why do deploys stall fraud detection?
-2. What does sharing `group_id` do to audit versus fraud?
-3. A single `user_id` is 15% of login traffic. What happens, and what is the fix if fraud **requires** per-user order?
-
-??? question "Answer"
-    1. Without static membership, each pod stop/start is a group membership change. Eager assignors stop the world; even cooperative assignors move some partitions. If revoke/processing is slow, `max.poll.interval.ms` kicks members and you get a rebalance storm. Fix: `group.instance.id` per ordinal, cooperative sticky, faster revoke, rolling one pod at a time.
-
-    2. Same `group_id` means they are **one** group. Partitions are split between fraud pods and audit pods. Each record is processed by *either* fraud *or* audit, not both. Fan-out requires **two group ids**.
-
-    3. ~15% of traffic hashes to one partition (or a few, if you are unlucky with other keys). One fraud pod saturates; lag is on that partition only. You cannot add a 25th pod usefully. If per-user order is mandatory, you must make *that user* faster (optimise the scorer, batch, local cache) or isolate the user onto a dedicated topic/pipeline. Sharding `user_id + n` breaks order and can miss "10 failed logins in 5 minutes" unless you aggregate shards in [Flink](../flink/windows.md).

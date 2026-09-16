@@ -269,6 +269,46 @@ Multi-DC: using `QUORUM` instead of `LOCAL_QUORUM` makes a remote DC outage stal
 
 ---
 
+## Practice the idea
+
+Use the [consistent-hashing visualiser](../simulations/consistent-hashing-visualizer.html)
+to see how keys move when a node is added. Then run the
+[Cassandra lab](../labs/index.md#cassandra-labscassandra) to compare that even
+ring distribution with an application-level hot partition. They are different
+problems and require different fixes.
+
+## Check your understanding { #exercise }
+
+??? question "Design spans_by_service for 400k writes/s"
+    `api-gateway` is 40% of traffic. RF=3, two DCs. Reads: last 15 minutes per service, p99 50 ms. Retention 24 h.
+
+    1. Write the PRIMARY KEY. Why is `PRIMARY KEY (service, ts)` wrong?
+    2. Compaction strategy and TTL? `gc_grace_seconds`?
+    3. Consistency level for write and read?
+    4. What breaks at 10× if gateway traffic stays 40%?
+    5. Product wants `WHERE trace_id = ?`. What do you do instead of a secondary index?
+
+??? success "Answer"
+    1. `PRIMARY KEY ((service, bucket), ts)` with `bucket` = hour or minute. `(service, ts)` as PK (only `service` partitioned) puts all gateway spans for all time on one partition — unbounded wide row and a permanent hotspot.
+
+    2. TWCS with window ≈ bucket (1 hour). TTL 86400. `gc_grace_seconds` on the order of a day (or less if you understand repair/TWCS drop behaviour) — do not leave 10 days of tombstones on a high-churn table.
+
+    3. `LOCAL_QUORUM` / `LOCAL_QUORUM`. Not `ALL`. Not `ONE` if operators will believe the UI.
+
+    4. The hot `(service, bucket)` still maps to RF nodes. 10× load on that partition is 10× on those disks. Split bucket to minutes and/or add a shard: `(service, bucket, shard)`.
+
+    5. Materialise `spans_by_trace (trace_id, ts)` as a **second table** written by the pipeline (or a CDC/consumer). Do not add 2i on `trace_id` of a 400k/s table.
+
+---
+
+## Reference
+
+Behaviour at the next orders of magnitude, the trade-offs, the alternatives, and
+what to check when inheriting someone else's version of this — kept here rather
+than in the walkthrough above.
+
+---
+
 ## How to investigate { #debugging }
 
 1. **Nodestats / Scylla manager:** latency, pending compactions, SSTable count per table.
@@ -324,32 +364,3 @@ List queries. Bucket time. Measure partition size. Use `LOCAL_QUORUM`. Put analy
 
 ---
 
-## Practice the idea
-
-Use the [consistent-hashing visualiser](../simulations/consistent-hashing-visualizer.html)
-to see how keys move when a node is added. Then run the
-[Cassandra lab](../labs/index.md#cassandra-labscassandra) to compare that even
-ring distribution with an application-level hot partition. They are different
-problems and require different fixes.
-
-## Check your understanding { #exercise }
-
-??? question "Design spans_by_service for 400k writes/s"
-    `api-gateway` is 40% of traffic. RF=3, two DCs. Reads: last 15 minutes per service, p99 50 ms. Retention 24 h.
-
-    1. Write the PRIMARY KEY. Why is `PRIMARY KEY (service, ts)` wrong?
-    2. Compaction strategy and TTL? `gc_grace_seconds`?
-    3. Consistency level for write and read?
-    4. What breaks at 10× if gateway traffic stays 40%?
-    5. Product wants `WHERE trace_id = ?`. What do you do instead of a secondary index?
-
-??? success "Answer"
-    1. `PRIMARY KEY ((service, bucket), ts)` with `bucket` = hour or minute. `(service, ts)` as PK (only `service` partitioned) puts all gateway spans for all time on one partition — unbounded wide row and a permanent hotspot.
-
-    2. TWCS with window ≈ bucket (1 hour). TTL 86400. `gc_grace_seconds` on the order of a day (or less if you understand repair/TWCS drop behaviour) — do not leave 10 days of tombstones on a high-churn table.
-
-    3. `LOCAL_QUORUM` / `LOCAL_QUORUM`. Not `ALL`. Not `ONE` if operators will believe the UI.
-
-    4. The hot `(service, bucket)` still maps to RF nodes. 10× load on that partition is 10× on those disks. Split bucket to minutes and/or add a shard: `(service, bucket, shard)`.
-
-    5. Materialise `spans_by_trace (trace_id, ts)` as a **second table** written by the pipeline (or a CDC/consumer). Do not add 2i on `trace_id` of a 400k/s table.

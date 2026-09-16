@@ -204,54 +204,6 @@ Measure `ValueState` access time in the Flink metrics (RocksDB `actual-user-key`
 
 ---
 
-## How to investigate { #debugging }
-
-| Metric | Meaning |
-|--------|---------|
-| Checkpoint size / duration **per operator** | Who owns the state |
-| RocksDB `num-running-compactions`, `block-cache-usage` | Disk backend health |
-| `state.backend.rocksdb.memory.managed` | Whether Flink manages the cache |
-| Per-subtask `numRecordsIn` | Key skew |
-| Number of registered timers | Timer leak |
-
-If checkpoint size of `FailedLoginCounter` is 80% of the job, dump key cardinality: unique `user_id` per day vs TTL.
-
----
-
-## Scale: 10× / 100× / 1000×
-
-Assume 8 bytes count + 32 bytes key overhead ≈ 50 bytes/key (the exercise in the original notes).
-
-| Scale | Keys | Rough state | Backend |
-|-------|------|-------------|---------|
-| **10×** | ~1M users | ~50 MB | Heap is fine |
-| **100×** | ~10M | ~0.5 GB + RocksDB amplification (often 3–10×) | RocksDB, incremental CP |
-| **1000×** | ~100M devices | tens of GB **per job**, not per TM if well sharded | RocksDB, TTL, maybe split jobs |
-
-7-day TTL at 10M users/day ≈ 70M keys × 50 B ≈ 3.5 GB *logical* plus RocksDB files. Checkpoint duration becomes the SLO.
-
----
-
-## Trade-offs
-
-| Choice | Gain | Cost |
-|--------|------|------|
-| Heap backend | Latency | Size cap, GC |
-| RocksDB | Size | Latency, ops |
-| TTL | Bounded disk | Forgotten keys |
-| Broadcast | Fast rule updates | Memory × parallelism |
-| Query external DB per event | Tiny Flink state | Latency, load on DB, harder EOS |
-
----
-
-## Alternatives
-
-- **Kafka Streams** state stores (also RocksDB, changelog topics) — same idea, embedded.
-- **Redis / DynamoDB** as the store, Flink stateless — operationally simpler at modest QPS; you lose local checkpoint atomicity unless you design idempotent writes.
-- **Spark** `mapGroupsWithState` / `flatMapGroupsWithState` — micro-batch state; see [comparison](comparison.md).
-
----
-
 ## Joins are state
 
 A stream-stream interval join buffers records from both sides until the watermark says they cannot match. That buffer **is** keyed state. A 5-minute join window at 200k clicks/s is a large RocksDB.
@@ -309,12 +261,6 @@ Local RocksDB directories belong on NVMe, not on a shared network volume. NFS-ba
 
 ---
 
-## How to apply this at work
-
-Inventory every `get_state` / `ValueStateDescriptor` in the job. For each: key, estimated cardinality, bytes per key, TTL, backend. If nobody can estimate cardinality, you do not have a state budget.
-
----
-
 ## Check your understanding { #exercise }
 
 10 million unique users/day. Keyed `ValueState` of one float per user (~50 bytes/pair including overhead). RocksDB.
@@ -332,3 +278,68 @@ Inventory every `get_state` / `ValueStateDescriptor` in the job. For each: key, 
     3. When a **full** checkpoint cannot finish inside `checkpoint timeout` or blocks the next checkpoint (unaligned/aligned barriers backing up). Rule of thumb: if upload to S3 at 200 MB/s of a 40 GB full snapshot is minutes, you **must** use incremental checkpoints and you should keep state well under a size that makes restore longer than your RTO. Worry before 10+ minutes of checkpoint duration.
 
     4. Managed memory (`state.backend.rocksdb.memory.managed: true`), incremental checkpoints, local SSD (not NFS), and TTL cleanup. Do not cargo-cult `block-cache` sizes until you see cache hit rate.
+
+---
+
+## Reference
+
+Behaviour at the next orders of magnitude, the trade-offs, the alternatives, and
+what to check when inheriting someone else's version of this — kept here rather
+than in the walkthrough above.
+
+---
+
+## How to investigate { #debugging }
+
+| Metric | Meaning |
+|--------|---------|
+| Checkpoint size / duration **per operator** | Who owns the state |
+| RocksDB `num-running-compactions`, `block-cache-usage` | Disk backend health |
+| `state.backend.rocksdb.memory.managed` | Whether Flink manages the cache |
+| Per-subtask `numRecordsIn` | Key skew |
+| Number of registered timers | Timer leak |
+
+If checkpoint size of `FailedLoginCounter` is 80% of the job, dump key cardinality: unique `user_id` per day vs TTL.
+
+---
+
+## Scale: 10× / 100× / 1000×
+
+Assume 8 bytes count + 32 bytes key overhead ≈ 50 bytes/key (the exercise in the original notes).
+
+| Scale | Keys | Rough state | Backend |
+|-------|------|-------------|---------|
+| **10×** | ~1M users | ~50 MB | Heap is fine |
+| **100×** | ~10M | ~0.5 GB + RocksDB amplification (often 3–10×) | RocksDB, incremental CP |
+| **1000×** | ~100M devices | tens of GB **per job**, not per TM if well sharded | RocksDB, TTL, maybe split jobs |
+
+7-day TTL at 10M users/day ≈ 70M keys × 50 B ≈ 3.5 GB *logical* plus RocksDB files. Checkpoint duration becomes the SLO.
+
+---
+
+## Trade-offs
+
+| Choice | Gain | Cost |
+|--------|------|------|
+| Heap backend | Latency | Size cap, GC |
+| RocksDB | Size | Latency, ops |
+| TTL | Bounded disk | Forgotten keys |
+| Broadcast | Fast rule updates | Memory × parallelism |
+| Query external DB per event | Tiny Flink state | Latency, load on DB, harder EOS |
+
+---
+
+## Alternatives
+
+- **Kafka Streams** state stores (also RocksDB, changelog topics) — same idea, embedded.
+- **Redis / DynamoDB** as the store, Flink stateless — operationally simpler at modest QPS; you lose local checkpoint atomicity unless you design idempotent writes.
+- **Spark** `mapGroupsWithState` / `flatMapGroupsWithState` — micro-batch state; see [comparison](comparison.md).
+
+---
+
+## How to apply this at work
+
+Inventory every `get_state` / `ValueStateDescriptor` in the job. For each: key, estimated cardinality, bytes per key, TTL, backend. If nobody can estimate cardinality, you do not have a state budget.
+
+---
+

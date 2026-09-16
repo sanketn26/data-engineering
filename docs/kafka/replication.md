@@ -227,6 +227,48 @@ kafka-topics.sh --bootstrap-server localhost:9092 --create \
 
 ---
 
+## Worked example: observability versus checkout
+
+Observability `logs.raw`, 2M records/s, RF=3, `acks=all`, min.ISR=2. A 200 ms extra produce latency is invisible next to a 15s dashboard. You still want `acks=all` because a broker death during a deploy should not punch a hole in traces. You **do** isolate replication NICs and compress.
+
+Checkout `orders`, 200 records/s. Latency budget is 50 ms for the produce in the HTTP request. `acks=all` in-region is usually a few milliseconds with `linger.ms=0`. People disable it out of folklore. Measure. If you truly cannot wait for a second AZ, that is an RPO decision: say "we can lose the last N ms of orders on AZ failure", do not hide it in a library default.
+
+IoT device shadows on a compacted topic: catch-up after a broker loss replays the **baseline** (latest per device), which can be larger than a day's raw telemetry. Size disks for the compacted baseline × RF, not for "yesterday's ingest".
+
+---
+
+## Practice the idea
+
+Use the [Kafka ISR failure simulator](../simulations/kafka-isr-simulator.html)
+to vary ISR size, `acks`, and `min.insync.replicas` one at a time. Then run the
+[Kafka lab's broker-stop exercise](../labs/index.md#kafka-labskafka), watching
+ISR membership rather than only consumer output.
+
+## Check your understanding { #exercise }
+
+Cluster of 3 brokers, `service-events` RF=3, `min.insync.replicas=2`, producers `acks=all`. Broker 1 (leader for 1/3 of partitions) dies. Ten minutes later broker 2's disk hits 100%.
+
+1. What happens to produces after broker 1 dies, once ISR re-forms?
+2. What happens when broker 2 fills?
+3. Which metric went red first, and what should paging have done at minute one?
+
+??? question "Answer"
+    1. Controller elects ISR followers as leaders. ISR size becomes 2. `min.insync.replicas=2` still holds, so `acks=all` produces succeed. URP is non-zero (RF=3, two copies). Cluster is degraded, not down. Leadership and disk load concentrate on brokers 2 and 3.
+
+    2. Broker 2 cannot append. Partitions with leader on 2 fail produces. Followers on 2 leave ISR. Many partitions now have ISR size 1 (broker 3 only) or 0. `min.insync.replicas=2` causes `NotEnoughReplicas` / offline partitions. You chose consistency: the cluster **stops taking writes** rather than acknowledging to a single remaining disk. Remaining data on broker 3 is the source of truth.
+
+    3. `UnderReplicatedPartitions` should page as soon as broker 1 dies — that is the ten-minute window to restore a broker or shed load. Waiting until `UnderMinIsrPartitionCount` or `OfflinePartitionsCount` is waiting until writes fail. Also watch disk used on the survivors; RF=3 on 3 brokers means they must absorb 50% more data until broker 1 returns.
+
+---
+
+## Reference
+
+Behaviour at the next orders of magnitude, the trade-offs, the alternatives, and
+what to check when inheriting someone else's version of this — kept here rather
+than in the walkthrough above.
+
+---
+
 ## How to investigate { #debugging }
 
 **Under-replicated partitions should be 0** except during a known bounce.
@@ -290,16 +332,6 @@ There is no setting that is both "never lose an ack'd record" and "always accept
 
 ---
 
-## Worked example: observability versus checkout
-
-Observability `logs.raw`, 2M records/s, RF=3, `acks=all`, min.ISR=2. A 200 ms extra produce latency is invisible next to a 15s dashboard. You still want `acks=all` because a broker death during a deploy should not punch a hole in traces. You **do** isolate replication NICs and compress.
-
-Checkout `orders`, 200 records/s. Latency budget is 50 ms for the produce in the HTTP request. `acks=all` in-region is usually a few milliseconds with `linger.ms=0`. People disable it out of folklore. Measure. If you truly cannot wait for a second AZ, that is an RPO decision: say "we can lose the last N ms of orders on AZ failure", do not hide it in a library default.
-
-IoT device shadows on a compacted topic: catch-up after a broker loss replays the **baseline** (latest per device), which can be larger than a day's raw telemetry. Size disks for the compacted baseline × RF, not for "yesterday's ingest".
-
----
-
 ## How to apply this at work
 
 For each topic, fill this in and put it in the runbook:
@@ -318,24 +350,3 @@ If producers still use `acks=1` "for latency" on checkout or login-decision topi
 
 ---
 
-## Practice the idea
-
-Use the [Kafka ISR failure simulator](../simulations/kafka-isr-simulator.html)
-to vary ISR size, `acks`, and `min.insync.replicas` one at a time. Then run the
-[Kafka lab's broker-stop exercise](../labs/index.md#kafka-labskafka), watching
-ISR membership rather than only consumer output.
-
-## Check your understanding { #exercise }
-
-Cluster of 3 brokers, `service-events` RF=3, `min.insync.replicas=2`, producers `acks=all`. Broker 1 (leader for 1/3 of partitions) dies. Ten minutes later broker 2's disk hits 100%.
-
-1. What happens to produces after broker 1 dies, once ISR re-forms?
-2. What happens when broker 2 fills?
-3. Which metric went red first, and what should paging have done at minute one?
-
-??? question "Answer"
-    1. Controller elects ISR followers as leaders. ISR size becomes 2. `min.insync.replicas=2` still holds, so `acks=all` produces succeed. URP is non-zero (RF=3, two copies). Cluster is degraded, not down. Leadership and disk load concentrate on brokers 2 and 3.
-
-    2. Broker 2 cannot append. Partitions with leader on 2 fail produces. Followers on 2 leave ISR. Many partitions now have ISR size 1 (broker 3 only) or 0. `min.insync.replicas=2` causes `NotEnoughReplicas` / offline partitions. You chose consistency: the cluster **stops taking writes** rather than acknowledging to a single remaining disk. Remaining data on broker 3 is the source of truth.
-
-    3. `UnderReplicatedPartitions` should page as soon as broker 1 dies — that is the ten-minute window to restore a broker or shed load. Waiting until `UnderMinIsrPartitionCount` or `OfflinePartitionsCount` is waiting until writes fail. Also watch disk used on the survivors; RF=3 on 3 brokers means they must absorb 50% more data until broker 1 returns.

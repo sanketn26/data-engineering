@@ -300,6 +300,60 @@ Fixes, in order: **measure the histogram** → **change storage key** if pruning
 
 ---
 
+## What happened next { #what-happened-next }
+
+Jordan does not take `region`. The review ends with the split the two jobs were
+always asking for: the lake is partitioned on **`date`**, because that is the
+only key both jobs filter on and the only one with low enough cardinality to
+avoid a directory bomb. `region` becomes a *sort* column inside the files, so
+the BI scan still skips most of what it reads without a worker owning
+`eu-west-1`. And the `GROUP BY customer_id` rollup does not get a directory at
+all — its key is a **shuffle** key, chosen at compute time, not a storage
+layout.
+
+That answers the question the room actually had: partitioning is not one
+decision. It is one decision for storage and a different one for compute, and
+`region` was a good answer to neither.
+
+The hot key is still there. `cust_0042` at 38% of events now means one reducer
+owns 38% of the rollup, and no partition layout on S3 changes that — it is
+decided when the shuffle hashes the key. That is
+[The Shuffle](../spark/shuffle.md), the next page that has to pay for this one.
+
+This is [SaaSCo Stage 2](../architectures/saasco-evolution.md#stage-2-400-gbday-spark-appears-phase-0-phase-3):
+still one nightly Spark job, now with a layout that survives the next 10×.
+
+---
+
+## Check your understanding { #exercise }
+
+You are designing a **Kafka topic** for e-commerce **order events**. Orders come from 50 countries. Volume is roughly proportional to GDP (US + EU + India dominate). Primary consumer *today* is “orders per country per hour.” A second consumer in Q3 wants **per-customer order history in event order**.
+
+1. Trade-offs of partitioning by `country`?
+2. By `order_id`?
+3. By `customer_id`?
+4. What key would you choose for consumer 1 only?
+5. What do you choose if **both** consumers must be first-class, and what extra piece (topic, table, or job) do you add?
+6. How do you stop a Black Friday SKU from hot-spotting a related `inventory_updates` topic?
+
+??? question "Worked answer"
+    1. **Country**: consumer 1 is a single-partition aggregation per country (nice), but US may be 30–40% of the topic — one partition / one consumer thread owns Black Friday. Low cardinality (50) caps parallelism. GDP skew is structural.
+    2. **Order id**: excellent ingest balance and per-order FIFO. Consumer 1 must **shuffle** (Flink keyed by country, or Spark `groupBy`). History-by-customer is **not** ordered on one partition.
+    3. **Customer id**: per-customer FIFO for consumer 2. Balance depends on whale retailers. Consumer 1 still shuffles. Hot customers = hot partitions.
+    4. Consumer 1 only: **`country` is acceptable at small scale**; better is `hash(order_id)` plus a streaming agg keyed by country — more moving parts, no US hotspot.
+    5. Both first-class: **partition by `customer_id`** (history is the hard constraint: order per customer). Build country-hour as a **derived stream or table** (Flink window or Spark job) — do not make the raw topic serve both locality needs. Alternatively two topics: `orders_by_customer` (log of record) and a compacted `orders_by_country_hour` sink.
+    6. Inventory: **do not key by SKU**. Key by `warehouse_id + sku` salt, or isolate top SKUs to a dedicated topic/consumer, or buffer and coalesce updates. Same whale pattern as `cust_0042` in SaaS.
+
+---
+
+## Reference
+
+Behaviour at the next orders of magnitude, the trade-offs, the alternatives, and
+what to check when inheriting someone else's version of this — kept here rather
+than in the walkthrough above.
+
+---
+
 ## How to investigate { #debugging }
 
 | System | What to open | Healthy vs sick |
@@ -371,21 +425,3 @@ If nobody can paste a histogram, you do not have a partitioning strategy. You ha
 
 ---
 
-## Check your understanding { #exercise }
-
-You are designing a **Kafka topic** for e-commerce **order events**. Orders come from 50 countries. Volume is roughly proportional to GDP (US + EU + India dominate). Primary consumer *today* is “orders per country per hour.” A second consumer in Q3 wants **per-customer order history in event order**.
-
-1. Trade-offs of partitioning by `country`?
-2. By `order_id`?
-3. By `customer_id`?
-4. What key would you choose for consumer 1 only?
-5. What do you choose if **both** consumers must be first-class, and what extra piece (topic, table, or job) do you add?
-6. How do you stop a Black Friday SKU from hot-spotting a related `inventory_updates` topic?
-
-??? question "Worked answer"
-    1. **Country**: consumer 1 is a single-partition aggregation per country (nice), but US may be 30–40% of the topic — one partition / one consumer thread owns Black Friday. Low cardinality (50) caps parallelism. GDP skew is structural.
-    2. **Order id**: excellent ingest balance and per-order FIFO. Consumer 1 must **shuffle** (Flink keyed by country, or Spark `groupBy`). History-by-customer is **not** ordered on one partition.
-    3. **Customer id**: per-customer FIFO for consumer 2. Balance depends on whale retailers. Consumer 1 still shuffles. Hot customers = hot partitions.
-    4. Consumer 1 only: **`country` is acceptable at small scale**; better is `hash(order_id)` plus a streaming agg keyed by country — more moving parts, no US hotspot.
-    5. Both first-class: **partition by `customer_id`** (history is the hard constraint: order per customer). Build country-hour as a **derived stream or table** (Flink window or Spark job) — do not make the raw topic serve both locality needs. Alternatively two topics: `orders_by_customer` (log of record) and a compacted `orders_by_country_hour` sink.
-    6. Inventory: **do not key by SKU**. Key by `warehouse_id + sku` salt, or isolate top SKUs to a dedicated topic/consumer, or buffer and coalesce updates. Same whale pattern as `cust_0042` in SaaS.

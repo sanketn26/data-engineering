@@ -258,6 +258,44 @@ Single-table design exists because **Query is per PK** and **joins do not exist*
 
 ---
 
+## Practice the idea
+
+Open the [DynamoDB hot-key simulator](../simulations/dynamodb-hot-key-simulator.html).
+Keep total table capacity fixed, increase the hot-key share, and predict when a
+single partition throttles even though spare capacity exists elsewhere.
+
+## Check your understanding { #exercise }
+
+??? question "Sessions, devices, and a dangerous GSI"
+    200k QPS session get/put, 2 KB items, TTL 24 h. 20M devices, 50k QPS point read, 1 QPS “devices in region with firmware < X.” Product then asks for “all sessions that contain SKU X.”
+
+    1. Table keys for sessions and devices. One table or two? Why?
+    2. On-demand vs provisioned at this QPS — what do you actually watch?
+    3. Cost of a GSI that projects ALL on the session table (WCU intuition).
+    4. How do you implement SKU X without scanning sessions?
+    5. Why is storing 400k spans/s in Dynamo a bad academy answer?
+
+??? success "Answer"
+    1. **Two tables.** Sessions: PK=`SESS#{id}`, SK=`META` (or SK omitted if single-attribute table). Devices: PK=`DEVICE#{id}`, SK=`PROFILE`, optional sparse GSI `region` / `firmware#id`. Different SLOs, IAM, and TTL; colocating them is ideology.
+
+    2. Either mode can work; watch **throttles per partition** and p99, not average consumed capacity. 200k × 2 KB writes is substantial WCU — provisioned+autoscaling or on-demand, but a hot `session_id` still dies.
+
+    3. Session put already ~2 WCU (2 KB). GSI ALL ≈ another ~2 WCU per put. At 200k puts/s that is hundreds of thousands of extra WCU **continuously**, plus storage. You bought a second table the expensive way.
+
+    4. Dual-write an inverted item `PK=SKU#{x} SK=SESS#{id}` on cart mutate, with TTL; or Stream cart items to a search/OLAP index. Do not Scan sessions; do not FilterExpression on payload.
+
+    5. Span ingest is unbounded, analytical, TWCS-shaped. Dynamo charges per request and per KB, GSIs would multiply it, and time-range queries per service want Cassandra/ClickHouse. Use Dynamo for **trace id → pointer** if anything, not the payload firehose.
+
+---
+
+## Reference
+
+Behaviour at the next orders of magnitude, the trade-offs, the alternatives, and
+what to check when inheriting someone else's version of this — kept here rather
+than in the walkthrough above.
+
+---
+
 ## How to investigate { #debugging }
 
 | Signal | Tool |
@@ -312,30 +350,3 @@ Write the access patterns on a wiki page. If they do not fit Query/GetItem, Dyna
 
 ---
 
-## Practice the idea
-
-Open the [DynamoDB hot-key simulator](../simulations/dynamodb-hot-key-simulator.html).
-Keep total table capacity fixed, increase the hot-key share, and predict when a
-single partition throttles even though spare capacity exists elsewhere.
-
-## Check your understanding { #exercise }
-
-??? question "Sessions, devices, and a dangerous GSI"
-    200k QPS session get/put, 2 KB items, TTL 24 h. 20M devices, 50k QPS point read, 1 QPS “devices in region with firmware < X.” Product then asks for “all sessions that contain SKU X.”
-
-    1. Table keys for sessions and devices. One table or two? Why?
-    2. On-demand vs provisioned at this QPS — what do you actually watch?
-    3. Cost of a GSI that projects ALL on the session table (WCU intuition).
-    4. How do you implement SKU X without scanning sessions?
-    5. Why is storing 400k spans/s in Dynamo a bad academy answer?
-
-??? success "Answer"
-    1. **Two tables.** Sessions: PK=`SESS#{id}`, SK=`META` (or SK omitted if single-attribute table). Devices: PK=`DEVICE#{id}`, SK=`PROFILE`, optional sparse GSI `region` / `firmware#id`. Different SLOs, IAM, and TTL; colocating them is ideology.
-
-    2. Either mode can work; watch **throttles per partition** and p99, not average consumed capacity. 200k × 2 KB writes is substantial WCU — provisioned+autoscaling or on-demand, but a hot `session_id` still dies.
-
-    3. Session put already ~2 WCU (2 KB). GSI ALL ≈ another ~2 WCU per put. At 200k puts/s that is hundreds of thousands of extra WCU **continuously**, plus storage. You bought a second table the expensive way.
-
-    4. Dual-write an inverted item `PK=SKU#{x} SK=SESS#{id}` on cart mutate, with TTL; or Stream cart items to a search/OLAP index. Do not Scan sessions; do not FilterExpression on payload.
-
-    5. Span ingest is unbounded, analytical, TWCS-shaped. Dynamo charges per request and per KB, GSIs would multiply it, and time-range queries per service want Cassandra/ClickHouse. Use Dynamo for **trace id → pointer** if anything, not the payload firehose.

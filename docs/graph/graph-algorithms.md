@@ -263,6 +263,38 @@ When WCC blobs are huge (marketplace), Louvain splits **dense** communities. Run
 
 ---
 
+## Check your understanding { #exercise }
+
+??? question "Place the jobs on a clock"
+    Payment p99 80 ms. 40M users, 200M USES edges / 90 days. Analysts want rings, top accounts per ring, similar merchants for recs, and a dashboard of fraud rate by ring.
+
+    1. What runs in the risk API process?
+    2. What is the nightly GDS (or Spark) pipeline, in order?
+    3. Why PageRank before WCC is the wrong order.
+    4. Where does ClickHouse come in, and what does it **not** compute?
+    5. A NAT IP with 8M users was left in the projection. What do you see, and how do you fix it?
+
+??? success "Answer"
+    1. Bounded MATCH (2-hop USES) + **read** of precomputed flags (`ring_risk`, watchlist). No WCC/PageRank/similarity.
+
+    2. Filter supernodes → project 90-day graph → **WCC** → size histogram → PageRank/betweenness **per large-but-not-huge component** → node similarity on candidates → write properties/export to KV + ClickHouse. Recs similarity can be a separate product graph.
+
+    3. Global PageRank without components ranks popular infrastructure. You need blobs first, then rank inside blobs.
+
+    4. ClickHouse: fraud amount, rates, time series **by `ring_id`**. It does not compute WCC.
+
+    5. One giant component (~everyone). Fix: flag/remove that IP (and degree outliers) **before** project; rerun. Do not “Louvain the blob” as the first fix — remove the lie in the edge set.
+
+---
+
+## Reference
+
+Behaviour at the next orders of magnitude, the trade-offs, the alternatives, and
+what to check when inheriting someone else's version of this — kept here rather
+than in the walkthrough above.
+
+---
+
 ## How to investigate { #debugging }
 
 1. Size the projection: node/edge counts, max degree. If max degree is 10^6, stop.
@@ -308,24 +340,3 @@ If someone wants “real-time connected components” on each payment, say **no*
 
 ---
 
-## Check your understanding { #exercise }
-
-??? question "Place the jobs on a clock"
-    Payment p99 80 ms. 40M users, 200M USES edges / 90 days. Analysts want rings, top accounts per ring, similar merchants for recs, and a dashboard of fraud rate by ring.
-
-    1. What runs in the risk API process?
-    2. What is the nightly GDS (or Spark) pipeline, in order?
-    3. Why PageRank before WCC is the wrong order.
-    4. Where does ClickHouse come in, and what does it **not** compute?
-    5. A NAT IP with 8M users was left in the projection. What do you see, and how do you fix it?
-
-??? success "Answer"
-    1. Bounded MATCH (2-hop USES) + **read** of precomputed flags (`ring_risk`, watchlist). No WCC/PageRank/similarity.
-
-    2. Filter supernodes → project 90-day graph → **WCC** → size histogram → PageRank/betweenness **per large-but-not-huge component** → node similarity on candidates → write properties/export to KV + ClickHouse. Recs similarity can be a separate product graph.
-
-    3. Global PageRank without components ranks popular infrastructure. You need blobs first, then rank inside blobs.
-
-    4. ClickHouse: fraud amount, rates, time series **by `ring_id`**. It does not compute WCC.
-
-    5. One giant component (~everyone). Fix: flag/remove that IP (and degree outliers) **before** project; rerun. Do not “Louvain the blob” as the first fix — remove the lie in the edge set.

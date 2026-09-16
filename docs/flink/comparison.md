@@ -246,30 +246,6 @@ Debugging metrics: Flink checkpoint duration + watermark; Kafka Streams `records
 
 ---
 
-## Scale: 10× / 100× / 1000×
-
-| Scale | Typical move |
-|-------|----------------|
-| **10×** | Any of the three works for a single aggregation |
-| **100×** | Kafka Streams needs partition planning; Flink needs RocksDB; Spark needs AQE/shuffle hygiene |
-| **1000×** | Split workloads: Spark/lake for fat ETL, Flink for the few second-level jobs, Kafka Streams for app-local joins. One engine for everything is a religion. |
-
----
-
-## Trade-offs
-
-You are trading **operational surface** (Flink/Spark clusters) against **coupling** (Kafka Streams inside the app) against **latency** (Spark micro-batch).
-
----
-
-## Alternatives
-
-- **ksqlDB** — SQL on Kafka Streams; good for simple filters/joins, less for heavy state.
-- **ClickHouse / Pinot** materialized from Kafka — skip the processor for observability-shaped jobs.
-- **Batch only** — if "5 minutes" can be a 5-minute Airflow DAG. See [batch vs stream](../foundations/batch-vs-stream.md).
-
----
-
 ## Cost and people (the dimension vendors skip)
 
 Flink: a platform team, 24/7 cluster, checkpoint storage, a UI people must learn. Worth it if several jobs share that platform.
@@ -313,12 +289,6 @@ Do not tune Flink parallelism because a Kafka partition is hot. The engines do n
 
 ---
 
-## How to apply this at work
-
-Write the workload in one paragraph (latency, state size, sink, team). Map it to one of the six workloads above. If it maps to none, you do not understand the workload yet — do not pick an engine to postpone that.
-
----
-
 ## Check your understanding { #exercise }
 
 A company has Spark for the lake, Kafka for ingest, and a Java order service. They want (a) Iceberg tables from `service-events` within 1 minute, (b) sessionisation of shoppers for a recommendation service with 200 ms reads of "current session", (c) the fraud login rule at < 1s.
@@ -333,3 +303,44 @@ Which engine for a, b, c — and what do you *not* unify?
     (c) **Flink** (or Kafka Streams if state stays small and the fraud team is the Java team). Spark is the wrong latency class.
 
     Do **not** unify on one engine. The unification is the **event schema** and Kafka, not the processor.
+
+---
+
+## Reference
+
+Behaviour at the next orders of magnitude, the trade-offs, the alternatives, and
+what to check when inheriting someone else's version of this — kept here rather
+than in the walkthrough above.
+
+---
+
+## Scale: 10× / 100× / 1000×
+
+| Scale | Typical move |
+|-------|----------------|
+| **10×** | Any of the three works for a single aggregation |
+| **100×** | Kafka Streams needs partition planning; Flink needs RocksDB; Spark needs AQE/shuffle hygiene |
+| **1000×** | Split workloads: Spark/lake for fat ETL, Flink for the few second-level jobs, Kafka Streams for app-local joins. One engine for everything is a religion. |
+
+---
+
+## Trade-offs
+
+You are trading **operational surface** (Flink/Spark clusters) against **coupling** (Kafka Streams inside the app) against **latency** (Spark micro-batch).
+
+---
+
+## Alternatives
+
+- **ksqlDB** — SQL on Kafka Streams; good for simple filters/joins, less for heavy state.
+- **ClickHouse / Pinot** materialized from Kafka — skip the processor for observability-shaped jobs.
+- **Batch only** — if "5 minutes" can be a 5-minute Airflow DAG. See [batch vs stream](../foundations/batch-vs-stream.md).
+
+---
+
+## How to apply this at work
+
+Write the workload in one paragraph (latency, state size, sink, team). Map it to one of the six workloads above. If it maps to none, you do not understand the workload yet — do not pick an engine to postpone that.
+
+---
+

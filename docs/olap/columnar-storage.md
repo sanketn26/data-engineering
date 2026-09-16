@@ -279,6 +279,36 @@ The disaster is `SELECT *` over **billions** of rows. Reconstructing 10 rows fro
 
 ---
 
+## Practice the idea
+
+Use the [Bloom-filter playground](../simulations/bloom-filter-playground.html).
+Predict whether a missing value can be reported as “possibly present,” then
+increase the inserted-item count without increasing the bit array. Connect the
+rising false-positive rate to extra reads, not incorrect query results.
+
+## Check your understanding { #exercise }
+
+Table `events` 80 columns, 2 billion rows. Query A: `SELECT customer_id, sum(bytes) FROM events WHERE ds = '2024-06-12' GROUP BY customer_id`. Query B: `SELECT * FROM events WHERE request_id = 'abc'`. Query C: `UPDATE events SET bytes = 0 WHERE customer_id = 'free-tier'`.
+
+For each, say row store vs column store vs “neither / copy,” and what IO you expect on a cold cache.
+
+??? success "Answer"
+    **A.** Column store (ClickHouse/Pinot/Parquet). Two columns + a partition/day prune. IO: compressed `customer_id` + `bytes` for one day — GBs or less, not the full 80-column day. Row store reads fat tuples for every event that day.
+
+    **B.** Row store (or a search/trace store) with an index on `request_id`. Column store reconstructs 80 columns from a granule (8k rows × 80 columns of decode) if you even find the granule; without `request_id` in the sort key you scan. Neither OLAP engine wants to be this API.
+
+    **C.** Neither as a hot path. SQL `UPDATE` on 2 billion columnar rows is a mutation that rewrites parts. In a row store it is still a massive heap rewrite. Maintain `bytes` in a serving table keyed by customer, or write a new fact, or filter `free-tier` at query time from a dimension. Do not mutate the event log in place.
+
+---
+
+## Reference
+
+Behaviour at the next orders of magnitude, the trade-offs, the alternatives, and
+what to check when inheriting someone else's version of this — kept here rather
+than in the walkthrough above.
+
+---
+
 ## How to investigate { #debugging }
 
 **Postgres** (prove the row-store tax):
@@ -372,22 +402,3 @@ Then implement the copy. Do not “turn Postgres into a column store” with a d
 
 ---
 
-## Practice the idea
-
-Use the [Bloom-filter playground](../simulations/bloom-filter-playground.html).
-Predict whether a missing value can be reported as “possibly present,” then
-increase the inserted-item count without increasing the bit array. Connect the
-rising false-positive rate to extra reads, not incorrect query results.
-
-## Check your understanding { #exercise }
-
-Table `events` 80 columns, 2 billion rows. Query A: `SELECT customer_id, sum(bytes) FROM events WHERE ds = '2024-06-12' GROUP BY customer_id`. Query B: `SELECT * FROM events WHERE request_id = 'abc'`. Query C: `UPDATE events SET bytes = 0 WHERE customer_id = 'free-tier'`.
-
-For each, say row store vs column store vs “neither / copy,” and what IO you expect on a cold cache.
-
-??? success "Answer"
-    **A.** Column store (ClickHouse/Pinot/Parquet). Two columns + a partition/day prune. IO: compressed `customer_id` + `bytes` for one day — GBs or less, not the full 80-column day. Row store reads fat tuples for every event that day.
-
-    **B.** Row store (or a search/trace store) with an index on `request_id`. Column store reconstructs 80 columns from a granule (8k rows × 80 columns of decode) if you even find the granule; without `request_id` in the sort key you scan. Neither OLAP engine wants to be this API.
-
-    **C.** Neither as a hot path. SQL `UPDATE` on 2 billion columnar rows is a mutation that rewrites parts. In a row store it is still a massive heap rewrite. Maintain `bytes` in a serving table keyed by customer, or write a new fact, or filter `free-tier` at query time from a dimension. Do not mutate the event log in place.

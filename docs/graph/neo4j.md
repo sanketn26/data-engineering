@@ -262,6 +262,44 @@ Availability: Neo4j Causal Cluster (or Aura) — read replicas for analysts, **w
 
 ---
 
+## Check your understanding { #exercise }
+
+??? question "Write and critique the risk query"
+    Payment for `user_id=u001`. Need other user_ids sharing a device or IP in ≤2 hops, exclude NAT IPs (`flag='supernode'`), 90-day `USES` only.
+
+    1. Write the Cypher.
+    2. Which indexes must exist?
+    3. What does PROFILE show if `u001` used a CGNAT IP not flagged yet?
+    4. Why is `MATCH (u:User {user_id:'u001'})-[*]-(o:User)` wrong even with LIMIT 10?
+
+??? success "Answer"
+    1. ```cypher
+       MATCH (u:User {user_id: $uid})-[r:USES]->(x)
+       WHERE r.last_seen > datetime() - duration('P90D')
+         AND coalesce(x.flag,'') <> 'supernode'
+         AND (x:Device OR x:IP)
+       MATCH (x)<-[r2:USES]-(other:User)
+       WHERE other <> u AND r2.last_seen > datetime() - duration('P90D')
+       RETURN DISTINCT other.user_id
+       LIMIT 100;
+       ```
+
+    2. Unique `User.user_id`; indexes on `USES` are usually not required if start is indexed; `IP.flag` optional. Constraint on Device/IP ids for MERGE path.
+
+    3. Expand on that IP’s `USES` in-edges: rows explode (millions), db hits explode, query time seconds+, memory up. Fix: degree cap, flag supernodes in CDC, abort if `count{(x)<-[:USES]-()}` > threshold **before** the second MATCH (careful: counting can also be expensive — store `degree`).
+
+    4. Unbounded types and depth; LIMIT applies **after** a potentially huge search depending on planner; you can still traverse a huge component to find 10 users. Type and depth are the contract, not LIMIT.
+
+---
+
+## Reference
+
+Behaviour at the next orders of magnitude, the trade-offs, the alternatives, and
+what to check when inheriting someone else's version of this — kept here rather
+than in the walkthrough above.
+
+---
+
 ## How to investigate { #debugging }
 
 1. `PROFILE` the exact parameterised query from production (same `$addr`).
@@ -308,30 +346,3 @@ Every production Cypher review: start label + indexed property, typed relationsh
 
 ---
 
-## Check your understanding { #exercise }
-
-??? question "Write and critique the risk query"
-    Payment for `user_id=u001`. Need other user_ids sharing a device or IP in ≤2 hops, exclude NAT IPs (`flag='supernode'`), 90-day `USES` only.
-
-    1. Write the Cypher.
-    2. Which indexes must exist?
-    3. What does PROFILE show if `u001` used a CGNAT IP not flagged yet?
-    4. Why is `MATCH (u:User {user_id:'u001'})-[*]-(o:User)` wrong even with LIMIT 10?
-
-??? success "Answer"
-    1. ```cypher
-       MATCH (u:User {user_id: $uid})-[r:USES]->(x)
-       WHERE r.last_seen > datetime() - duration('P90D')
-         AND coalesce(x.flag,'') <> 'supernode'
-         AND (x:Device OR x:IP)
-       MATCH (x)<-[r2:USES]-(other:User)
-       WHERE other <> u AND r2.last_seen > datetime() - duration('P90D')
-       RETURN DISTINCT other.user_id
-       LIMIT 100;
-       ```
-
-    2. Unique `User.user_id`; indexes on `USES` are usually not required if start is indexed; `IP.flag` optional. Constraint on Device/IP ids for MERGE path.
-
-    3. Expand on that IP’s `USES` in-edges: rows explode (millions), db hits explode, query time seconds+, memory up. Fix: degree cap, flag supernodes in CDC, abort if `count{(x)<-[:USES]-()}` > threshold **before** the second MATCH (careful: counting can also be expensive — store `degree`).
-
-    4. Unbounded types and depth; LIMIT applies **after** a potentially huge search depending on planner; you can still traverse a huge component to find 10 users. Type and depth are the contract, not LIMIT.

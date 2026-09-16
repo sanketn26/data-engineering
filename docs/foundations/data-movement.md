@@ -238,6 +238,68 @@ Fetch failures under **dynamic allocation** happen because executors with shuffl
 
 ---
 
+## What happened next { #what-happened-next }
+
+It was **(B)**. Nine seconds of `percentile_approx`, about eleven minutes of
+shuffle, and the rest split between the S3 read and a write that produced
+far more files than rows deserved. Nobody had been able to point at the
+missing time because the Spark UI reports it honestly and in the wrong place:
+the *stage* boundary is where the money went, and the stage boundary is not an
+operator anyone wrote.
+
+The number that ends the argument is bytes-shuffled, not CPU. Once it is on the
+screen, the options stop being "add executors" and start being the real ones:
+project fewer columns before the shuffle so less has to move, pre-aggregate so
+the wire carries partial results instead of raw rows, and keep the exchange
+inside one AZ so the bill reflects the work.
+
+Adding machines would have made it slightly worse. More executors means more
+fetch connections pulling the same bytes across the same NIC — the math is the
+same as the last page's: the expensive decision is where bytes have to meet.
+
+This is the mechanism the p95 job has been paying for since Stage 2. What it
+looks like from inside Spark's scheduler is
+[Distributed Execution](distributed-execution.md); what it looks like when one
+key owns the exchange is [The Shuffle](../spark/shuffle.md).
+
+---
+
+## Check your understanding { #exercise }
+
+A daily Spark job reads **800 GB** Parquet (S3, same region, three AZs). It:
+
+```python
+events = spark.read.parquet("s3://analytics/events/")  # no date filter
+joined = events.join(customers, "customer_id")         # customers = 2 GB
+agg = joined.groupBy("customer_id").agg(F.sum("bytes"))
+agg.write.parquet("s3://out/")                         # default 200 files
+```
+
+Cluster: 40 executors × 4 cores, 16 GB each, spread across 3 AZs. `spark.sql.shuffle.partitions=200`. AQE off. `cust_0042` is 35% of events.
+
+1. List every **network hop** and estimate which dominates.
+2. What does 200 shuffle partitions imply per reducer, roughly?
+3. Name three concrete changes (code or config) that cut movement the most.
+4. After those changes, what still breaks because of `cust_0042`?
+5. Would copying `events` onto HDFS-local disks be worth it? When?
+
+??? question "Worked answer"
+    1. S3 GET of **800 GB** (full lake — no prune) into executors, possibly cross-AZ; **sort-merge join** shuffles **both** events (~800 GB rows) and customers (2 GB); **second shuffle** for `groupBy`; write 200 files to S3. Dominant: the unpruned read + two fat shuffles, billed cross-AZ if the cluster is spread.
+    2. 800 GB / 200 ≈ **4 GB** shuffle-read per task *if even* — already chubby; the whale task is ~0.35 × 800 GB ≈ **280 GB** on one reducer. That task spills or OOMs; the stage is that task.
+    3. Filter `date=` (or partition discover) so scan is ~one day; `broadcast(customers)` (2 GB is **too big** at default 10 MB — raise threshold *or* project customers down to 50 MB of keys+attrs, then broadcast); enable AQE + skew join; pin cluster to one AZ; `spark.sql.shuffle.partitions` from size math or AQE advisory 128 MB; write with `coalesce` / `maxRecordsPerFile` so you do not create 200 tiny files *and* do not create 200 huge ones blindly.
+    4. Broadcast removes the join shuffle of events but **groupBy still hashes `customer_id`**. Salt / two-phase agg / isolate `cust_0042`.
+    5. HDFS locality helps the **read** if jobs re-scan the same 800 GB all day. For a once-daily job, copying 800 GB *to* HDFS *is* the movement you were trying to avoid. Worth it for a hot working set reused many times per hour, not for a nightly ETL.
+
+---
+
+## Reference
+
+Behaviour at the next orders of magnitude, the trade-offs, the alternatives, and
+what to check when inheriting someone else's version of this — kept here rather
+than in the walkthrough above.
+
+---
+
 ## How to investigate { #debugging }
 
 Spark UI, in order:
@@ -305,28 +367,3 @@ If shuffle bytes ≫ output bytes, you are paying to **rearrange** data that you
 
 ---
 
-## Check your understanding { #exercise }
-
-A daily Spark job reads **800 GB** Parquet (S3, same region, three AZs). It:
-
-```python
-events = spark.read.parquet("s3://analytics/events/")  # no date filter
-joined = events.join(customers, "customer_id")         # customers = 2 GB
-agg = joined.groupBy("customer_id").agg(F.sum("bytes"))
-agg.write.parquet("s3://out/")                         # default 200 files
-```
-
-Cluster: 40 executors × 4 cores, 16 GB each, spread across 3 AZs. `spark.sql.shuffle.partitions=200`. AQE off. `cust_0042` is 35% of events.
-
-1. List every **network hop** and estimate which dominates.
-2. What does 200 shuffle partitions imply per reducer, roughly?
-3. Name three concrete changes (code or config) that cut movement the most.
-4. After those changes, what still breaks because of `cust_0042`?
-5. Would copying `events` onto HDFS-local disks be worth it? When?
-
-??? question "Worked answer"
-    1. S3 GET of **800 GB** (full lake — no prune) into executors, possibly cross-AZ; **sort-merge join** shuffles **both** events (~800 GB rows) and customers (2 GB); **second shuffle** for `groupBy`; write 200 files to S3. Dominant: the unpruned read + two fat shuffles, billed cross-AZ if the cluster is spread.
-    2. 800 GB / 200 ≈ **4 GB** shuffle-read per task *if even* — already chubby; the whale task is ~0.35 × 800 GB ≈ **280 GB** on one reducer. That task spills or OOMs; the stage is that task.
-    3. Filter `date=` (or partition discover) so scan is ~one day; `broadcast(customers)` (2 GB is **too big** at default 10 MB — raise threshold *or* project customers down to 50 MB of keys+attrs, then broadcast); enable AQE + skew join; pin cluster to one AZ; `spark.sql.shuffle.partitions` from size math or AQE advisory 128 MB; write with `coalesce` / `maxRecordsPerFile` so you do not create 200 tiny files *and* do not create 200 huge ones blindly.
-    4. Broadcast removes the join shuffle of events but **groupBy still hashes `customer_id`**. Salt / two-phase agg / isolate `cust_0042`.
-    5. HDFS locality helps the **read** if jobs re-scan the same 800 GB all day. For a once-daily job, copying 800 GB *to* HDFS *is* the movement you were trying to avoid. Worth it for a hot working set reused many times per hour, not for a nightly ETL.

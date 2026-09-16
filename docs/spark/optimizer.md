@@ -232,6 +232,44 @@ Type mismatch joins are infamous: `customer_id` int vs string → **cast** → s
 
 ---
 
+## Check your understanding { #exercise }
+
+```python
+q = (
+    spark.read.parquet("s3://analytics/events/")   # partitioned by date
+    .filter(F.to_date("timestamp") == F.lit("2024-01-15").cast("date"))
+    .join(customers, F.col("customer_id") == F.col("cust_id"))
+    .withColumn("bucket", udf_bucket("endpoint"))
+    .groupBy("bucket", "region")
+    .count()
+)
+```
+
+`customers` is 25 MB with column `cust_id` **integer**; events `customer_id` is **string**. `udf_bucket` is a Python UDF. AQE on.
+
+1. Will partition pruning fire? Why?
+2. What join strategy do you fear, and why?
+3. Where does the UDF sit relative to pushdown?
+4. Rewrite the query so Catalyst can do the right thing. Name each change.
+5. After the rewrite, which AQE feature still matters at 100× files?
+
+??? question "Worked answer"
+    1. **Probably not.** Filter is on `to_date(timestamp)`, not on partition column `date`. Function on the column defeats identity partition pruning. Use `filter(F.col("date") == "2024-01-15")` (matching type).
+    2. **BroadcastNestedLoopJoin or SMJ with a cast** because `string = int` is not a clean equi-join on the same type. Could explode or shuffle-cast everything. Cast **one** side explicitly after making types equal; then BHJ of 25 MB.
+    3. UDF after the join in code, but it **blocks** predicate/column work on `endpoint` and forces `BatchEvalPython`. If `udf_bucket` could be `when`/`regexp`, do that **before** join to shrink rows, and keep it native so codegen holds.
+    4. Filter `date=`; `select` needed cols; `customers.withColumn("customer_id", F.col("cust_id").cast("string"))` (or cast events if that is the source of truth); `broadcast(customers)`; replace UDF with native `when`; `groupBy`.
+    5. **Coalesce + DPP / runtime BHJ.** File listing at 100× needs a table format; AQE will still coalesce the agg shuffle and can DPP if the join can broadcast a set of dates/keys.
+
+---
+
+## Reference
+
+Behaviour at the next orders of magnitude, the trade-offs, the alternatives, and
+what to check when inheriting someone else's version of this — kept here rather
+than in the walkthrough above.
+
+---
+
 ## How to investigate { #debugging }
 
 ```python
@@ -319,30 +357,3 @@ If scan bytes in the last prod run were 8 TB for a “yesterday” job, Catalyst
 
 ---
 
-## Check your understanding { #exercise }
-
-```python
-q = (
-    spark.read.parquet("s3://analytics/events/")   # partitioned by date
-    .filter(F.to_date("timestamp") == F.lit("2024-01-15").cast("date"))
-    .join(customers, F.col("customer_id") == F.col("cust_id"))
-    .withColumn("bucket", udf_bucket("endpoint"))
-    .groupBy("bucket", "region")
-    .count()
-)
-```
-
-`customers` is 25 MB with column `cust_id` **integer**; events `customer_id` is **string**. `udf_bucket` is a Python UDF. AQE on.
-
-1. Will partition pruning fire? Why?
-2. What join strategy do you fear, and why?
-3. Where does the UDF sit relative to pushdown?
-4. Rewrite the query so Catalyst can do the right thing. Name each change.
-5. After the rewrite, which AQE feature still matters at 100× files?
-
-??? question "Worked answer"
-    1. **Probably not.** Filter is on `to_date(timestamp)`, not on partition column `date`. Function on the column defeats identity partition pruning. Use `filter(F.col("date") == "2024-01-15")` (matching type).
-    2. **BroadcastNestedLoopJoin or SMJ with a cast** because `string = int` is not a clean equi-join on the same type. Could explode or shuffle-cast everything. Cast **one** side explicitly after making types equal; then BHJ of 25 MB.
-    3. UDF after the join in code, but it **blocks** predicate/column work on `endpoint` and forces `BatchEvalPython`. If `udf_bucket` could be `when`/`regexp`, do that **before** join to shrink rows, and keep it native so codegen holds.
-    4. Filter `date=`; `select` needed cols; `customers.withColumn("customer_id", F.col("cust_id").cast("string"))` (or cast events if that is the source of truth); `broadcast(customers)`; replace UDF with native `when`; `groupBy`.
-    5. **Coalesce + DPP / runtime BHJ.** File listing at 100× needs a table format; AQE will still coalesce the agg shuffle and can DPP if the join can broadcast a set of dates/keys.

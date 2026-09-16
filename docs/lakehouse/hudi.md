@@ -259,6 +259,26 @@ Hudi's operational complexity is higher than Iceberg or Delta for simple append 
 
 ---
 
+## Check your understanding { #exercise }
+
+CoW table `orders`, record key `order_id`, precombine `ingested_at` (time the Spark job ran). Airflow retries a failed hour. Kafka dump for that hour is replayed. Meanwhile a later hour already wrote `SHIPPED`.
+
+??? question "What is the row state after the retry, and which two Hudi knobs/fields fix it?"
+    Think precombine and instants.
+
+    ??? success "Answer"
+        Retry upserts the old `PAID` row with a *newer* `ingested_at`, so precombine **wins the stale CDC** and the order goes backwards. Fixes: (1) precombine on source `updated_at` / Debezium `ts_ms`, never job time; (2) upsert remains idempotent for the same batch because `updated_at` is unchanged. Optional: operation `upsert` not `insert`; do not clean instants the retry still needs. CoW vs MoR does not save a wrong precombine.
+
+---
+
+## Reference
+
+Behaviour at the next orders of magnitude, the trade-offs, the alternatives, and
+what to check when inheriting someone else's version of this — kept here rather
+than in the walkthrough above.
+
+---
+
 ## How to investigate { #debugging }
 
 - Inspect `.hoodie/` timeline files: which instant is inflight?
@@ -315,13 +335,3 @@ See [comparison](comparison.md) for workload, not winners.
 5. If you have no incremental consumer and few updates, you wanted Iceberg.
 
 ---
-
-## Check your understanding { #exercise }
-
-CoW table `orders`, record key `order_id`, precombine `ingested_at` (time the Spark job ran). Airflow retries a failed hour. Kafka dump for that hour is replayed. Meanwhile a later hour already wrote `SHIPPED`.
-
-??? question "What is the row state after the retry, and which two Hudi knobs/fields fix it?"
-    Think precombine and instants.
-
-    ??? success "Answer"
-        Retry upserts the old `PAID` row with a *newer* `ingested_at`, so precombine **wins the stale CDC** and the order goes backwards. Fixes: (1) precombine on source `updated_at` / Debezium `ts_ms`, never job time; (2) upsert remains idempotent for the same batch because `updated_at` is unchanged. Optional: operation `upsert` not `insert`; do not clean instants the retry still needs. CoW vs MoR does not save a wrong precombine.

@@ -249,6 +249,60 @@ CDC-specific: the stream is a **log of mutations**. Treating it as a batch of �
 
 ---
 
+## What happened next { #what-happened-next }
+
+Jordan does not agree to "everything on Flink." The review ends by separating
+the three questions instead of the three technologies, because they were never
+the same requirement:
+
+- The CFO's monthly usage number is due **Monday 09:00**. An hour late is
+  invisible. This is a batch job, and putting it on Flink buys nothing except a
+  cluster that must stay up all weekend to produce a figure nobody reads until
+  Monday.
+- Active users in the last hour, charted every minute, is late-tolerant by
+  minutes. Micro-batch covers it.
+- The fraud decision has **200 ms** and happens on the write path, before the
+  card is charged. Nothing batch-shaped can be bent into this, and it is the
+  only one of the three where being an hour late is an incident rather than an
+  annoyed Slack message.
+
+One of the three needs streaming. The other two were sorted by asking how late
+each answer is allowed to be and how much state has to be remembered between
+events — not by which engine was proposed.
+
+The 200 ms case is what eventually brings Flink in, at
+[SaaSCo Stage 4](../architectures/saasco-evolution.md#stage-4-freshness-under-10-seconds-flink-appears-phase-4)
+— years after this review, for exactly one of these three questions.
+
+---
+
+## Check your understanding { #exercise }
+
+You own SaaS events plus a new **fraud check** on `POST /checkout`. Legal wants a **daily** attestation of API error rates. Product wants a **live** “customers currently erroring” wall. Payments wants a **score < 200 ms**.
+
+1. For each of the three, pick batch, micro-batch, or event-at-a-time. Name the sink.
+2. A stakeholder says “one Flink job for all three so we have a single source of truth.” What actually happens at 100× volume?
+3. CDC from `orders` arrives 45 s late during a database failover. Which of the three products breaks, and how do you degrade?
+4. Design a **reconciliation** that runs at 02:00. What does it compare, and what is the page threshold?
+5. IoT cousin: 5 M devices × 1/30 Hz. Do you stream raw values to the lake? What is the 1000× move?
+
+??? question "Worked answer"
+    1. **Legal error rates**: nightly Spark/dbt on Iceberg, overwrite `date=`, PDF/table to compliance. **Live erroring customers**: micro-batch 30–60 s into ClickHouse/Pinot or a small Flink window; wall can be 1 min late. **Fraud**: event-time Flink (or a service with in-memory features), sink = decision log + the HTTP response; **not** a lake write on the hot path.
+    2. One Flink job **couples SLAs**. Checkpoint size and shuffle of the daily-attestation-shaped agg will miss 200 ms. Backpressure from the lake sink stalls fraud. At 100× you split: ingest once (Kafka), **three consumers**, shared schema, nightly recon.
+    3. Fraud: degrade to **heuristic / allow-with-flag** using last-known features; do not block checkout on CDC. Live wall: lag badge, do not pretend freshness. Legal daily: still fine if the failover is inside the day; re-run after catch-up.
+    4. Compare Flink-derived daily error counts vs Iceberg batch counts per `customer_id` (and global). Page if relative error > 0.5% **and** absolute > N, or if fraud decision log volume vs checkout CDC count diverges. Store the diff; do not “merge in serving.”
+    5. **Do not** land raw 100-byte points as millions of tiny Parquet files per minute. Stream into a TSDB or wide-events table with **downsampling** (1 min / 1 h rollups); lake gets rollups + a sampled raw. 1000× is tiered retention, not a bigger Spark nightly on raw.
+
+---
+
+## Reference
+
+Behaviour at the next orders of magnitude, the trade-offs, the alternatives, and
+what to check when inheriting someone else's version of this — kept here rather
+than in the walkthrough above.
+
+---
+
 ## How to investigate { #debugging }
 
 **Batch:** Spark UI as in [Distributed Execution](distributed-execution.md); Airflow duration vs data interval; row-count vs source; Iceberg snapshot diffs.
@@ -331,19 +385,3 @@ Many “real-time” requirements collapse to **five minutes**. Five minutes is 
 
 ---
 
-## Check your understanding { #exercise }
-
-You own SaaS events plus a new **fraud check** on `POST /checkout`. Legal wants a **daily** attestation of API error rates. Product wants a **live** “customers currently erroring” wall. Payments wants a **score < 200 ms**.
-
-1. For each of the three, pick batch, micro-batch, or event-at-a-time. Name the sink.
-2. A stakeholder says “one Flink job for all three so we have a single source of truth.” What actually happens at 100× volume?
-3. CDC from `orders` arrives 45 s late during a database failover. Which of the three products breaks, and how do you degrade?
-4. Design a **reconciliation** that runs at 02:00. What does it compare, and what is the page threshold?
-5. IoT cousin: 5 M devices × 1/30 Hz. Do you stream raw values to the lake? What is the 1000× move?
-
-??? question "Worked answer"
-    1. **Legal error rates**: nightly Spark/dbt on Iceberg, overwrite `date=`, PDF/table to compliance. **Live erroring customers**: micro-batch 30–60 s into ClickHouse/Pinot or a small Flink window; wall can be 1 min late. **Fraud**: event-time Flink (or a service with in-memory features), sink = decision log + the HTTP response; **not** a lake write on the hot path.
-    2. One Flink job **couples SLAs**. Checkpoint size and shuffle of the daily-attestation-shaped agg will miss 200 ms. Backpressure from the lake sink stalls fraud. At 100× you split: ingest once (Kafka), **three consumers**, shared schema, nightly recon.
-    3. Fraud: degrade to **heuristic / allow-with-flag** using last-known features; do not block checkout on CDC. Live wall: lag badge, do not pretend freshness. Legal daily: still fine if the failover is inside the day; re-run after catch-up.
-    4. Compare Flink-derived daily error counts vs Iceberg batch counts per `customer_id` (and global). Page if relative error > 0.5% **and** absolute > N, or if fraud decision log volume vs checkout CDC count diverges. Store the diff; do not “merge in serving.”
-    5. **Do not** land raw 100-byte points as millions of tiny Parquet files per minute. Stream into a TSDB or wide-events table with **downsampling** (1 min / 1 h rollups); lake gets rollups + a sampled raw. 1000× is tiered retention, not a bigger Spark nightly on raw.

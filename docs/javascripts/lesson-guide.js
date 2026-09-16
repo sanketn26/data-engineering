@@ -9,6 +9,7 @@ document$.subscribe(function () {
   const internals = article.querySelector("#internals, h2[id^='internals-']");
   const practice = article.querySelector("#practice-the-idea");
   const exercise = article.querySelector("#exercise");
+  const outcome = article.querySelector("#what-happened-next");
 
   // Orientation, architecture, reference, and lab pages already have their own flow.
   if (!intuition || (!situation && !internals)) return;
@@ -22,21 +23,27 @@ document$.subscribe(function () {
   eyebrow.textContent = "A simple way through this lesson";
 
   const copy = document.createElement("p");
-  copy.innerHTML = "On your <strong>first pass</strong>, understand the situation and mental picture. Return for mechanics and production detail when you need them.";
+  copy.innerHTML = outcome
+    ? "On your <strong>first pass</strong>, read the situation, the mental picture, and how it ended. Return for the mechanics and the production detail when you need them."
+    : "On your <strong>first pass</strong>, understand the situation and mental picture. Return for mechanics and production detail when you need them.";
 
   const links = document.createElement("div");
   links.className = "lesson-guide__links";
 
+  // Labels are numbered at render time: any of these sections may be absent.
   const steps = [
-    [situation, "1 · Situation"],
-    [intuition, "2 · Mental picture"],
-    [practice, "3 · Practise it"],
-    [internals, practice ? "4 · Deep dive" : "3 · Deep dive"],
-    [exercise, practice ? "5 · Check the idea" : "4 · Check the idea"],
-  ];
+    [situation, "Situation"],
+    [intuition, "Mental picture"],
+    [practice, "Practise it"],
+    [internals, "Deep dive"],
+    [outcome, "What happened next"],
+    [exercise, "Check the idea"],
+  ].filter(function ([heading]) {
+    return heading;
+  });
 
-  steps.forEach(function ([heading, label]) {
-    if (!heading) return;
+  steps.forEach(function ([heading, label], index) {
+    label = `${index + 1} · ${label}`;
     const link = document.createElement("a");
     link.href = `#${heading.id}`;
     link.textContent = label;

@@ -233,6 +233,57 @@ Fraud wants **recall of a neighbourhood from a seed**. Recs want **top-k similar
 
 ---
 
+## Architecture placement
+
+```mermaid
+flowchart LR
+    Ledger[Postgres ledger]
+    Edges[Edge events on Kafka]
+    Trav[Traversal store]
+    Feat[Neighbourhood features]
+    OLAP[ClickHouse]
+
+    Ledger --> Edges
+    Edges --> Trav
+    Edges --> Feat
+    Feat --> OLAP
+    Trav --> Risk[Risk API]
+```
+
+Graph thinking decides **which box** the question lands in. It does not require all boxes on day one. Many teams live on ledger + Kafka + Spark features for a year, then add Neo4j when investigators cannot work in notebooks.
+
+---
+
+## Check your understanding { #exercise }
+
+??? question "Is this a graph query?"
+    Classify each as Postgres, graph traversal, GDS/OLAP, or recsys-offline. One sentence why.
+
+    1. Last 20 transactions for `user_id`.
+    2. All users sharing a device with anyone who shared an IP with a known fraudster (depth ≤ 3).
+    3. Fraud GMV by merchant category last week.
+    4. Connected components of the 90-day device-sharing graph.
+    5. Top-10 similar merchants to merchant M for a rec carousel.
+    6. Org chart manager* of an employee.
+
+??? success "Answer"
+    1. Postgres (1 hop, PK).
+    2. Graph traversal (variable path, typed edges) — bounded MATCH, not WCC.
+    3. OLAP/ClickHouse (scan + group by).
+    4. GDS WCC (global algorithm, batch).
+    5. Offline similarity (GDS nodeSimilarity or embeddings) → precomputed list; not live k-NN on the OLTP graph at 200 ms unless the catalogue is tiny.
+    6. Postgres recursive CTE or graph; degree is low — **Postgres is enough**.
+
+---
+
+## Reference
+
+Behaviour at the next orders of magnitude, the trade-offs, the alternatives, and
+what to check when inheriting someone else's version of this — kept here rather
+than in the walkthrough above.
+
+---
+
 ## How to investigate { #debugging }
 
 When a “graph-shaped” SQL is slow:
@@ -285,43 +336,3 @@ On-call smell: a Looker dashboard that “just needs one more join to devices.�
 
 ---
 
-## Architecture placement
-
-```mermaid
-flowchart LR
-    Ledger[Postgres ledger]
-    Edges[Edge events on Kafka]
-    Trav[Traversal store]
-    Feat[Neighbourhood features]
-    OLAP[ClickHouse]
-
-    Ledger --> Edges
-    Edges --> Trav
-    Edges --> Feat
-    Feat --> OLAP
-    Trav --> Risk[Risk API]
-```
-
-Graph thinking decides **which box** the question lands in. It does not require all boxes on day one. Many teams live on ledger + Kafka + Spark features for a year, then add Neo4j when investigators cannot work in notebooks.
-
----
-
-## Check your understanding { #exercise }
-
-??? question "Is this a graph query?"
-    Classify each as Postgres, graph traversal, GDS/OLAP, or recsys-offline. One sentence why.
-
-    1. Last 20 transactions for `user_id`.
-    2. All users sharing a device with anyone who shared an IP with a known fraudster (depth ≤ 3).
-    3. Fraud GMV by merchant category last week.
-    4. Connected components of the 90-day device-sharing graph.
-    5. Top-10 similar merchants to merchant M for a rec carousel.
-    6. Org chart manager* of an employee.
-
-??? success "Answer"
-    1. Postgres (1 hop, PK).
-    2. Graph traversal (variable path, typed edges) — bounded MATCH, not WCC.
-    3. OLAP/ClickHouse (scan + group by).
-    4. GDS WCC (global algorithm, batch).
-    5. Offline similarity (GDS nodeSimilarity or embeddings) → precomputed list; not live k-NN on the OLTP graph at 200 ms unless the catalogue is tiny.
-    6. Postgres recursive CTE or graph; degree is low — **Postgres is enough**.

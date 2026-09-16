@@ -390,6 +390,26 @@ transform = SparkSubmitOperator(
 
 ---
 
+## Check your understanding { #exercise }
+
+A team adds `expand` over every S3 object in `s3://events/dt={{ ds }}/` (≈ 40,000 part files). Each mapped task is a `PythonOperator` that reads one Parquet file with pandas and appends to a warehouse table. `catchup` was left default; `start_date` is 90 days ago.
+
+??? question "Name three independent incidents this DAG will cause, in the order they appear after deploy."
+    Think scheduler, metadata, and data.
+
+    ??? success "Answer"
+        1. **Catchup fan-out**: 90 days × 40,000 mapped TIs queued; scheduler and metadata DB melt before any useful load. 2. **Worker-side processing**: pandas on Airflow workers OOM / slot starvation — orchestration used as compute. 3. **Non-idempotent appends**: retries and overlapping days duplicate rows; clearing a TI makes it worse. The correct shape is one Spark/Databricks job per `ds` (or per large tenant), `catchup=False`, partition overwrite, and mapping only if you have tens of tenants not tens of thousands of files.
+
+---
+
+## Reference
+
+Behaviour at the next orders of magnitude, the trade-offs, the alternatives, and
+what to check when inheriting someone else's version of this — kept here rather
+than in the walkthrough above.
+
+---
+
 ## How to investigate { #debugging }
 
 1. **Parse**: `airflow dags list-import-errors`. If the file imports Spark, you already lost.
@@ -458,13 +478,3 @@ When you open a DAG PR:
 If the answer to (4) is no, stop and fix [idempotency](idempotency.md) before adding tasks.
 
 ---
-
-## Check your understanding { #exercise }
-
-A team adds `expand` over every S3 object in `s3://events/dt={{ ds }}/` (≈ 40,000 part files). Each mapped task is a `PythonOperator` that reads one Parquet file with pandas and appends to a warehouse table. `catchup` was left default; `start_date` is 90 days ago.
-
-??? question "Name three independent incidents this DAG will cause, in the order they appear after deploy."
-    Think scheduler, metadata, and data.
-
-    ??? success "Answer"
-        1. **Catchup fan-out**: 90 days × 40,000 mapped TIs queued; scheduler and metadata DB melt before any useful load. 2. **Worker-side processing**: pandas on Airflow workers OOM / slot starvation — orchestration used as compute. 3. **Non-idempotent appends**: retries and overlapping days duplicate rows; clearing a TI makes it worse. The correct shape is one Spark/Databricks job per `ds` (or per large tenant), `catchup=False`, partition overwrite, and mapping only if you have tens of tenants not tens of thousands of files.

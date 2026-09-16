@@ -254,6 +254,31 @@ Debugging pointers: Prom `head_series`; Timescale `EXPLAIN` chunk exclusion; CH 
 
 ---
 
+## Check your understanding { #exercise }
+
+Company today: Prometheus (15 d) for k8s; Postgres 2 TB of IoT rows (`readings` with indexes on `(device_id, ts)`), inserts 8k/s and climbing to 80k/s; product wants per-user API latency in Grafana **using the existing Prom**.
+
+Pick a 12-month architecture for (a) paging, (b) IoT, (c) per-user latency. Name what you **stop** doing.
+
+??? success "Answer"
+    **(a) Paging:** keep Prometheus (HA pair) + Alertmanager. Add VictoriaMetrics (or Mimir) remote_write for >15 d and recording rules. Do **not** dump IoT or per-user into it.
+
+    **(b) IoT:** stop using vanilla Postgres as the hot path at 80k inserts/s without Timescale (batch, hypertable, compression, drop extra indexes) **or** move ingest to ClickHouse with batched Kafka. Given 80k/s and likely growth, **ClickHouse** (or Timescale **only** if the team is PG-native and benchmarks batch insert + compression on **their** hardware). Raw TTL + 1m/1h cagg/MV. Postgres remains **devices/customers** OLTP, not 80k/s readings.
+
+    **(c) Per-user latency:** **stop** the Prom plan. Kafka events → ClickHouse `ORDER BY (customer_id, timestamp)` or similar; Grafana SQL or a product API. Optional Pinot if this becomes customer-facing QPS. Prom stays on `{service, endpoint}` SLOs.
+
+    Stop: unbounded labels; `INSERT` one IoT row per HTTP; 13-month Postgres heap of readings; Grafana on Prom for user-level tiles.
+
+---
+
+## Reference
+
+Behaviour at the next orders of magnitude, the trade-offs, the alternatives, and
+what to check when inheriting someone else's version of this — kept here rather
+than in the walkthrough above.
+
+---
+
 ## How to investigate { #debugging }
 
 Ask four questions of any slow tile:
@@ -330,17 +355,3 @@ Related: [IoT](../architectures/iot.md), [observability](../architectures/observ
 
 ---
 
-## Check your understanding { #exercise }
-
-Company today: Prometheus (15 d) for k8s; Postgres 2 TB of IoT rows (`readings` with indexes on `(device_id, ts)`), inserts 8k/s and climbing to 80k/s; product wants per-user API latency in Grafana **using the existing Prom**.
-
-Pick a 12-month architecture for (a) paging, (b) IoT, (c) per-user latency. Name what you **stop** doing.
-
-??? success "Answer"
-    **(a) Paging:** keep Prometheus (HA pair) + Alertmanager. Add VictoriaMetrics (or Mimir) remote_write for >15 d and recording rules. Do **not** dump IoT or per-user into it.
-
-    **(b) IoT:** stop using vanilla Postgres as the hot path at 80k inserts/s without Timescale (batch, hypertable, compression, drop extra indexes) **or** move ingest to ClickHouse with batched Kafka. Given 80k/s and likely growth, **ClickHouse** (or Timescale **only** if the team is PG-native and benchmarks batch insert + compression on **their** hardware). Raw TTL + 1m/1h cagg/MV. Postgres remains **devices/customers** OLTP, not 80k/s readings.
-
-    **(c) Per-user latency:** **stop** the Prom plan. Kafka events → ClickHouse `ORDER BY (customer_id, timestamp)` or similar; Grafana SQL or a product API. Optional Pinot if this becomes customer-facing QPS. Prom stays on `{service, endpoint}` SLOs.
-
-    Stop: unbounded labels; `INSERT` one IoT row per HTTP; 13-month Postgres heap of readings; Grafana on Prom for user-level tiles.

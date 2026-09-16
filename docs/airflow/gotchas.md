@@ -333,6 +333,26 @@ Do not start with Spark UI if step 4 says `queued`.
 
 ---
 
+## Check your understanding { #exercise }
+
+After deploy, `queued` TIs grow, Spark cluster CPU is 0%, 12 Celery workers show Python processes sleeping in `time.sleep`. A new `HttpSensor` for Stripe was added in poke mode to 12 tenant DAGs. `catchup=False`.
+
+??? question "Which gotcha is this, what is not the problem, and what three config changes restore the SLA?"
+    Worker CPU and Spark CPU are clues.
+
+    ??? success "Answer"
+        Unbounded poke sensors (gotcha 3), possibly plus pool starvation. Not catchup (disabled), not Spark, not the executor type. Fix: `mode="reschedule"` (or deferrable), `pool="sensors"` with slots ≪ 12, timeout so Stripe outages fail the wait; keep SparkSubmit on the critical path from a queue that sensors cannot consume. Optional: an Asset when the Stripe dump lands, instead of a sensor mesh.
+
+---
+
+## Reference
+
+Behaviour at the next orders of magnitude, the trade-offs, the alternatives, and
+what to check when inheriting someone else's version of this — kept here rather
+than in the walkthrough above.
+
+---
+
 ## How to investigate { #debugging }
 
 ```bash
@@ -397,13 +417,3 @@ Add a review checklist to DAG PRs (also listed on the [index](index.md)):
 If any answer is "we will monitor it," it is not fixed.
 
 ---
-
-## Check your understanding { #exercise }
-
-After deploy, `queued` TIs grow, Spark cluster CPU is 0%, 12 Celery workers show Python processes sleeping in `time.sleep`. A new `HttpSensor` for Stripe was added in poke mode to 12 tenant DAGs. `catchup=False`.
-
-??? question "Which gotcha is this, what is not the problem, and what three config changes restore the SLA?"
-    Worker CPU and Spark CPU are clues.
-
-    ??? success "Answer"
-        Unbounded poke sensors (gotcha 3), possibly plus pool starvation. Not catchup (disabled), not Spark, not the executor type. Fix: `mode="reschedule"` (or deferrable), `pool="sensors"` with slots ≪ 12, timeout so Stripe outages fail the wait; keep SparkSubmit on the critical path from a queue that sensors cannot consume. Optional: an Asset when the Stripe dump lands, instead of a sensor mesh.
