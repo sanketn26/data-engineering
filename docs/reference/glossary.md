@@ -44,6 +44,9 @@ Operational definitions as this academy uses them. If a term is not here, it is 
 
 **Compaction.** Merge small files/parts (Iceberg rewrite, CH merges, Kafka log compact is **different** — latest key only).
 
+**Consistency.** In this academy, a consistent result is a **complete, correct output**: every partition that should have landed did, and a retry did not double-count. That is pipeline correctness, not CAP linearizability. Linearizability, causal consistency, and quorum reads are a different word — the taxonomy is [Consistency Models](https://sanketn26.github.io/interview-prep/distributed-systems/consistency-models/) in Senior Engineer Academy. Cassandra `QUORUM` overlap is not “strong” on that spectrum; see [Cassandra](../databases/cassandra.md#consistency-quorum).
+{ #consistency }
+
 **Consumer group.** Set of Kafka consumers sharing `group.id`. **One** member per partition. Scaling past partition count does nothing.
 
 ---

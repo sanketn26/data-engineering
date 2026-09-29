@@ -4,6 +4,9 @@ description: "What actually changes when a pipeline crosses from gigabytes to te
 
 # Data at Scale
 
+!!! note "You will meet these"
+    This first lesson already names Spark, Kafka, S3, p95, and consumer lag. They are labels for mechanisms, not prerequisites. **p95** is the latency 95% of requests beat. The fluency assumed here is a **batch job**: one nightly script that reads a day's file and writes an aggregate. Spark is that script spread across machines (Phase 3). Kafka is a durable log several readers can replay (Phase 2); **consumer lag** is how far a reader sits behind the head of that log. S3 is the object store the job reads (Phase 1). Pass 1 — the opening, **Build the mental picture**, and **What happened next** — does not assume you have operated any of them.
+
 07:58. Maya is still holding coffee. The daily p95-by-customer job that finished in twelve minutes every morning last quarter just died at `read_parquet` with an OOM, on events shaped like this:
 
 ```text
@@ -48,7 +51,7 @@ On one box, “process the file” is a loop. At cluster scale the loop grows fa
 - **Retries multiply work.** A 2-hour job that fails at 90% and restarts from scratch is a 4-hour job wearing a 2-hour costume.
 
 !!! warning "Scale is a cliff, not a slope"
-    Systems that are “a bit slow” at 100 GB become *wrong* at 1 TB: timeouts skip partitions, memory pressure drops caches, and downstream jobs read partial hours as if they were complete.
+    Systems that are “a bit slow” at 100 GB become *wrong* at 1 TB: timeouts skip partitions, memory pressure drops caches, and downstream jobs read partial hours as if they were complete. In this academy that is a **consistency** failure: the output is not complete and correct. It is not the CAP meaning of the word ([glossary](../reference/glossary.md#consistency)).
 
 ---
 
@@ -73,7 +76,7 @@ The three tensions you will navigate on every design review:
 | **Throughput vs latency** | Big batches, full disks, high records/s | Small batches, low wait, more overhead per record |
 | **Local vs distributed** | No shuffle, simple failure | Horizontal scale, coordination, partial failure |
 
-Decoupled storage (S3) + ephemeral compute (Spark on Kubernetes) is a common modern analytical architecture *because* these tensions got explicit — it is not universal: streaming stateful systems, OLAP databases, and operational systems often keep storage and compute tightly coupled on purpose. It is not free either way: decoupling costs you data locality. See [Data Movement](data-movement.md).
+Decoupled storage (S3 — object storage you will meet in Phase 1) plus ephemeral compute (Spark on Kubernetes — the distributed batch job you will meet in Phase 3) is a common modern analytical architecture *because* these tensions got explicit. It is not universal: streaming stateful systems, OLAP databases, and operational systems often keep storage and compute tightly coupled on purpose. It is not free either way: decoupling costs you data locality. See [Data Movement](data-movement.md).
 
 ---
 
@@ -138,7 +141,7 @@ You are no longer “running a job on a dataset.” You are operating a factory:
 | Single NIC / AZ | Cross-AZ shuffle bills and latency | Keep shuffle in-AZ; compress |
 | Single format | Row JSON scanned for two columns | Parquet / Iceberg |
 | Single engine | Dashboards and ETL share a cluster | Separate serving from batch |
-| Single region | RPO/RTO or user latency | Replicate with an explicit consistency story |
+| Single region | RPO/RTO or user latency | Replicate, and say which copy a reader may see |
 
 ---
 

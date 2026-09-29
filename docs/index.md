@@ -43,7 +43,7 @@ hide:
     <span class="path-card__icon">01</span>
     <span class="path-card__time">Start here if new to internals</span>
     <h3>Foundations first</h3>
-    <p>Scale, partitioning, and distributed execution before you touch a product name. Then Kafka and Spark.</p>
+    <p>Scale, partitioning, and distributed execution before a product phase. Data at Scale names Spark, Kafka, and S3 as systems you will meet. Then the Kafka and Spark phases.</p>
     <span class="path-card__link">Follow the foundations path →</span>
   </a>
   <a class="path-card path-card--featured" href="learning-paths/#staff-data-platform">
@@ -140,4 +140,4 @@ The phases are named after systems because that is how teams talk. The lessons a
   <a class="course-button course-button--primary" href="start-here/">Read the briefing <span aria-hidden="true">→</span></a>
 </div>
 
-<p class="course-footnote">Sister academies: <a href="https://sanketn26.github.io/learn-ml/">Learn ML</a> · <a href="https://sanketn26.github.io/AIEngineering/">AI Engineering</a> · <a href="https://sanketn26.github.io/interview-prep/">Senior Engineer Academy</a></p>
+<p class="course-footnote">Sister academies: <a href="https://sanketn26.github.io/learn-security/">Defensive Security Engineering</a> · <a href="https://sanketn26.github.io/learn-ml/">Learn ML</a> · <a href="https://sanketn26.github.io/AIEngineering/">AI Engineering</a> · <a href="https://sanketn26.github.io/interview-prep/">Senior Engineer Academy</a></p>

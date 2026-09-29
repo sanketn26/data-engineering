@@ -5,6 +5,8 @@ description: What this academy is, who it is for, and the company whose problems
 
 # Start Here
 
+An academy for experienced engineers.
+
 You do not need to understand the whole data stack before beginning. You only
 need one familiar workload and the willingness to ask, “what breaks next?” The
 course keeps returning to that question until the moving parts feel like
@@ -90,6 +92,12 @@ The people whose problems become your problems:
 | **Priya** | Product. Promises dashboards to customers, then needs them to be true. |
 | **Jordan** | Platform lead. Runs the design reviews where "let's just add Kafka" goes to die. |
 | **Elena** | VP Finance. Appears when a number is wrong and nothing is broken. |
+
+Priya and Elena are stakeholders a number has to satisfy, not a second audience.
+If you are reading from product or finance, stay on Pass 1 of each lesson: the
+opening, **Build the mental picture**, and **What happened next**. Internals,
+labs, and the reference block are for the engineer who has to make the number
+true. That slice is marked in [How to Study](how-to-study.md#pass-1).
 
 And the tenant who causes most of it: **Acme** — `cust_0042` in every code
 sample — the enterprise customer whose contract multiplies SaaSCo's volume

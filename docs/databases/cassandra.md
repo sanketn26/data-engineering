@@ -97,18 +97,18 @@ No B-tree leaf split on the write path. That is why writes are fast — and why 
 
 Coordinator reads from enough replicas to satisfy consistency. Each replica checks memtable, row cache (if any), Bloom filters, partition index, then SSTables. Results **merge**. More SSTables → slower reads until compaction catches up.
 
-### Consistency: QUORUM
+### Consistency: QUORUM { #consistency-quorum }
 
 `QUORUM = floor(RF/2)+1`. With RF=3, QUORUM=2.
 
 | If you write with | And read with | You get |
 |-------------------|---------------|---------|
-| `QUORUM` | `QUORUM` | Strong for that row (same DC story aside) |
-| `LOCAL_QUORUM` | `LOCAL_QUORUM` | Strong **in the local DC** — what you want multi-region |
+| `QUORUM` | `QUORUM` | Overlap for that row: a later read usually sees a completed write. Not linearizable — concurrent writes can still lose updates |
+| `LOCAL_QUORUM` | `LOCAL_QUORUM` | The same overlap **in the local DC** — the multi-region default |
 | `ONE` | `ONE` | Fast, can be stale, can miss a write |
 | `ALL` | anything | Fragile; one dead replica blocks |
 
-`R + W > RF` is the textbook overlap rule. **LOCAL_QUORUM** is the production default for multi-DC, not `ALL`.
+`R + W > RF` is the textbook overlap rule. It is not “strong.” **LOCAL_QUORUM** is the production default for multi-DC, not `ALL`. The CAP spectrum — linearizable, sequential, eventual — is [Consistency Models](https://sanketn26.github.io/interview-prep/distributed-systems/consistency-models/) in Senior Engineer Academy. Elsewhere in this academy, [consistency](../reference/glossary.md#consistency) means a complete, correct pipeline output.
 
 ### Tombstones
 
