@@ -14,7 +14,7 @@ This is not a tool tutorial. The objective is:
 
 **[Open the Academy →](https://sanketn26.github.io/data-engineering/)**
 
-Sister academies: [Learn ML](https://sanketn26.github.io/learn-ml/) · [AI Engineering](https://sanketn26.github.io/AIEngineering/) · [Senior Engineer Academy](https://sanketn26.github.io/interview-prep/)
+Sister academies: [Defensive Security Engineering](https://sanketn26.github.io/learn-security/) · [Learn ML](https://sanketn26.github.io/learn-ml/) · [AI Engineering](https://sanketn26.github.io/AIEngineering/) · [Senior Engineer Academy](https://sanketn26.github.io/interview-prep/)
 
 ---
 

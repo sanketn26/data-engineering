@@ -36,6 +36,8 @@ How do you coordinate them reliably? What happens when step 4 fails? How do you 
 
 That is the problem Airflow exists to solve. It is not "a Python scheduler." It is a system of record for *which work ran, for which data interval, with which outcome*.
 
+A nightly ML job that is still one cron — features, train, a promote gate, and score — can stay on [Learn ML Week 16](https://sanketn26.github.io/learn-ml/ml/week-16/). That week says not to add Airflow until the cron file is boring. Once those steps depend on each other, or you need a record of which step ran for which data interval, you are in this phase.
+
 !!! note "This is SaaSCo at Stage 5"
     [SaaSCo: The Evolving Company](../architectures/saasco-evolution.md#stage-5-100-workflows-airflow-appears-phase-5) hits this wall once the batch DAG, the CDC pipeline, a Flink job, and a pile of one-off cron scripts cross into the hundreds of workflows: nobody can say which one ran, in what order, or on what data, until dependency-aware scheduling replaces "eyeball the crontab."
 

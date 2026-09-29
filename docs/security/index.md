@@ -15,6 +15,12 @@ D. This is a break-glass path working as designed, and the ticket trail is the c
 
 A data platform **concentrates** what every product database holds in isolation — PII, payments, auth logs, health-adjacent telemetry, internal metrics — so a breach here is not "one app's users," and the scenario above (most likely A or B) is why this page threat-models the platform like a bank, not like a blog's Postgres, mapping controls to threats rather than listing vendors.
 
+Three curricula touch security, and they do not replace each other:
+
+- **Application and SOC loop** — what a service trusts, and what an incident leaves behind — is [Defensive Security Engineering](https://sanketn26.github.io/learn-security/).
+- **Interview authentication and authorization** is [Senior Engineer Academy](https://sanketn26.github.io/interview-prep/security/authentication-authorization/).
+- **This page** is data-platform controls: grants, masking, and residency.
+
 Related: [metadata](../metadata/index.md), [notebooks](../notebooks/index.md), [analytics tenancy](../architectures/analytics-platform.md), [fraud](../architectures/fraud.md).
 
 ---

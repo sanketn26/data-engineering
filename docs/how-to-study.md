@@ -11,13 +11,17 @@ three passes instead.
 
 ## The three-pass rhythm
 
-### Pass 1 — get the picture (10–15 minutes)
+### Pass 1 — get the picture (10–15 minutes) { #pass-1 }
 
 Read the opening situation, **Build the mental picture**, and **What happened
 next**. Ignore unfamiliar configuration names, and skip **Under the hood**
 entirely — the close is written to make sense without it. At the end, say what
 happened in the scene and the central idea in one sentence. If you can predict
 the broad failure, the pass worked.
+
+Pass 1 is also the only slice written for a product or finance reader sitting
+in on the lesson. The audience of the full page is still the experienced
+engineer from the [home page](index.md).
 
 ### Pass 2 — make it concrete (15–30 minutes)
 
@@ -124,7 +128,7 @@ If you are new to data-system internals, use this sequence. The numbered phases
 in the sidebar remain useful as a map, but you do not need to finish every page
 before moving forward:
 
-1. Phase 0-1 [Foundations](foundations/index.md) — mental models and data representation before product names
+1. Phase 0-1 [Foundations](foundations/index.md) — mental models and data representation before the product phases. [Data at Scale](foundations/scale.md) names systems you will meet and defines them in place.
 2. Phase 2 [Kafka](kafka/index.md) + CDC — the log and the change stream
 3. Phase 3 [Spark](spark/index.md) — distributed compute
 4. Phase 4 [Flink](flink/index.md) — stream processing and time
